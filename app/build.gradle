@@ -121,9 +121,6 @@ dependencies {
     // Serialization (used by UpdateChecker for GitHub JSON)
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3'
 
-    // Sentry
-    implementation 'io.sentry:sentry-android:7.14.0'
-
     // HiddenApiBypass
     implementation 'org.lsposed.hiddenapibypass:hiddenapibypass:6.1'
 

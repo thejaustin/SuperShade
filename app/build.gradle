@@ -57,6 +57,11 @@ android {
         buildConfig true
     }
 
+    lint {
+        // Known crash: AGP 8.7.0 lint + Kotlin 2.x Analysis API incompatibility.
+        disable 'NullSafeMutableLiveData'
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_21
         targetCompatibility JavaVersion.VERSION_21

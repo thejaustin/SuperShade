@@ -1,0 +1,16 @@
+# Android build artifacts
+.gradle/
+build/
+app/build/
+local.properties
+*.jks
+*.keystore
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Signing (never commit keystores or secrets)
+app/supershade.keystore
+app/*.jks

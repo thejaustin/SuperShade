@@ -1,0 +1,127 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.compose'
+    id 'org.jetbrains.kotlin.plugin.serialization'
+}
+
+// Version can be overridden by CI via: -PversionCode=123 -PversionName=1.2.3
+def appVersionCode = project.findProperty("versionCode")?.toInteger() ?: 1
+def appVersionName = project.findProperty("versionName") ?: "1.0.0"
+
+android {
+    namespace 'com.supershade'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.supershade"
+        minSdk 29
+        targetSdk 36
+        versionCode appVersionCode
+        versionName appVersionName
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        release {
+            def keystorePath = System.getenv("KEYSTORE_PATH")
+            if (keystorePath) {
+                storeFile file(keystorePath)
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
+                storePassword System.getenv("STORE_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            signingConfig signingConfigs.release
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            minifyEnabled false
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+        }
+    }
+
+    buildFeatures {
+        compose true
+        aidl true
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+
+    kotlinOptions {
+        jvmTarget = '21'
+    }
+
+    bundle {
+        language { enableSplit = false }
+    }
+}
+
+dependencies {
+    // Compose BOM
+    def composeBom = platform('androidx.compose:compose-bom:2026.02.00')
+    implementation composeBom
+    androidTestImplementation composeBom
+
+    // Compose UI
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
+
+    // Material 3
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-extended'
+
+    // Activity + Lifecycle Compose
+    implementation 'androidx.activity:activity-compose:1.9.3'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.9.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.9.0'
+    implementation 'androidx.lifecycle:lifecycle-service:2.9.0'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0'
+
+    // Coroutines
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1'
+
+    // Shizuku
+    implementation 'dev.rikka.shizuku:api:13.1.5'
+    implementation 'dev.rikka.shizuku:provider:13.1.5'
+
+    // Koin
+    implementation 'io.insert-koin:koin-android:3.5.3'
+    implementation 'io.insert-koin:koin-androidx-compose:3.5.3'
+
+    // DataStore
+    implementation 'androidx.datastore:datastore-preferences:1.1.1'
+
+    // Navigation Compose
+    implementation 'androidx.navigation:navigation-compose:2.8.5'
+
+    // Serialization (used by UpdateChecker for GitHub JSON)
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3'
+
+    // Sentry
+    implementation 'io.sentry:sentry-android:7.14.0'
+
+    // HiddenApiBypass
+    implementation 'org.lsposed.hiddenapibypass:hiddenapibypass:6.1'
+
+    // Testing
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+    androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
+}

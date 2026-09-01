@@ -17,7 +17,7 @@ import org.koin.dsl.module
 val appModule = module {
     single { ShadeSettings(androidContext()) }
     single { ShizukuPlusConnector(androidContext()) }
-    single { StatusBarGovernor(get()) }
+    single { StatusBarGovernor(androidContext(), get()) }
     single { NotificationRepository() }
     single { TileRepository(androidContext(), get()) }
     single { TileToggler(androidContext(), get()) }

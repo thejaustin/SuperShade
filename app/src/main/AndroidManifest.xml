@@ -56,6 +56,11 @@
             </intent-filter>
         </service>
 
+        <!-- Shizuku UserService — runs as shell UID to execute privileged commands -->
+        <service
+            android:name=".shizuku.ShadeCommanderService"
+            android:exported="false" />
+
         <!-- Shizuku provider -->
         <provider
             android:name="rikka.shizuku.ShizukuProvider"

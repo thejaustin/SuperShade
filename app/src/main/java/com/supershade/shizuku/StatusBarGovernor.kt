@@ -1,22 +1,60 @@
 package com.supershade.shizuku
 
+import android.content.ComponentName
+import android.content.Context
+import android.content.ServiceConnection
+import android.os.IBinder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import rikka.shizuku.Shizuku
 
-class StatusBarGovernor(private val connector: ShizukuPlusConnector) {
+class StatusBarGovernor(
+    private val context: Context,
+    private val connector: ShizukuPlusConnector,
+) {
+
+    private var commander: IShadeCommander? = null
+
+    private val serviceArgs: Shizuku.UserServiceArgs get() = Shizuku.UserServiceArgs(
+        ComponentName(context.packageName, ShadeCommanderService::class.java.name)
+    ).daemon(false).processNameSuffix("commander").debuggable(false).version(1)
+
+    private val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            commander = IShadeCommander.Stub.asInterface(service)
+        }
+        override fun onServiceDisconnected(name: ComponentName?) {
+            commander = null
+        }
+    }
+
+    fun bindService() {
+        if (!connector.hasPermission()) return
+        try {
+            Shizuku.bindUserService(serviceArgs, serviceConnection)
+        } catch (_: Exception) {}
+    }
+
+    fun unbindService() {
+        try {
+            Shizuku.unbindUserService(serviceArgs, serviceConnection, false)
+        } catch (_: Exception) {}
+        commander = null
+    }
 
     private suspend fun exec(vararg args: String): Boolean = withContext(Dispatchers.IO) {
         try {
             if (!connector.hasPermission()) return@withContext false
-            Shizuku.newProcess(args, null, null).waitFor() == 0
+            val cmd = Array(args.size) { args[it] }
+            commander?.exec(cmd) ?: false
         } catch (_: Exception) { false }
     }
 
     private suspend fun execOutput(vararg args: String): String = withContext(Dispatchers.IO) {
         try {
             if (!connector.hasPermission()) return@withContext ""
-            Shizuku.newProcess(args, null, null).inputStream.bufferedReader().readText().trim()
+            val cmd = Array(args.size) { args[it] }
+            commander?.execForOutput(cmd) ?: ""
         } catch (_: Exception) { "" }
     }
 

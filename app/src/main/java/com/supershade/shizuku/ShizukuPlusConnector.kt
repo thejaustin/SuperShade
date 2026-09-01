@@ -17,7 +17,6 @@ class ShizukuPlusConnector(private val context: Context) {
     private val binderReceivedListener = Shizuku.OnBinderReceivedListener {
         _isConnected.value = true
         _serviceBinder = Shizuku.getBinder()
-        grantRequiredPermissions()
     }
 
     private val binderDeadListener = Shizuku.OnBinderDeadListener {
@@ -38,25 +37,6 @@ class ShizukuPlusConnector(private val context: Context) {
 
     fun requestPermission(requestCode: Int) {
         Shizuku.requestPermission(requestCode)
-    }
-
-    private fun grantRequiredPermissions() {
-        val perms = listOf(
-            "android.permission.STATUS_BAR",
-            "android.permission.WRITE_SECURE_SETTINGS",
-            "android.permission.WRITE_SETTINGS",
-            "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
-        )
-        perms.forEach { perm ->
-            try {
-                if (context.checkSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {
-                    Shizuku.newProcess(
-                        arrayOf("pm", "grant", context.packageName, perm),
-                        null, null
-                    ).waitFor()
-                }
-            } catch (_: Exception) {}
-        }
     }
 
     fun cleanup() {

@@ -10,6 +10,7 @@ import com.supershade.domain.notification.model.ShadeCategory
 import com.supershade.domain.tile.TileDefinition
 import com.supershade.domain.tile.TileRepository
 import com.supershade.domain.tile.TileToggler
+import com.supershade.settings.ShadeSettings
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +28,7 @@ class ShadeViewModel(
     private val tileToggler: TileToggler,
     private val mediaRepo: MediaRepository,
     private val brightnessRepo: BrightnessRepository,
+    private val settings: ShadeSettings,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ShadeState())
@@ -56,6 +58,10 @@ class ShadeViewModel(
                 updatePositionTicker(media)
             }
             .launchIn(viewModelScope)
+
+        settings.theme
+            .onEach { t -> _state.update { it.copy(theme = t) } }
+            .launchIn(viewModelScope)
     }
 
     private fun updatePositionTicker(media: MediaState?) {
@@ -64,16 +70,16 @@ class ShadeViewModel(
             positionTickerJob = null
             return
         }
-        if (positionTickerJob?.isActive != true) {
-            positionTickerJob = viewModelScope.launch {
-                while (isActive) {
-                    delay(1000L)
-                    _state.update { s ->
-                        val current = s.media ?: return@update s
-                        if (!current.isPlaying) return@update s
-                        val newPos = (current.position + 1000L).coerceAtMost(current.duration)
-                        s.copy(media = current.copy(position = newPos))
-                    }
+        // Always cancel and restart to re-seed position from the latest MediaState
+        positionTickerJob?.cancel()
+        positionTickerJob = viewModelScope.launch {
+            while (isActive) {
+                delay(1000L)
+                _state.update { s ->
+                    val current = s.media ?: return@update s
+                    if (!current.isPlaying) return@update s
+                    val newPos = (current.position + 1000L).coerceAtMost(current.duration)
+                    s.copy(media = current.copy(position = newPos))
                 }
             }
         }
@@ -102,7 +108,7 @@ class ShadeViewModel(
     }
 
     fun dismissNotification(key: String) {
-        notificationRepo.onNotificationRemoved(key)
+        notificationRepo.cancelAndRemove(key)
     }
 
     // --- Media transport controls ---
@@ -119,7 +125,8 @@ class ShadeViewModel(
 
     fun setBrightness(value: Int) {
         brightnessRepo.set(value)
-        _state.update { it.copy(brightness = value) }
+        val actual = brightnessRepo.getCurrent()
+        _state.update { it.copy(brightness = actual) }
     }
 
     // --- Lifecycle ---

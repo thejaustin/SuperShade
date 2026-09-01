@@ -11,15 +11,17 @@ class BrightnessRepository(private val context: Context) {
         128
     }
 
-    fun set(value: Int) {
-        try {
+    // Bug 4: return Boolean so callers know whether the write succeeded
+    fun set(value: Int): Boolean {
+        return try {
             setAutoOff()
             Settings.System.putInt(
                 context.contentResolver,
                 Settings.System.SCREEN_BRIGHTNESS,
                 value.coerceIn(1, 255),
             )
-        } catch (_: SecurityException) {}
+            true
+        } catch (_: SecurityException) { false }
     }
 
     fun isAuto(): Boolean = try {

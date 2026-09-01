@@ -50,6 +50,10 @@ class HeadsUpOverlay(private val context: Context) {
     private var currentView: ComposeView? = null
     private var currentLifecycleOwner: HeadsUpLifecycleOwner? = null
 
+    // Bug 6: unique token per show() invocation to prevent stale postDelayed from
+    // dismissing a card that was shown after the one that scheduled it.
+    private var currentDismissToken: Any? = null
+
     // ---------------------------------------------------------------------------
     // WindowManager params — full-width, wrap-height strip at the top of screen
     // ---------------------------------------------------------------------------
@@ -101,8 +105,13 @@ class HeadsUpOverlay(private val context: Context) {
                 return@post
             }
 
-            // Schedule automatic dismissal.
-            handler.postDelayed({ dismissCurrent() }, autoDismissMs)
+            // Bug 6: mint a new token and only dismiss if it's still the current one,
+            // preventing the first card's delayed callback from killing the second card.
+            val token = Any()
+            currentDismissToken = token
+            handler.postDelayed({
+                if (currentDismissToken === token) dismissCurrent()
+            }, autoDismissMs)
         }
     }
 
@@ -112,7 +121,9 @@ class HeadsUpOverlay(private val context: Context) {
      */
     fun destroy() {
         handler.removeCallbacksAndMessages(null)
-        handler.post { dismissCurrent() }
+        // Bug 5: call synchronously — destroy() is always called on the main thread,
+        // and a posted message may never run if the process is killed immediately.
+        dismissCurrent()
     }
 
     // ---------------------------------------------------------------------------

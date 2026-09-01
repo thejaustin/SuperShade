@@ -14,9 +14,17 @@ class NotificationRepository {
     private val _notifications = MutableStateFlow<List<ShadeNotification>>(emptyList())
     val notifications: StateFlow<List<ShadeNotification>> = _notifications.asStateFlow()
 
+    // Set by NotificationCollector when the listener service is connected.
+    // Called by cancelAndRemove to cancel the notification at the system level.
+    var canceller: ((String) -> Unit)? = null
+
     fun onNotificationPosted(sbn: StatusBarNotification) {
         val category = categoryEngine.categorize(sbn)
         val shade = sbn.toShadeNotification(category)
+        if (shade.isGroupSummary) {
+            _notifications.update { current -> current.filter { it.key != shade.key } }
+            return
+        }
         _notifications.update { current ->
             val without = current.filter { it.key != shade.key }
             (listOf(shade) + without).sortedByDescending { it.postTime }
@@ -27,7 +35,12 @@ class NotificationRepository {
         _notifications.update { current -> current.filter { it.key != key } }
     }
 
+    fun cancelAndRemove(key: String) {
+        canceller?.invoke(key)
+        onNotificationRemoved(key)
+    }
+
     fun clearAll() {
-        _notifications.value = emptyList()
+        _notifications.update { emptyList() }
     }
 }

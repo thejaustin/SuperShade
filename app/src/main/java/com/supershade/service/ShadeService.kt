@@ -69,8 +69,12 @@ class ShadeService : Service() {
         // Start the Shizuku UserService so tile-click and status-bar commands work.
         governor.bindService()
 
-        // Disable the system notification shade so our overlay takes over.
-        scope.launch { governor.disableExpansion() }
+        // Bug 7: enable first to clear any stale disable-state left by a prior crash,
+        // then disable so our overlay takes over the system notification shade.
+        scope.launch {
+            governor.enableExpansion()
+            governor.disableExpansion()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY

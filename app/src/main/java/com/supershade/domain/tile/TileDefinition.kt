@@ -7,7 +7,9 @@ data class TileDefinition(
     val label: String,
     val isActive: Boolean,
     val capability: TileCapability,
-    val settingsAction: String? = null
+    val settingsAction: String? = null,
+    // Bug 3 fix: full component name required by "cmd statusbar click-tile"
+    val componentName: String? = null,
 )
 
 val KNOWN_TILES: Map<String, Pair<String, TileCapability>> = mapOf(
@@ -41,4 +43,31 @@ val KNOWN_TILES: Map<String, Pair<String, TileCapability>> = mapOf(
     "datasaver"    to ("Data Saver"     to TileCapability.SETTINGS_INTENT),
     "work"         to ("Work Profile"   to TileCapability.FULL_TOGGLE),
     "onehanded"    to ("One-Handed"     to TileCapability.FULL_TOGGLE),
+)
+
+// Bug 3 fix: map short tile IDs to the fully-qualified component names that
+// "cmd statusbar click-tile" requires.
+val TILE_COMPONENTS: Map<String, String> = mapOf(
+    "internet"     to "com.android.systemui/.qs.tiles.InternetTile",
+    "wifi"         to "com.android.systemui/.qs.tiles.WifiTile",
+    "bt"           to "com.android.systemui/.qs.tiles.BluetoothTile",
+    "nfc"          to "com.android.systemui/.qs.tiles.NfcTile",
+    "hotspot"      to "com.android.systemui/.qs.tiles.HotspotTile",
+    "airplane"     to "com.android.systemui/.qs.tiles.AirplaneModeTile",
+    "cell"         to "com.android.systemui/.qs.tiles.CellularTile",
+    "dark"         to "com.android.systemui/.qs.tiles.UiModeNightTile",
+    "night"        to "com.android.systemui/.qs.tiles.NightDisplayTile",
+    "rotation"     to "com.android.systemui/.qs.tiles.RotationLockTile",
+    "cast"         to "com.android.systemui/.qs.tiles.CastTile",
+    "screenrecord" to "com.android.systemui/.qs.tiles.ScreenRecordTile",
+    "dnd"          to "com.android.systemui/.qs.tiles.DndTile",
+    "flashlight"   to "com.android.systemui/.qs.tiles.FlashlightTile",
+    "mute"         to "com.android.systemui/.qs.tiles.MuteModeTile",
+    "battery"      to "com.android.systemui/.qs.tiles.BatterySaverTile",
+    "location"     to "com.android.systemui/.qs.tiles.LocationTile",
+    "alarm"        to "com.android.systemui/.qs.tiles.AlarmTile",
+    "sync"         to "com.android.systemui/.qs.tiles.SyncTile",
+    "datasaver"    to "com.android.systemui/.qs.tiles.DataSaverTile",
+    "work"         to "com.android.systemui/.qs.tiles.WorkModeTile",
+    "onehanded"    to "com.android.systemui/.qs.tiles.OneHandedModeTile",
 )

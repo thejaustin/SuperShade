@@ -24,6 +24,9 @@ class MediaRepository(private val context: Context) {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var activeController: MediaController? = null
 
+    // Bug 1: track whether the listener was successfully registered
+    private var listenerRegistered = false
+
     private val controllerCallback = object : MediaController.Callback() {
         override fun onPlaybackStateChanged(state: PlaybackState?) = updateFromActive()
         override fun onMetadataChanged(metadata: MediaMetadata?) = updateFromActive()
@@ -43,6 +46,8 @@ class MediaRepository(private val context: Context) {
         try {
             val component = ComponentName(context, NotificationCollector::class.java)
             sessionManager.addOnActiveSessionsChangedListener(sessionsListener, component, mainHandler)
+            // Bug 1: only set to true after the call succeeds
+            listenerRegistered = true
             refresh()
         } catch (_: SecurityException) {}
     }
@@ -64,7 +69,13 @@ class MediaRepository(private val context: Context) {
     fun dispose() {
         activeController?.unregisterCallback(controllerCallback)
         activeController = null
-        try { sessionManager.removeOnActiveSessionsChangedListener(sessionsListener) } catch (_: Exception) {}
+        // Bug 1: guard remove call so it only runs when the listener was registered
+        if (listenerRegistered) {
+            try { sessionManager.removeOnActiveSessionsChangedListener(sessionsListener) } catch (_: Exception) {}
+            listenerRegistered = false
+        }
+        // Bug 3: recycle old album art before nulling the flow
+        _media.value?.albumArt?.takeIf { !it.isRecycled }?.recycle()
     }
 
     // ---------------------------------------------------------------------------
@@ -73,6 +84,9 @@ class MediaRepository(private val context: Context) {
         val best = controllers?.firstOrNull {
             it.playbackState?.state == PlaybackState.STATE_PLAYING
         } ?: controllers?.firstOrNull()
+
+        // Bug 2: skip emission entirely when both sides are already null
+        if (best == null && _media.value == null) return
 
         if (best?.sessionToken != activeController?.sessionToken) {
             activeController?.unregisterCallback(controllerCallback)
@@ -86,12 +100,18 @@ class MediaRepository(private val context: Context) {
 
     private fun updateFromController(controller: MediaController?) {
         val meta = controller?.metadata
+        val newArt = meta?.getBitmap(MediaMetadata.METADATA_KEY_ART)
+            ?: meta?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+        // Bug 3: recycle the old Bitmap if it's a different instance
+        val oldArt = _media.value?.albumArt
+        if (oldArt != null && oldArt !== newArt && !oldArt.isRecycled) {
+            oldArt.recycle()
+        }
         _media.value = if (meta == null) null else MediaState(
             title = meta.getString(MediaMetadata.METADATA_KEY_TITLE) ?: "",
             artist = meta.getString(MediaMetadata.METADATA_KEY_ARTIST)
                 ?: meta.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST) ?: "",
-            albumArt = meta.getBitmap(MediaMetadata.METADATA_KEY_ART)
-                ?: meta.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART),
+            albumArt = newArt,
             isPlaying = controller.playbackState?.state == PlaybackState.STATE_PLAYING,
             packageName = controller.packageName ?: "",
             duration = meta.getLong(MediaMetadata.METADATA_KEY_DURATION),

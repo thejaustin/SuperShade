@@ -34,6 +34,7 @@ val appModule = module {
             tileToggler = get(),
             mediaRepo = get(),
             brightnessRepo = get(),
+            settings = get(),
         )
     }
 }

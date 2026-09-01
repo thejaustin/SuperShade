@@ -4,7 +4,11 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.ServiceConnection
 import android.os.IBinder
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
 import rikka.shizuku.Shizuku
 
@@ -13,7 +17,9 @@ class StatusBarGovernor(
     private val connector: ShizukuPlusConnector,
 ) {
 
-    private var commander: IShadeCommander? = null
+    // Bug 1 fix: @Volatile so reads on Dispatchers.IO always see the latest write
+    // from the ServiceConnection callbacks (main thread).
+    @Volatile private var commander: IShadeCommander? = null
 
     private val serviceArgs: Shizuku.UserServiceArgs get() = Shizuku.UserServiceArgs(
         ComponentName(context.packageName, ShadeCommanderService::class.java.name)
@@ -26,6 +32,14 @@ class StatusBarGovernor(
         override fun onServiceDisconnected(name: ComponentName?) {
             commander = null
         }
+    }
+
+    init {
+        // Bug 2 fix: re-bind whenever Shizuku (re)connects so that commander is
+        // never left null after a Shizuku restart.
+        connector.isConnected
+            .onEach { connected -> if (connected) bindService() }
+            .launchIn(CoroutineScope(SupervisorJob() + Dispatchers.Main))
     }
 
     fun bindService() {

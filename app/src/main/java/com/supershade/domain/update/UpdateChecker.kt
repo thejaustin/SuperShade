@@ -19,17 +19,17 @@ class UpdateChecker {
     }
 
     suspend fun check(currentVersion: String): UpdateInfo? = withContext(Dispatchers.IO) {
+        val conn = (URL(RELEASES_API).openConnection() as HttpURLConnection).apply {
+            setRequestProperty("Accept", "application/vnd.github+json")
+            setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
+            setRequestProperty("User-Agent", "SuperShade/$currentVersion")
+            connectTimeout = 10_000
+            readTimeout    = 10_000
+        }
         try {
-            val url = URL(RELEASES_API)
-            val conn = url.openConnection() as HttpURLConnection
-            conn.setRequestProperty("Accept", "application/vnd.github+json")
-            conn.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
-            conn.connectTimeout = 10_000
-            conn.readTimeout = 10_000
-
             if (conn.responseCode != 200) return@withContext null
 
-            val body = conn.inputStream.bufferedReader().readText()
+            val body = conn.inputStream.use { it.bufferedReader().readText() }
             val root = json.parseToJsonElement(body).jsonObject
 
             val tagName = root["tag_name"]?.jsonPrimitive?.content ?: return@withContext null
@@ -50,6 +50,8 @@ class UpdateChecker {
             )
         } catch (_: Exception) {
             null
+        } finally {
+            conn.disconnect()
         }
     }
 }

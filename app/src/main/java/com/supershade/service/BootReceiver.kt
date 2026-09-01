@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 
 class BootReceiver : BroadcastReceiver() {
 
@@ -20,10 +21,11 @@ class BootReceiver : BroadcastReceiver() {
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                val settings = ShadeSettings(context)
-                if (settings.isActive.first()) {
-                    val serviceIntent = Intent(context, ShadeService::class.java)
-                    ContextCompat.startForegroundService(context, serviceIntent)
+                withTimeout(9_000L) {
+                    val settings = ShadeSettings(context)
+                    if (settings.isActive.first()) {
+                        ContextCompat.startForegroundService(context, Intent(context, ShadeService::class.java))
+                    }
                 }
             } finally {
                 pending.finish()

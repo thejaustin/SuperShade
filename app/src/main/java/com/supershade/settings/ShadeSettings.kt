@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.supershade.ui.theme.ShadeTheme
@@ -20,7 +21,7 @@ class ShadeSettings(private val context: Context) {
         private val IS_ACTIVE_KEY = booleanPreferencesKey("is_active")
         private val ENABLED_TILES_KEY = stringPreferencesKey("enabled_tiles")
         private val LAST_SEEN_VERSION_KEY = stringPreferencesKey("last_seen_version")
-        private val LAST_UPDATE_CHECK_KEY = stringPreferencesKey("last_update_check_ms")
+        private val LAST_UPDATE_CHECK_KEY = longPreferencesKey("last_update_check_ms")
     }
 
     val theme: Flow<ShadeTheme> = context.dataStore.data.map { prefs ->
@@ -41,7 +42,7 @@ class ShadeSettings(private val context: Context) {
     }
 
     val lastUpdateCheckMs: Flow<Long> = context.dataStore.data.map { prefs ->
-        prefs[LAST_UPDATE_CHECK_KEY]?.toLongOrNull() ?: 0L
+        prefs[LAST_UPDATE_CHECK_KEY] ?: 0L
     }
 
     suspend fun setTheme(theme: ShadeTheme) {
@@ -70,7 +71,7 @@ class ShadeSettings(private val context: Context) {
 
     suspend fun setLastUpdateCheckMs(ms: Long) {
         context.dataStore.edit { prefs ->
-            prefs[LAST_UPDATE_CHECK_KEY] = ms.toString()
+            prefs[LAST_UPDATE_CHECK_KEY] = ms
         }
     }
 }

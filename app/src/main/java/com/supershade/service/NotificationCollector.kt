@@ -27,11 +27,13 @@ class NotificationCollector : NotificationListenerService() {
 
     override fun onListenerConnected() {
         super.onListenerConnected()
+        repository.canceller = { key -> cancelNotification(key) }
         activeNotifications?.forEach { repository.onNotificationPosted(it) }
     }
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
+        repository.canceller = null
         repository.clearAll()
     }
 }

@@ -11,7 +11,13 @@ class TileToggler(
 ) {
     suspend fun toggle(tile: TileDefinition) {
         when (tile.capability) {
-            TileCapability.FULL_TOGGLE -> governor.clickTile(tile.id)
+            // Bug 3 fix: pass the full component name rather than the short id.
+            // componentName is populated by TileRepository from TILE_COMPONENTS;
+            // fall back to tile.id only if no mapping exists (e.g. third-party tiles).
+            TileCapability.FULL_TOGGLE -> {
+                val component = tile.componentName ?: tile.id
+                governor.clickTile(component)
+            }
             TileCapability.SETTINGS_INTENT -> openSettings(tile)
             TileCapability.READ_ONLY -> Unit
         }

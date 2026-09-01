@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,24 +45,27 @@ fun ShadeRoot(
     }
 
     themeWrapper {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-        ) {
-            // Tap the exposed area below the panel to dismiss
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Dimmer scrim — tapping it dismisses the shade
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.55f))
                     .clickable(onClick = onDismiss),
             )
 
+            // Shade panel: slides down from the top, rounded bottom corners
             AnimatedVisibility(
                 visible = state.isOpen,
-                enter = slideInVertically(tween(300)) { -it } + fadeIn(tween(300)),
-                exit  = slideOutVertically(tween(250)) { -it } + fadeOut(tween(250)),
+                enter = slideInVertically(tween(300)) { -it } + fadeIn(tween(200)),
+                exit  = slideOutVertically(tween(250)) { -it } + fadeOut(tween(200)),
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
+                        .background(MaterialTheme.colorScheme.surface),
+                ) {
                     StatusBarRow(statusBar = state.statusBar)
                     QuickSettingsGrid(
                         tiles = state.tiles,
@@ -90,7 +94,7 @@ fun ShadeRoot(
                         onDismiss = { viewModel.dismissNotification(it) },
                     )
 
-                    // OneUI drag-handle pill at the bottom edge of the panel
+                    // Drag-handle pill at the bottom edge of the panel
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -102,7 +106,7 @@ fun ShadeRoot(
                                 .width(36.dp)
                                 .height(4.dp)
                                 .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.30f)),
+                                .background(Color.White.copy(alpha = 0.25f)),
                         )
                     }
                 }

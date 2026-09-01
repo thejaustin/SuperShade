@@ -1,9 +1,10 @@
 package com.supershade.ui.shade
 
-import android.content.IntentFilter
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.BatteryManager
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -21,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -29,7 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.supershade.viewmodel.StatusBarState
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -39,96 +40,99 @@ import java.util.Locale
 private fun formatTime(): String =
     SimpleDateFormat("h:mm", Locale.getDefault()).format(Date())
 
+private fun formatDate(): String =
+    SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date())
+
 @Composable
 fun StatusBarRow(statusBar: StatusBarState) {
     val context = LocalContext.current
 
-    // Live time — updates every 30 seconds
     var time by remember { mutableStateOf(formatTime()) }
+    var date by remember { mutableStateOf(formatDate()) }
+
+    // Resolve initial battery state from sticky broadcast
+    val batteryIntent = remember(context) {
+        context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+    }
+    val initLevel = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+    val initScale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+    val initPct = if (initLevel >= 0 && initScale > 0) (initLevel * 100 / initScale) else statusBar.batteryPct
+    val initStatus = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+
+    var batteryPct by remember { mutableIntStateOf(initPct) }
+    var isCharging by remember {
+        mutableStateOf(
+            initStatus == BatteryManager.BATTERY_STATUS_CHARGING ||
+            initStatus == BatteryManager.BATTERY_STATUS_FULL
+        )
+    }
+
     LaunchedEffect(Unit) {
         while (true) {
             delay(30_000L)
             time = formatTime()
-        }
-    }
-
-    // Live battery — read from sticky ACTION_BATTERY_CHANGED broadcast
-    val batteryIntent = remember(context) {
-        context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-    }
-    val initialLevel = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-    val initialScale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-    val initialPct = if (initialLevel >= 0 && initialScale > 0) {
-        (initialLevel * 100 / initialScale)
-    } else {
-        statusBar.batteryPct
-    }
-    val initialStatus = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-    val initialCharging = initialStatus == BatteryManager.BATTERY_STATUS_CHARGING ||
-            initialStatus == BatteryManager.BATTERY_STATUS_FULL
-
-    var batteryPct by remember { mutableStateOf(initialPct) }
-    var isCharging by remember { mutableStateOf(initialCharging) }
-
-    // Refresh battery reading every 30 seconds alongside the clock tick
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(30_000L)
+            date = formatDate()
             val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
             val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
             val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-            if (level >= 0 && scale > 0) {
-                batteryPct = level * 100 / scale
-            }
+            if (level >= 0 && scale > 0) batteryPct = level * 100 / scale
             val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
             isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                    status == BatteryManager.BATTERY_STATUS_FULL
+                         status == BatteryManager.BATTERY_STATUS_FULL
         }
     }
 
-    // Icon selection
     val batteryIcon = when {
-        isCharging -> Icons.Default.BatteryChargingFull
+        isCharging       -> Icons.Default.BatteryChargingFull
         batteryPct >= 80 -> Icons.Default.Battery6Bar
         batteryPct >= 60 -> Icons.Default.Battery5Bar
         batteryPct >= 40 -> Icons.Default.Battery4Bar
         batteryPct >= 20 -> Icons.Default.Battery3Bar
-        else -> Icons.Default.Battery2Bar
+        else             -> Icons.Default.Battery2Bar
     }
-
-    // Tint selection
     val batteryTint = when {
-        isCharging -> Color(0xFF4CAF50)
-        batteryPct < 20 -> Color(0xFFF44336)
-        else -> MaterialTheme.colorScheme.onBackground
+        isCharging      -> Color(0xFF4CAF50)
+        batteryPct < 20 -> Color(0xFFEF5350)
+        else            -> MaterialTheme.colorScheme.onBackground
     }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+            .padding(horizontal = 24.dp, vertical = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.Top,
     ) {
-        Text(
-            text = time,
-            style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp),
-            color = MaterialTheme.colorScheme.onBackground
-        )
+        // OneUI signature: large lightweight clock + date stacked on the left
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = time,
+                style = MaterialTheme.typography.displayMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            Text(
+                text = date,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        // Right: battery percentage + icon, top-aligned
         Row(
+            modifier = Modifier.padding(top = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
                 text = "$batteryPct%",
                 style = MaterialTheme.typography.bodySmall,
-                color = batteryTint
+                color = batteryTint,
             )
             Icon(
                 imageVector = batteryIcon,
                 contentDescription = "Battery",
                 tint = batteryTint,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(18.dp),
             )
         }
     }

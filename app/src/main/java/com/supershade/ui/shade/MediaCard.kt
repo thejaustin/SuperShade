@@ -40,7 +40,7 @@ fun MediaCard(
     onSkipPrevious: () -> Unit,
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
         ),
@@ -52,20 +52,20 @@ fun MediaCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
+                    .padding(horizontal = 14.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // Album art thumbnail
+                // Album art — 56 dp, 12 dp corner radius
                 media.albumArt?.let { bitmap ->
                     Image(
                         bitmap = bitmap.asImageBitmap(),
                         contentDescription = "Album art",
                         modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(8.dp)),
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(12.dp)),
                         contentScale = ContentScale.Crop,
                     )
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(14.dp))
                 }
 
                 // Title + artist
@@ -73,7 +73,7 @@ fun MediaCard(
                     Text(
                         text = media.title,
                         style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -81,7 +81,7 @@ fun MediaCard(
                         Text(
                             text = media.artist,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -105,7 +105,7 @@ fun MediaCard(
                             imageVector = if (media.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = if (media.isPlaying) "Pause" else "Play",
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(28.dp),
+                            modifier = Modifier.size(30.dp),
                         )
                     }
                     IconButton(onClick = onSkipNext) {
@@ -120,13 +120,15 @@ fun MediaCard(
 
             if (media.duration > 0) {
                 LinearProgressIndicator(
-                    progress = { (media.position.toFloat() / media.duration.toFloat()).coerceIn(0f, 1f) },
+                    progress = {
+                        (media.position.toFloat() / media.duration.toFloat()).coerceIn(0f, 1f)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp)
-                        .padding(bottom = 8.dp),
+                        .padding(horizontal = 14.dp)
+                        .padding(bottom = 10.dp),
                     color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
+                    trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f),
                 )
             }
         }

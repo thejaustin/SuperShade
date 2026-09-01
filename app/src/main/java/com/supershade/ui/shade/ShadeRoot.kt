@@ -12,10 +12,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.supershade.domain.notification.model.ShadeCategory
 import com.supershade.ui.theme.OneUiShadeTheme
@@ -41,7 +49,7 @@ fun ShadeRoot(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background),
         ) {
-            // Tap outside the shade panel to dismiss
+            // Tap the exposed area below the panel to dismiss
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -81,6 +89,22 @@ fun ShadeRoot(
                         notifications = state.visibleNotifications,
                         onDismiss = { viewModel.dismissNotification(it) },
                     )
+
+                    // OneUI drag-handle pill at the bottom edge of the panel
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(36.dp)
+                                .height(4.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.30f)),
+                        )
+                    }
                 }
             }
         }

@@ -6,8 +6,10 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
+import com.supershade.R
 import com.supershade.overlay.GestureOverlay
 import com.supershade.overlay.ShadeWindowManager
+import com.supershade.shizuku.ShizukuPlusConnector
 import com.supershade.shizuku.StatusBarGovernor
 import com.supershade.viewmodel.ShadeViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -31,6 +33,7 @@ import org.koin.android.ext.android.inject
 class ShadeService : Service() {
 
     private val governor: StatusBarGovernor by inject()
+    private val connector: ShizukuPlusConnector by inject()
 
     // ShadeViewModel is a Koin singleton — resolved here so the service and the
     // ComposeView overlay share the exact same instance.
@@ -63,6 +66,9 @@ class ShadeService : Service() {
         gestureOverlay = GestureOverlay(this) { windowManager.show() }
         gestureOverlay?.attach()
 
+        // Start the Shizuku UserService so tile-click and status-bar commands work.
+        governor.bindService()
+
         // Disable the system notification shade so our overlay takes over.
         scope.launch { governor.disableExpansion() }
     }
@@ -76,6 +82,10 @@ class ShadeService : Service() {
         windowManager.hide()
         // Re-enable the system shade before we fully shut down, then cancel scope.
         scope.launch { governor.enableExpansion() }.invokeOnCompletion { scope.cancel() }
+
+        // Tear down the Shizuku UserService and clean up binder listeners.
+        governor.unbindService()
+        connector.cleanup()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -100,7 +110,7 @@ class ShadeService : Service() {
         Notification.Builder(this, CHANNEL_ID)
             .setContentTitle("SuperShade active")
             .setContentText("Swipe down to open the shade")
-            .setSmallIcon(android.R.drawable.ic_menu_agenda)
+            .setSmallIcon(R.drawable.ic_notification_shade)
             .setOngoing(true)
             .build()
 }

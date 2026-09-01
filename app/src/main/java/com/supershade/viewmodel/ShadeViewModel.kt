@@ -4,17 +4,21 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.supershade.domain.brightness.BrightnessRepository
 import com.supershade.domain.media.MediaRepository
+import com.supershade.domain.media.MediaState
 import com.supershade.domain.notification.NotificationRepository
 import com.supershade.domain.notification.model.ShadeCategory
 import com.supershade.domain.tile.TileDefinition
 import com.supershade.domain.tile.TileRepository
 import com.supershade.domain.tile.TileToggler
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class ShadeViewModel(
@@ -27,6 +31,8 @@ class ShadeViewModel(
 
     private val _state = MutableStateFlow(ShadeState())
     val state: StateFlow<ShadeState> = _state.asStateFlow()
+
+    private var positionTickerJob: Job? = null
 
     init {
         notificationRepo.notifications
@@ -45,8 +51,32 @@ class ShadeViewModel(
             .launchIn(viewModelScope)
 
         mediaRepo.media
-            .onEach { media -> _state.update { it.copy(media = media) } }
+            .onEach { media ->
+                _state.update { it.copy(media = media) }
+                updatePositionTicker(media)
+            }
             .launchIn(viewModelScope)
+    }
+
+    private fun updatePositionTicker(media: MediaState?) {
+        if (media == null || !media.isPlaying || media.duration <= 0) {
+            positionTickerJob?.cancel()
+            positionTickerJob = null
+            return
+        }
+        if (positionTickerJob?.isActive != true) {
+            positionTickerJob = viewModelScope.launch {
+                while (isActive) {
+                    delay(1000L)
+                    _state.update { s ->
+                        val current = s.media ?: return@update s
+                        if (!current.isPlaying) return@update s
+                        val newPos = (current.position + 1000L).coerceAtMost(current.duration)
+                        s.copy(media = current.copy(position = newPos))
+                    }
+                }
+            }
+        }
     }
 
     fun open() {
@@ -96,6 +126,7 @@ class ShadeViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        positionTickerJob?.cancel()
         mediaRepo.dispose()
     }
 

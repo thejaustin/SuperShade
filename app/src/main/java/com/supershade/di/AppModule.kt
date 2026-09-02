@@ -35,6 +35,7 @@ val appModule = module {
             mediaRepo = get(),
             brightnessRepo = get(),
             settings = get(),
+            governor = get(),
         )
     }
 }

@@ -76,7 +76,7 @@ class MainActivity : ComponentActivity() {
                             notifAccessGranted = isNotificationAccessGranted()
                             overlayGranted = Settings.canDrawOverlays(this@MainActivity)
                             shizukuPermGranted = connector.hasPermission()
-                            if (isActive && notifAccessGranted && overlayGranted && shizukuPermGranted) {
+                            if (isActive && notifAccessGranted && overlayGranted) {
                                 toggleShadeService(true)
                             }
                         }
@@ -86,8 +86,8 @@ class MainActivity : ComponentActivity() {
                 }
 
                 // Ensure service is running if active in settings and permissions are ready
-                LaunchedEffect(isActive, notifAccessGranted, overlayGranted, shizukuPermGranted) {
-                    if (isActive && notifAccessGranted && overlayGranted && shizukuPermGranted) {
+                LaunchedEffect(isActive, notifAccessGranted, overlayGranted) {
+                    if (isActive && notifAccessGranted && overlayGranted) {
                         toggleShadeService(true)
                     }
                 }

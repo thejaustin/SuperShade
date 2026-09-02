@@ -29,6 +29,14 @@ import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
 private fun localReleaseNotes(version: String): String = when (version) {
+    "1.2.6" -> """
+        🔓 Shizuku-free mode
+        • SuperShade now activates with just Notification Access + Display Over Other Apps
+        • Shizuku is optional — it enables direct QS tile toggling
+        • Without Shizuku, tile taps open the relevant Settings screen instead
+        • "Block system shade" toggle is greyed out when Shizuku is unavailable
+        • Shizuku status card uses a neutral style when not connected
+    """.trimIndent()
     "1.2.5" -> """
         🌙 App Dark Mode & Notification Center
         • App Dark Mode settings (System, Dark, Light, AMOLED)

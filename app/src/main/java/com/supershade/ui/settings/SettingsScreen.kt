@@ -82,15 +82,15 @@ fun SettingsScreen(
         val shizukuOk = shizukuConnected && shizukuPermGranted
         StatusCard(
             icon = Icons.Default.Smartphone,
-            label = "Shizuku",
+            label = "Shizuku (Optional)",
             ok = shizukuOk,
-            okText = "Connected",
+            okText = "Connected — QS tile toggling enabled",
             failText = when {
                 shizukuConnected && !shizukuPermGranted -> "Connected — tap to grant permission"
-                else -> "Not connected — open Shizuku"
+                else -> "Not connected — tiles will open Settings instead"
             },
             action = when {
-                shizukuConnected && !shizukuPermGranted -> null // permission dialog triggered automatically
+                shizukuConnected && !shizukuPermGranted -> null
                 !shizukuConnected -> {
                     { context.startActivity(
                         context.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")
@@ -99,6 +99,7 @@ fun SettingsScreen(
                 }
                 else -> null
             },
+            isOptional = true,
         )
         StatusCard(
             icon = Icons.Default.Notifications,
@@ -128,7 +129,7 @@ fun SettingsScreen(
 
         // ---- Shade section ------------------------------------------------
         SectionLabel("Shade")
-        val allGranted = shizukuOk && notificationAccessGranted && overlayGranted
+        val allGranted = notificationAccessGranted && overlayGranted
         ElevatedCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
@@ -152,7 +153,6 @@ fun SettingsScreen(
                 }
                 AnimatedVisibility(visible = !allGranted) {
                     val missing = buildList {
-                        if (!shizukuOk) add("Shizuku")
                         if (!notificationAccessGranted) add("Notification access")
                         if (!overlayGranted) add("Display over other apps")
                     }
@@ -174,7 +174,11 @@ fun SettingsScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("Block system shade", style = MaterialTheme.typography.titleSmall)
                                 Text(
-                                    text = if (blockSystemShade) "System panel disabled" else "System panel allowed",
+                                    text = when {
+                                        !shizukuOk -> "Requires Shizuku"
+                                        blockSystemShade -> "System panel disabled"
+                                        else -> "System panel allowed"
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -182,6 +186,7 @@ fun SettingsScreen(
                             Switch(
                                 checked = blockSystemShade,
                                 onCheckedChange = onBlockSystemShadeChange,
+                                enabled = shizukuOk,
                             )
                         }
                         Spacer(Modifier.height(4.dp))
@@ -319,15 +324,18 @@ private fun StatusCard(
     okText: String,
     failText: String,
     action: (() -> Unit)?,
+    isOptional: Boolean = false,
 ) {
+    val isWarning = !ok && isOptional
     Card(
         onClick = { action?.invoke() },
         enabled = action != null,
         colors = CardDefaults.cardColors(
-            containerColor = if (ok)
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-            else
-                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
+            containerColor = when {
+                ok -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                isWarning -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                else -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
+            },
         ),
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -339,29 +347,32 @@ private fun StatusCard(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (ok)
-                    MaterialTheme.colorScheme.primary
-                else
-                    MaterialTheme.colorScheme.error,
+                tint = when {
+                    ok -> MaterialTheme.colorScheme.primary
+                    isWarning -> MaterialTheme.colorScheme.onSurfaceVariant
+                    else -> MaterialTheme.colorScheme.error
+                },
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(label, style = MaterialTheme.typography.titleSmall)
                 Text(
                     text = if (ok) okText else failText,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (ok)
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.error,
+                    color = when {
+                        ok -> MaterialTheme.colorScheme.primary
+                        isWarning -> MaterialTheme.colorScheme.onSurfaceVariant
+                        else -> MaterialTheme.colorScheme.error
+                    },
                 )
             }
             Icon(
                 imageVector = if (ok) Icons.Default.CheckCircle else Icons.Default.Cancel,
                 contentDescription = null,
-                tint = if (ok)
-                    MaterialTheme.colorScheme.primary
-                else
-                    MaterialTheme.colorScheme.error,
+                tint = when {
+                    ok -> MaterialTheme.colorScheme.primary
+                    isWarning -> MaterialTheme.colorScheme.onSurfaceVariant
+                    else -> MaterialTheme.colorScheme.error
+                },
                 modifier = Modifier.size(20.dp),
             )
         }

@@ -11,6 +11,7 @@ import com.supershade.domain.tile.TileDefinition
 import com.supershade.domain.tile.TileRepository
 import com.supershade.domain.tile.TileToggler
 import com.supershade.settings.ShadeSettings
+import com.supershade.shizuku.StatusBarGovernor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +30,7 @@ class ShadeViewModel(
     private val mediaRepo: MediaRepository,
     private val brightnessRepo: BrightnessRepository,
     private val settings: ShadeSettings,
+    private val governor: StatusBarGovernor,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ShadeState())
@@ -61,6 +63,10 @@ class ShadeViewModel(
 
         settings.theme
             .onEach { t -> _state.update { it.copy(theme = t) } }
+            .launchIn(viewModelScope)
+
+        governor.isCommanderConnected
+            .onEach { connected -> _state.update { it.copy(isShizukuConnected = connected) } }
             .launchIn(viewModelScope)
     }
 

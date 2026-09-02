@@ -11,7 +11,10 @@ class TileToggler(
 ) {
     suspend fun toggle(tile: TileDefinition) {
         when (tile.capability) {
-            TileCapability.FULL_TOGGLE -> togglePrivileged(tile)
+            TileCapability.FULL_TOGGLE -> {
+                if (governor.isCommanderConnected.value) togglePrivileged(tile)
+                else openSettings(tile)
+            }
             TileCapability.SETTINGS_INTENT -> openSettings(tile)
             TileCapability.READ_ONLY -> Unit
         }

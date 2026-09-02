@@ -35,6 +35,7 @@ import com.supershade.ui.theme.ShadeTheme
 import com.supershade.ui.theme.SuperShadeAppTheme
 import com.supershade.ui.update.UpdateDialog
 import com.supershade.ui.update.WhatsNewSheet
+import com.supershade.viewmodel.ShadeViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject

@@ -18,16 +18,27 @@ class NotificationRepository {
     // Called by cancelAndRemove to cancel the notification at the system level.
     var canceller: ((String) -> Unit)? = null
 
+    fun refresh() {
+        com.supershade.service.NotificationCollector.instance?.refreshNotifications()
+    }
+
     fun onNotificationPosted(sbn: StatusBarNotification) {
         val category = categoryEngine.categorize(sbn)
         val shade = sbn.toShadeNotification(category)
-        if (shade.isGroupSummary) {
-            _notifications.update { current -> current.filter { it.key != shade.key } }
+
+        // Ignore phantom notifications with neither title nor text
+        if (shade.title.isBlank() && shade.text.isBlank()) {
             return
         }
+
         _notifications.update { current ->
             val without = current.filter { it.key != shade.key }
-            (listOf(shade) + without).sortedByDescending { it.postTime }
+            // If this is a group summary and we already have child notifications for this group, omit summary
+            if (shade.isGroupSummary && without.any { it.packageName == shade.packageName && it.groupKey == shade.groupKey && !it.isGroupSummary }) {
+                without
+            } else {
+                (listOf(shade) + without).sortedByDescending { it.postTime }
+            }
         }
     }
 

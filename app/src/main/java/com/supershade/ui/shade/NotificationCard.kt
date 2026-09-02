@@ -42,6 +42,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.supershade.domain.notification.model.ShadeNotification
 
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationCard(
@@ -53,7 +57,7 @@ fun NotificationCard(
     var expanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    // Resolve a readable app name from the package — fall back to the last segment
+    // Resolve readable app name from the package
     val appName = remember(notification.packageName) {
         try {
             val info = context.packageManager.getApplicationInfo(notification.packageName, 0)
@@ -63,7 +67,30 @@ fun NotificationCard(
         }
     }
 
+    val appIconBitmap = remember(notification.packageName) {
+        try {
+            val drawable = context.packageManager.getApplicationIcon(notification.packageName)
+            drawable.toBitmap(
+                width = 48,
+                height = 48,
+                config = android.graphics.Bitmap.Config.ARGB_8888
+            ).asImageBitmap()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     val postTimeLabel = remember(notification.postTime) { relativeTime(notification.postTime) }
+
+    val displayTitle = when {
+        notification.title.isNotBlank() -> notification.title
+        notification.text.isNotBlank() -> appName
+        else -> appName
+    }
+    val displayText = when {
+        notification.title.isNotBlank() -> notification.text
+        else -> ""
+    }
 
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
@@ -105,7 +132,7 @@ fun NotificationCard(
                 .animateContentSize(),
         ) {
             Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-                // App name + post time header row
+                // App icon + app name + post time header row
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -113,14 +140,28 @@ fun NotificationCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = appName,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    Row(
                         modifier = Modifier.weight(1f),
-                    )
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        if (appIconBitmap != null) {
+                            Image(
+                                bitmap = appIconBitmap,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clip(RoundedCornerShape(4.dp)),
+                            )
+                        }
+                        Text(
+                            text = appName,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                     Text(
                         text = postTimeLabel,
                         style = MaterialTheme.typography.labelSmall,
@@ -136,18 +177,18 @@ fun NotificationCard(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = notification.title,
+                            text = displayTitle,
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        if (notification.text.isNotBlank()) {
+                        if (displayText.isNotBlank()) {
                             Text(
-                                text = notification.text,
+                                text = displayText,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = if (expanded) Int.MAX_VALUE else 2,
+                                maxLines = if (expanded) Int.MAX_VALUE else 3,
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }

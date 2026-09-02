@@ -29,6 +29,15 @@ import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
 private fun localReleaseNotes(version: String): String = when (version) {
+    "1.2.5" -> """
+        🌙 App Dark Mode & Notification Center
+        • App Dark Mode settings (System, Dark, Light, AMOLED)
+        • Material 3 dynamic coloring and deep AMOLED theme
+        • Instant notification center refresh on shade open
+        • Real app icons displayed on each notification card
+        • Comprehensive title, body, and action fallback parsing
+        • Intelligent group notification handling
+    """.trimIndent()
     "1.2.4" -> """
         🚀 Core functionality & Shade activation
         • Gesture overlay spans status bar with responsive touch detection

@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.supershade.ui.theme.DarkThemeMode
 import com.supershade.ui.theme.ShadeTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,8 +55,10 @@ fun SettingsScreen(
     shadeActive: Boolean,
     selectedTheme: ShadeTheme,
     appVersion: String,
+    darkThemeMode: DarkThemeMode = DarkThemeMode.SYSTEM,
     onToggleShade: (Boolean) -> Unit,
     onThemeChange: (ShadeTheme) -> Unit,
+    onDarkModeChange: (DarkThemeMode) -> Unit = {},
     onGrantOverlay: () -> Unit,
     onCheckUpdate: () -> Unit,
     onShowWhatsNew: () -> Unit,
@@ -170,14 +173,16 @@ fun SettingsScreen(
             }
         }
 
+        HorizontalDivider()
+
         // ---- Theme section ------------------------------------------------
         SectionLabel("Theme")
         ElevatedCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    "Appearance",
+                    "Shade Style",
                     style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(bottom = 12.dp),
+                    modifier = Modifier.padding(bottom = 8.dp),
                 )
                 val themes = listOf(ShadeTheme.OneUI, ShadeTheme.Pixel)
                 val labels = listOf("One UI", "Pixel")
@@ -190,6 +195,32 @@ fun SettingsScreen(
                             icon = {},
                         ) {
                             Text(labels[index])
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Text(
+                    "App Theme Mode",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                val darkModes = listOf(
+                    DarkThemeMode.SYSTEM to "System",
+                    DarkThemeMode.DARK to "Dark",
+                    DarkThemeMode.LIGHT to "Light",
+                    DarkThemeMode.AMOLED to "AMOLED",
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    darkModes.forEachIndexed { index, (mode, label) ->
+                        SegmentedButton(
+                            selected = darkThemeMode == mode,
+                            onClick = { onDarkModeChange(mode) },
+                            shape = SegmentedButtonDefaults.itemShape(index, darkModes.size),
+                            icon = {},
+                        ) {
+                            Text(label)
                         }
                     }
                 }

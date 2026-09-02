@@ -27,19 +27,35 @@ data class NotificationAction(
 
 fun StatusBarNotification.toShadeNotification(category: ShadeCategory): ShadeNotification {
     val extras = notification.extras
+    val rawTitle = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
+        ?: extras.getCharSequence(Notification.EXTRA_TITLE_BIG)?.toString()
+        ?: notification.tickerText?.toString()
+        ?: ""
+
+    val rawText = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
+        ?: extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
+        ?: extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)?.joinToString("\n")
+        ?: extras.getCharSequence(Notification.EXTRA_SUMMARY_TEXT)?.toString()
+        ?: extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()
+        ?: ""
+
+    val rawSubText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()
+        ?: extras.getCharSequence(Notification.EXTRA_INFO_TEXT)?.toString()
+
     return ShadeNotification(
         key = key,
         packageName = packageName,
-        title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: "",
-        text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: "",
-        subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString(),
+        title = rawTitle.trim(),
+        text = rawText.trim(),
+        subText = rawSubText?.trim(),
         category = category,
         smallIcon = notification.smallIcon,
         isGroupSummary = notification.flags and Notification.FLAG_GROUP_SUMMARY != 0,
         groupKey = notification.group,
         postTime = postTime,
-        actions = notification.actions?.map {
-            NotificationAction(it.title?.toString() ?: "", it.actionIntent)
+        actions = notification.actions?.mapNotNull { action ->
+            val title = action.title?.toString()?.trim()
+            if (!title.isNullOrBlank()) NotificationAction(title, action.actionIntent) else null
         } ?: emptyList(),
         isClearable = isClearable,
         contentIntent = notification.contentIntent

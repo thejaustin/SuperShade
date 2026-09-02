@@ -52,16 +52,17 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            SuperShadeAppTheme {
-                val scope = rememberCoroutineScope()
-                val lifecycleOwner = LocalLifecycleOwner.current
+            val scope = rememberCoroutineScope()
+            val lifecycleOwner = LocalLifecycleOwner.current
 
-                val shizukuConnected by connector.isConnected.collectAsState()
-                val theme by settings.theme.collectAsState(initial = ShadeTheme.OneUI)
-                val isActive by settings.isActive.collectAsState(initial = false)
-                val availableUpdate by updateRepo.availableUpdate.collectAsState()
-                val showWhatsNew by updateRepo.showWhatsNew.collectAsState()
+            val shizukuConnected by connector.isConnected.collectAsState()
+            val theme by settings.theme.collectAsState(initial = ShadeTheme.OneUI)
+            val darkThemeMode by settings.darkThemeMode.collectAsState(initial = com.supershade.ui.theme.DarkThemeMode.SYSTEM)
+            val isActive by settings.isActive.collectAsState(initial = false)
+            val availableUpdate by updateRepo.availableUpdate.collectAsState()
+            val showWhatsNew by updateRepo.showWhatsNew.collectAsState()
 
+            SuperShadeAppTheme(mode = darkThemeMode) {
                 // Re-checked on every resume so user sees instant feedback after
                 // granting access in system Settings.
                 var notifAccessGranted by remember { mutableStateOf(isNotificationAccessGranted()) }
@@ -122,6 +123,7 @@ class MainActivity : ComponentActivity() {
                         overlayGranted = overlayGranted,
                         shadeActive = isActive,
                         selectedTheme = theme,
+                        darkThemeMode = darkThemeMode,
                         appVersion = BuildConfig.VERSION_NAME,
                         onToggleShade = { enabled ->
                             toggleShadeService(enabled)
@@ -129,6 +131,9 @@ class MainActivity : ComponentActivity() {
                         },
                         onThemeChange = { newTheme ->
                             scope.launch { settings.setTheme(newTheme) }
+                        },
+                        onDarkModeChange = { newMode ->
+                            scope.launch { settings.setDarkThemeMode(newMode) }
                         },
                         onGrantOverlay = {
                             startActivity(

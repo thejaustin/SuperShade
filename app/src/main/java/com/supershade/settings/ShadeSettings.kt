@@ -18,6 +18,7 @@ class ShadeSettings(private val context: Context) {
 
     companion object {
         private val THEME_KEY = stringPreferencesKey("theme")
+        private val DARK_MODE_KEY = stringPreferencesKey("dark_mode")
         private val IS_ACTIVE_KEY = booleanPreferencesKey("is_active")
         private val ENABLED_TILES_KEY = stringPreferencesKey("enabled_tiles")
         private val LAST_SEEN_VERSION_KEY = stringPreferencesKey("last_seen_version")
@@ -26,6 +27,15 @@ class ShadeSettings(private val context: Context) {
 
     val theme: Flow<ShadeTheme> = context.dataStore.data.map { prefs ->
         if (prefs[THEME_KEY] == "pixel") ShadeTheme.Pixel else ShadeTheme.OneUI
+    }
+
+    val darkThemeMode: Flow<com.supershade.ui.theme.DarkThemeMode> = context.dataStore.data.map { prefs ->
+        when (prefs[DARK_MODE_KEY]) {
+            "dark" -> com.supershade.ui.theme.DarkThemeMode.DARK
+            "light" -> com.supershade.ui.theme.DarkThemeMode.LIGHT
+            "amoled" -> com.supershade.ui.theme.DarkThemeMode.AMOLED
+            else -> com.supershade.ui.theme.DarkThemeMode.SYSTEM
+        }
     }
 
     val isActive: Flow<Boolean> = context.dataStore.data.map { prefs ->
@@ -48,6 +58,17 @@ class ShadeSettings(private val context: Context) {
     suspend fun setTheme(theme: ShadeTheme) {
         context.dataStore.edit { prefs ->
             prefs[THEME_KEY] = if (theme is ShadeTheme.Pixel) "pixel" else "onui"
+        }
+    }
+
+    suspend fun setDarkThemeMode(mode: com.supershade.ui.theme.DarkThemeMode) {
+        context.dataStore.edit { prefs ->
+            prefs[DARK_MODE_KEY] = when (mode) {
+                com.supershade.ui.theme.DarkThemeMode.DARK -> "dark"
+                com.supershade.ui.theme.DarkThemeMode.LIGHT -> "light"
+                com.supershade.ui.theme.DarkThemeMode.AMOLED -> "amoled"
+                com.supershade.ui.theme.DarkThemeMode.SYSTEM -> "system"
+            }
         }
     }
 

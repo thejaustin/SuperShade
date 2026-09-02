@@ -5,6 +5,16 @@ Releases follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.5] — 2026-09-02
+
+### Added & Improved
+- Full App Dark Mode support in Settings with System / Dark / Light / AMOLED Black options
+- Material 3 dynamic color scheme and pitch-black AMOLED styling
+- Live Notification Center reload upon opening the shade
+- Real application icons rendered on every notification card
+- Multi-field fallback parser for notification titles, body text, and action buttons
+- Intelligent notification group filtering to prevent missing standalone group alerts
+
 ## [1.2.4] — 2026-09-02
 
 ### Fixed & Enhanced

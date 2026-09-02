@@ -89,6 +89,7 @@ class ShadeViewModel(
         _state.update { it.copy(isOpen = true, brightness = brightnessRepo.getCurrent()) }
         mediaRepo.refresh()
         tileRepo.reload()
+        notificationRepo.refresh()
     }
 
     fun close() {

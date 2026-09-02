@@ -15,6 +15,11 @@ import org.koin.android.ext.android.inject
  */
 class NotificationCollector : NotificationListenerService() {
 
+    companion object {
+        @Volatile var instance: NotificationCollector? = null
+            private set
+    }
+
     private val repository: NotificationRepository by inject()
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -27,13 +32,25 @@ class NotificationCollector : NotificationListenerService() {
 
     override fun onListenerConnected() {
         super.onListenerConnected()
-        repository.canceller = { key -> cancelNotification(key) }
-        activeNotifications?.forEach { repository.onNotificationPosted(it) }
+        instance = this
+        repository.canceller = { key ->
+            try {
+                cancelNotification(key)
+            } catch (_: Exception) {}
+        }
+        refreshNotifications()
     }
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
+        instance = null
         repository.canceller = null
-        repository.clearAll()
+    }
+
+    fun refreshNotifications() {
+        try {
+            val current = activeNotifications ?: return
+            current.forEach { repository.onNotificationPosted(it) }
+        } catch (_: Exception) {}
     }
 }

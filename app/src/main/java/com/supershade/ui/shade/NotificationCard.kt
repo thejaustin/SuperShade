@@ -1,16 +1,20 @@
 package com.supershade.ui.shade
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
@@ -31,6 +35,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -41,6 +47,7 @@ import com.supershade.domain.notification.model.ShadeNotification
 fun NotificationCard(
     notification: ShadeNotification,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -67,8 +74,24 @@ fun NotificationCard(
 
     SwipeToDismissBox(
         state = dismissState,
-        backgroundContent = {},
-        modifier = Modifier.fillMaxWidth(),
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color(0xFFE53935)),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete",
+                    tint = Color.White,
+                    modifier = Modifier.padding(end = 20.dp),
+                )
+            }
+        },
+        modifier = modifier.fillMaxWidth(),
     ) {
         Card(
             shape = RoundedCornerShape(24.dp),

@@ -111,6 +111,10 @@ class ShadeViewModel(
         notificationRepo.cancelAndRemove(key)
     }
 
+    fun clearAllNotifications() {
+        notificationRepo.cancelAll()
+    }
+
     // --- Media transport controls ---
 
     fun mediaPlayPause() {

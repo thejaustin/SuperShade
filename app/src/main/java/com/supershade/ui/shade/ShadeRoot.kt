@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -63,6 +64,7 @@ fun ShadeRoot(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .fillMaxHeight(0.72f)
                         .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
                         .background(MaterialTheme.colorScheme.surface),
                 ) {
@@ -92,6 +94,8 @@ fun ShadeRoot(
                     NotificationFeed(
                         notifications = state.visibleNotifications,
                         onDismiss = { viewModel.dismissNotification(it) },
+                        onClearAll = { viewModel.clearAllNotifications() },
+                        modifier = Modifier.weight(1f),
                     )
 
                     // Drag-handle pill at the bottom edge of the panel

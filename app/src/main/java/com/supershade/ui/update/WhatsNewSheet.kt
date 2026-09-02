@@ -29,6 +29,15 @@ import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
 private fun localReleaseNotes(version: String): String = when (version) {
+    "1.2.3" -> """
+        ✨ UI polish
+        • Panel capped at 72 % height — scrim always visible below
+        • Swipe-to-dismiss shows a red delete background
+        • "Clear all" button with notification count header
+        • Notification cards animate in and out
+        • Media card shows mm:ss / mm:ss time below the seek bar
+        • Brightness slider now has a dim icon on the left
+    """.trimIndent()
     "1.2.1", "1.2.0" -> """
         🎨 OneUI 8.5 redesign
         Samsung-accurate shade panel — large Light clock, Galaxy Blue accent, 22 dp tile corners, and transparent inactive category chips.

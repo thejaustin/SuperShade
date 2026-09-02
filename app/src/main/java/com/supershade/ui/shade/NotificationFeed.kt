@@ -3,6 +3,7 @@ package com.supershade.ui.shade
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,11 +25,12 @@ import com.supershade.domain.notification.model.ShadeNotification
 fun NotificationFeed(
     notifications: List<ShadeNotification>,
     onDismiss: (String) -> Unit,
+    onClearAll: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     if (notifications.isEmpty()) {
-        // OneUI-style centered empty state: bell icon + label
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
                 .padding(vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -47,10 +50,28 @@ fun NotificationFeed(
         }
     } else {
         LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = modifier.fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "${notifications.size} notification${if (notifications.size != 1) "s" else ""}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(onClick = onClearAll) {
+                        Text("Clear all")
+                    }
+                }
+            }
             items(
                 items = notifications,
                 key = { it.key },
@@ -58,6 +79,7 @@ fun NotificationFeed(
                 NotificationCard(
                     notification = notification,
                     onDismiss = { onDismiss(notification.key) },
+                    modifier = Modifier.animateItem(),
                 )
             }
         }

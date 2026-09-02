@@ -40,6 +40,12 @@ class NotificationRepository {
         onNotificationRemoved(key)
     }
 
+    fun cancelAll() {
+        val dismissible = _notifications.value.filter { it.isClearable }
+        dismissible.forEach { note -> canceller?.invoke(note.key) }
+        _notifications.update { current -> current.filter { !it.isClearable } }
+    }
+
     fun clearAll() {
         _notifications.update { emptyList() }
     }

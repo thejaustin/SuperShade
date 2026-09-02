@@ -32,6 +32,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.supershade.domain.media.MediaState
 
+private fun formatMs(ms: Long): String {
+    val totalSec = ms / 1000
+    return "%d:%02d".format(totalSec / 60, totalSec % 60)
+}
+
 @Composable
 fun MediaCard(
     media: MediaState,
@@ -126,10 +131,28 @@ fun MediaCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 14.dp)
-                        .padding(bottom = 10.dp),
+                        .padding(bottom = 4.dp),
                     color = MaterialTheme.colorScheme.primary,
                     trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f),
                 )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp)
+                        .padding(bottom = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = formatMs(media.position),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = formatMs(media.duration),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }

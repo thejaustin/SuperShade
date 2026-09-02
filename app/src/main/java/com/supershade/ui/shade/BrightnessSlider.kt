@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrightnessHigh
+import androidx.compose.material.icons.filled.BrightnessLow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -29,6 +30,12 @@ fun BrightnessSlider(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        Icon(
+            imageVector = Icons.Default.BrightnessLow,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+        )
         Slider(
             value = brightness.toFloat(),
             onValueChange = { onBrightnessChange(it.toInt()) },

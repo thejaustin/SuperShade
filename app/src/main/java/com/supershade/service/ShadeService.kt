@@ -40,6 +40,7 @@ class ShadeService : Service() {
     private val governor: StatusBarGovernor by inject()
     private val connector: ShizukuPlusConnector by inject()
     private val settings: ShadeSettings by inject()
+    private val notificationRepo: com.supershade.domain.notification.NotificationRepository by inject()
 
     // ShadeViewModel is a Koin singleton — resolved here so the service and the
     // ComposeView overlay share the exact same instance.
@@ -49,6 +50,7 @@ class ShadeService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private lateinit var windowManager: ShadeWindowManager
+    private lateinit var headsUpOverlay: HeadsUpOverlay
     private var gestureOverlay: GestureOverlay? = null
 
     companion object {
@@ -67,11 +69,21 @@ class ShadeService : Service() {
         startForeground(NOTIFICATION_ID, buildNotification())
 
         windowManager = ShadeWindowManager(applicationContext, shadeViewModel)
+        headsUpOverlay = HeadsUpOverlay(applicationContext)
 
         // Attach the gesture capture overlay. When a downward swipe is detected
         // the overlay tells the ShadeWindowManager to show the full shade UI.
         gestureOverlay = GestureOverlay(this) { windowManager.show() }
         gestureOverlay?.attach()
+
+        // Show peek cards for new notifications when the shade panel is closed.
+        notificationRepo.newNotifications
+            .onEach { notification ->
+                if (!shadeViewModel.state.value.isOpen) {
+                    headsUpOverlay.show(notification)
+                }
+            }
+            .launchIn(scope)
 
         // Observe isOpen state from ViewModel so opening shade from any component
         // presents the overlay window.
@@ -106,6 +118,7 @@ class ShadeService : Service() {
         super.onDestroy()
         gestureOverlay?.detach()
         gestureOverlay = null
+        headsUpOverlay.destroy()
         windowManager.hide()
         // Re-enable the system shade before we fully shut down, then cancel scope.
         scope.launch { governor.enableExpansion() }.invokeOnCompletion { scope.cancel() }

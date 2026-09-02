@@ -6,18 +6,40 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
 import android.view.WindowManager
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -156,32 +178,104 @@ class HeadsUpOverlay(private val context: Context) {
      */
     @androidx.compose.runtime.Composable
     private fun HeadsUpCard(notification: ShadeNotification) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 12.dp, vertical = 8.dp)
-                .background(
-                    color = Color(0xFF1C1C1E).copy(alpha = 0.95f),
-                    shape = RoundedCornerShape(16.dp),
-                )
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-        ) {
-            if (notification.title.isNotBlank()) {
-                Text(
-                    text = notification.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = Color.White,
-                )
+        val ctx = LocalContext.current
+        val appIcon: ImageBitmap? = remember(notification.packageName) {
+            try {
+                ctx.packageManager.getApplicationIcon(notification.packageName)
+                    .toBitmap(48, 48, android.graphics.Bitmap.Config.ARGB_8888)
+                    .asImageBitmap()
+            } catch (_: Exception) { null }
+        }
+        val appName = remember(notification.packageName) {
+            try {
+                val info = ctx.packageManager.getApplicationInfo(notification.packageName, 0)
+                ctx.packageManager.getApplicationLabel(info).toString()
+            } catch (_: Exception) {
+                notification.packageName.substringAfterLast('.').replaceFirstChar { it.uppercase() }
             }
-            if (notification.text.isNotBlank()) {
-                Text(
-                    text = notification.text,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.75f),
-                    maxLines = 2,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
+        }
+        val timeLabel = remember(notification.postTime) {
+            val delta = System.currentTimeMillis() - notification.postTime
+            when {
+                delta < 60_000L -> "now"
+                delta < 3_600_000L -> "${delta / 60_000}m ago"
+                else -> "${delta / 3_600_000}h ago"
+            }
+        }
+
+        var visible by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { visible = true }
+
+        AnimatedVisibility(
+            visible = visible,
+            enter = slideInVertically(tween(240)) { -it } + fadeIn(tween(180)),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .background(
+                        color = Color(0xFF1E1E1E).copy(alpha = 0.97f),
+                        shape = RoundedCornerShape(20.dp),
+                    )
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+            ) {
+                // Header: app icon + app name + time
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        if (appIcon != null) {
+                            Image(
+                                bitmap = appIcon,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp).clip(RoundedCornerShape(3.dp)),
+                            )
+                        }
+                        Text(
+                            text = appName,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.6f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Text(
+                        text = timeLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.45f),
+                    )
+                }
+                // Title
+                if (notification.title.isNotBlank()) {
+                    Text(
+                        text = notification.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                // Body
+                if (notification.text.isNotBlank()) {
+                    Text(
+                        text = notification.text,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.75f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
             }
         }
     }

@@ -118,6 +118,10 @@ class ShadeViewModel(
     }
 
     fun launchNotification(notification: com.supershade.domain.notification.model.ShadeNotification) {
+        try { notification.contentIntent?.send() } catch (_: Exception) {}
+    }
+
+    fun launchNotification(notification: com.supershade.domain.notification.model.ShadeNotification) {
         try {
             notification.contentIntent?.send()
         } catch (_: Exception) {}

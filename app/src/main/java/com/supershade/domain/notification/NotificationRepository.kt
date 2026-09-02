@@ -3,8 +3,11 @@ package com.supershade.domain.notification
 import android.service.notification.StatusBarNotification
 import com.supershade.domain.notification.model.ShadeNotification
 import com.supershade.domain.notification.model.toShadeNotification
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
@@ -13,6 +16,9 @@ class NotificationRepository {
     private val categoryEngine = CategoryEngine()
     private val _notifications = MutableStateFlow<List<ShadeNotification>>(emptyList())
     val notifications: StateFlow<List<ShadeNotification>> = _notifications.asStateFlow()
+
+    private val _newNotifications = MutableSharedFlow<ShadeNotification>(extraBufferCapacity = 16)
+    val newNotifications: SharedFlow<ShadeNotification> = _newNotifications.asSharedFlow()
 
     // Set by NotificationCollector when the listener service is connected.
     // Called by cancelAndRemove to cancel the notification at the system level.
@@ -40,6 +46,7 @@ class NotificationRepository {
                 (listOf(shade) + without).sortedByDescending { it.postTime }
             }
         }
+        _newNotifications.tryEmit(shade)
     }
 
     fun onNotificationRemoved(key: String) {

@@ -31,6 +31,7 @@ fun CategoryBar(
     categories: List<ShadeCategory>,
     selected: ShadeCategory,
     onSelect: (ShadeCategory) -> Unit,
+    counts: Map<ShadeCategory, Int> = emptyMap(),
 ) {
     val scrollState = rememberScrollState()
 
@@ -57,6 +58,7 @@ fun CategoryBar(
             CategoryChip(
                 label = category.label,
                 isSelected = category == selected,
+                count = counts[category] ?: 0,
                 onClick = { onSelect(category) },
             )
         }
@@ -67,6 +69,7 @@ fun CategoryBar(
 private fun CategoryChip(
     label: String,
     isSelected: Boolean,
+    count: Int,
     onClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -110,11 +113,23 @@ private fun CategoryChip(
         interactionSource = interactionSource,
         modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale },
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = labelColor,
+        Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = labelColor,
+            )
+            if (count > 0) {
+                Text(
+                    text = count.toString(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = labelColor.copy(alpha = if (isSelected) 0.85f else 0.55f),
+                )
+            }
+        }
     }
 }

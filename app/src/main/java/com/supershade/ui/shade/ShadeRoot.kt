@@ -20,7 +20,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +41,16 @@ fun ShadeRoot(
     onDismiss: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    val categoryCounts by remember {
+        derivedStateOf {
+            val all = state.allNotifications
+            val counts = mutableMapOf<ShadeCategory, Int>()
+            all.forEach { n -> counts[n.category] = (counts[n.category] ?: 0) + 1 }
+            counts[ShadeCategory.All] = all.size
+            counts as Map<ShadeCategory, Int>
+        }
+    }
 
     val themeWrapper: @Composable (@Composable () -> Unit) -> Unit = when (state.theme) {
         ShadeTheme.Pixel -> { content -> PixelShadeTheme(content) }
@@ -90,6 +102,7 @@ fun ShadeRoot(
                         categories = ShadeCategory.entries,
                         selected = state.selectedCategory,
                         onSelect = { viewModel.selectCategory(it) },
+                        counts = categoryCounts,
                     )
                     NotificationFeed(
                         notifications = state.visibleNotifications,

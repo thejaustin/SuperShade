@@ -11,6 +11,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -113,7 +114,13 @@ class HeadsUpOverlay(private val context: Context) {
                 setViewTreeViewModelStoreOwner(owner)
                 setViewTreeSavedStateRegistryOwner(owner)
                 setContent {
-                    HeadsUpCard(notification = notification)
+                    HeadsUpCard(
+                        notification = notification,
+                        onTap = {
+                            try { notification.contentIntent?.send() } catch (_: Exception) {}
+                            handler.post { dismissCurrent() }
+                        },
+                    )
                 }
             }
             currentView = view
@@ -177,7 +184,7 @@ class HeadsUpOverlay(private val context: Context) {
      * compiles independently of that layer.
      */
     @androidx.compose.runtime.Composable
-    private fun HeadsUpCard(notification: ShadeNotification) {
+    private fun HeadsUpCard(notification: ShadeNotification, onTap: () -> Unit) {
         val ctx = LocalContext.current
         val appIcon: ImageBitmap? = remember(notification.packageName) {
             try {
@@ -215,10 +222,9 @@ class HeadsUpOverlay(private val context: Context) {
                     .fillMaxWidth()
                     .statusBarsPadding()
                     .padding(horizontal = 12.dp, vertical = 6.dp)
-                    .background(
-                        color = Color(0xFF1E1E1E).copy(alpha = 0.97f),
-                        shape = RoundedCornerShape(20.dp),
-                    )
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFF1E1E1E).copy(alpha = 0.97f))
+                    .clickable(onClick = onTap)
                     .padding(horizontal = 14.dp, vertical = 12.dp),
             ) {
                 // Header: app icon + app name + time

@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
     private val connector: ShizukuPlusConnector by inject()
     private val settings: ShadeSettings by inject()
     private val updateRepo: UpdateRepository by inject()
+    private val shadeViewModel: ShadeViewModel by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,10 +73,20 @@ class MainActivity : ComponentActivity() {
                             notifAccessGranted = isNotificationAccessGranted()
                             overlayGranted = Settings.canDrawOverlays(this@MainActivity)
                             shizukuPermGranted = connector.hasPermission()
+                            if (isActive && notifAccessGranted && overlayGranted && shizukuPermGranted) {
+                                toggleShadeService(true)
+                            }
                         }
                     }
                     lifecycleOwner.lifecycle.addObserver(observer)
                     onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                }
+
+                // Ensure service is running if active in settings and permissions are ready
+                LaunchedEffect(isActive, notifAccessGranted, overlayGranted, shizukuPermGranted) {
+                    if (isActive && notifAccessGranted && overlayGranted && shizukuPermGranted) {
+                        toggleShadeService(true)
+                    }
                 }
 
                 // Request Shizuku permission as soon as it connects but isn't granted.
@@ -130,6 +141,10 @@ class MainActivity : ComponentActivity() {
                             scope.launch { updateRepo.checkForUpdate() }
                         },
                         onShowWhatsNew = { updateRepo.showWhatsNewManual() },
+                        onPreviewShade = {
+                            toggleShadeService(true)
+                            shadeViewModel.open()
+                        },
                         modifier = Modifier.padding(padding),
                     )
                 }

@@ -59,6 +59,7 @@ fun SettingsScreen(
     onGrantOverlay: () -> Unit,
     onCheckUpdate: () -> Unit,
     onShowWhatsNew: () -> Unit,
+    onPreviewShade: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -156,6 +157,15 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(top = 8.dp),
                     )
+                }
+                if (shadeActive && allGranted) {
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = onPreviewShade,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Open Shade Preview")
+                    }
                 }
             }
         }

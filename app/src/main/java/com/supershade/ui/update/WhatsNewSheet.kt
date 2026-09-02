@@ -29,6 +29,15 @@ import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
 private fun localReleaseNotes(version: String): String = when (version) {
+    "1.2.4" -> """
+        🚀 Core functionality & Shade activation
+        • Gesture overlay spans status bar with responsive touch detection
+        • Automatic system shade override on Shizuku connection
+        • Real privileged toggles for Wi-Fi, Bluetooth, Dark Mode, Rotation, Airplane Mode, Location, and Battery Saver
+        • Live tile state indicators reflect real system settings
+        • Tap any notification to launch the app directly
+        • One-tap "Open Shade Preview" in Settings
+    """.trimIndent()
     "1.2.3" -> """
         ✨ UI polish
         • Panel capped at 72 % height — scrim always visible below

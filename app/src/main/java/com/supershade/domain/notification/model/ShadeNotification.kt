@@ -16,7 +16,8 @@ data class ShadeNotification(
     val groupKey: String?,
     val postTime: Long,
     val actions: List<NotificationAction>,
-    val isClearable: Boolean
+    val isClearable: Boolean,
+    val contentIntent: android.app.PendingIntent? = null
 )
 
 data class NotificationAction(
@@ -40,6 +41,7 @@ fun StatusBarNotification.toShadeNotification(category: ShadeCategory): ShadeNot
         actions = notification.actions?.map {
             NotificationAction(it.title?.toString() ?: "", it.actionIntent)
         } ?: emptyList(),
-        isClearable = isClearable
+        isClearable = isClearable,
+        contentIntent = notification.contentIntent
     )
 }

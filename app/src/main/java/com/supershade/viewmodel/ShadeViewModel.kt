@@ -88,6 +88,7 @@ class ShadeViewModel(
     fun open() {
         _state.update { it.copy(isOpen = true, brightness = brightnessRepo.getCurrent()) }
         mediaRepo.refresh()
+        tileRepo.reload()
     }
 
     fun close() {
@@ -113,6 +114,13 @@ class ShadeViewModel(
 
     fun clearAllNotifications() {
         notificationRepo.cancelAll()
+    }
+
+    fun launchNotification(notification: com.supershade.domain.notification.model.ShadeNotification) {
+        try {
+            notification.contentIntent?.send()
+        } catch (_: Exception) {}
+        close()
     }
 
     // --- Media transport controls ---

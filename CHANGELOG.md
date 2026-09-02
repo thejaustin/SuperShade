@@ -5,6 +5,26 @@ Releases follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.4] — 2026-09-02
+
+### Fixed & Enhanced
+- Gesture overlay now spans the full status bar area with responsive raw coordinate tracking
+- Automatic system statusbar disable flag execution on Shizuku connection
+- Real privileged toggles for Wi-Fi, Bluetooth, Dark Mode, Auto-Rotate, Airplane Mode, Location, NFC, Mobile Data, DND, and Battery Saver
+- Live system state querying so QS tiles accurately reflect real device states
+- Tap notification cards to open apps directly and dismiss the shade
+- "Open Shade Preview" button in settings for direct testing
+- Automatic foreground service restart on app resume if active
+
+## [1.2.3] — 2026-09-01
+
+### Added
+- Panel height capped at 72% screen height with scrim tap to dismiss
+- Swipe-to-dismiss red delete background
+- "Clear all" button with notification counter header
+- Notification card animation and media track timer
+- Dual brightness icons (dim and high)
+
 ## [1.0.0] — 2026-09-01
 
 ### Added

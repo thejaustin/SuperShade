@@ -16,6 +16,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 
@@ -48,6 +52,7 @@ class ShadeService : Service() {
     companion object {
         const val CHANNEL_ID = "supershade_service"
         const val NOTIFICATION_ID = 1001
+        const val ACTION_OPEN_SHADE = "com.supershade.action.OPEN_SHADE"
     }
 
     // ---------------------------------------------------------------------------
@@ -61,23 +66,35 @@ class ShadeService : Service() {
 
         windowManager = ShadeWindowManager(applicationContext, shadeViewModel)
 
-        // Attach the 1-px gesture capture strip. When a swipe-down is detected
+        // Attach the gesture capture overlay. When a downward swipe is detected
         // the overlay tells the ShadeWindowManager to show the full shade UI.
         gestureOverlay = GestureOverlay(this) { windowManager.show() }
         gestureOverlay?.attach()
 
+        // Observe isOpen state from ViewModel so opening shade from any component
+        // presents the overlay window.
+        shadeViewModel.state
+            .map { it.isOpen }
+            .distinctUntilChanged()
+            .onEach { isOpen ->
+                if (isOpen) windowManager.show() else windowManager.hide()
+            }
+            .launchIn(scope)
+
         // Start the Shizuku UserService so tile-click and status-bar commands work.
         governor.bindService()
 
-        // Bug 7: enable first to clear any stale disable-state left by a prior crash,
-        // then disable so our overlay takes over the system notification shade.
         scope.launch {
-            governor.enableExpansion()
             governor.disableExpansion()
         }
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_OPEN_SHADE) {
+            shadeViewModel.open()
+        }
+        return START_STICKY
+    }
 
     override fun onDestroy() {
         super.onDestroy()

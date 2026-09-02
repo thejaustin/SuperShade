@@ -48,6 +48,7 @@ fun NotificationCard(
     notification: ShadeNotification,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    onClick: () -> Unit = {},
 ) {
     var expanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -94,6 +95,7 @@ fun NotificationCard(
         modifier = modifier.fillMaxWidth(),
     ) {
         Card(
+            onClick = onClick,
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface,

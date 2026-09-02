@@ -17,9 +17,13 @@ class StatusBarGovernor(
     private val connector: ShizukuPlusConnector,
 ) {
 
-    // Bug 1 fix: @Volatile so reads on Dispatchers.IO always see the latest write
-    // from the ServiceConnection callbacks (main thread).
     @Volatile private var commander: IShadeCommander? = null
+    @Volatile private var shouldDisableExpansion = false
+
+    private val _isCommanderConnected = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val isCommanderConnected: kotlinx.coroutines.flow.StateFlow<Boolean> = _isCommanderConnected
+
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val serviceArgs: Shizuku.UserServiceArgs get() = Shizuku.UserServiceArgs(
         ComponentName(context.packageName, ShadeCommanderService::class.java.name)
@@ -28,15 +32,20 @@ class StatusBarGovernor(
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             commander = IShadeCommander.Stub.asInterface(service)
+            _isCommanderConnected.value = true
+            if (shouldDisableExpansion) {
+                serviceScope.launch {
+                    disableExpansion()
+                }
+            }
         }
         override fun onServiceDisconnected(name: ComponentName?) {
             commander = null
+            _isCommanderConnected.value = false
         }
     }
 
     init {
-        // Bug 2 fix: re-bind whenever Shizuku (re)connects so that commander is
-        // never left null after a Shizuku restart.
         connector.isConnected
             .onEach { connected -> if (connected) bindService() }
             .launchIn(CoroutineScope(SupervisorJob() + Dispatchers.Main))
@@ -54,9 +63,10 @@ class StatusBarGovernor(
             Shizuku.unbindUserService(serviceArgs, serviceConnection, false)
         } catch (_: Exception) {}
         commander = null
+        _isCommanderConnected.value = false
     }
 
-    private suspend fun exec(vararg args: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun runShell(vararg args: String): Boolean = withContext(Dispatchers.IO) {
         try {
             if (!connector.hasPermission()) return@withContext false
             val cmd = Array(args.size) { args[it] }
@@ -64,7 +74,7 @@ class StatusBarGovernor(
         } catch (_: Exception) { false }
     }
 
-    private suspend fun execOutput(vararg args: String): String = withContext(Dispatchers.IO) {
+    suspend fun runShellOutput(vararg args: String): String = withContext(Dispatchers.IO) {
         try {
             if (!connector.hasPermission()) return@withContext ""
             val cmd = Array(args.size) { args[it] }
@@ -72,21 +82,25 @@ class StatusBarGovernor(
         } catch (_: Exception) { "" }
     }
 
-    suspend fun disableExpansion(): Boolean =
-        exec("cmd", "statusbar", "send-disable-flag", "statusbar-expansion")
+    suspend fun disableExpansion(): Boolean {
+        shouldDisableExpansion = true
+        return runShell("cmd", "statusbar", "send-disable-flag", "statusbar-expansion")
+    }
 
-    suspend fun enableExpansion(): Boolean =
-        exec("cmd", "statusbar", "send-disable-flag", "none")
+    suspend fun enableExpansion(): Boolean {
+        shouldDisableExpansion = false
+        return runShell("cmd", "statusbar", "send-disable-flag", "none")
+    }
 
     suspend fun clickTile(component: String): Boolean =
-        exec("cmd", "statusbar", "click-tile", component)
+        runShell("cmd", "statusbar", "click-tile", component)
 
     suspend fun getCurrentTiles(): String =
-        execOutput("settings", "get", "secure", "sysui_qs_tiles")
+        runShellOutput("settings", "get", "secure", "sysui_qs_tiles")
 
     suspend fun collapse(): Boolean =
-        exec("cmd", "statusbar", "collapse")
+        runShell("cmd", "statusbar", "collapse")
 
     suspend fun expandSettings(): Boolean =
-        exec("cmd", "statusbar", "expand-settings")
+        runShell("cmd", "statusbar", "expand-settings")
 }

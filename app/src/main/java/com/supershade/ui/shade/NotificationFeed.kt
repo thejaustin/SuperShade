@@ -27,6 +27,7 @@ fun NotificationFeed(
     onDismiss: (String) -> Unit,
     onClearAll: () -> Unit,
     modifier: Modifier = Modifier,
+    onNotificationClick: (ShadeNotification) -> Unit = {},
 ) {
     if (notifications.isEmpty()) {
         Column(
@@ -79,6 +80,7 @@ fun NotificationFeed(
                 NotificationCard(
                     notification = notification,
                     onDismiss = { onDismiss(notification.key) },
+                    onClick = { onNotificationClick(notification) },
                     modifier = Modifier.animateItem(),
                 )
             }

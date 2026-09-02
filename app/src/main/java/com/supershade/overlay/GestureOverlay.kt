@@ -25,39 +25,15 @@ class GestureOverlay(
     private var overlayView: View? = null
 
     // ---------------------------------------------------------------------------
-    // Gesture detection
-    // ---------------------------------------------------------------------------
-
-    private val gestureDetector = GestureDetector(
-        context,
-        object : GestureDetector.SimpleOnGestureListener() {
-            /** Must return true so subsequent events in the gesture are delivered. */
-            override fun onDown(e: MotionEvent): Boolean = true
-
-            override fun onFling(
-                e1: MotionEvent?,
-                e2: MotionEvent,
-                velocityX: Float,
-                velocityY: Float,
-            ): Boolean {
-                val startY = e1?.y ?: 0f
-                val deltaY = e2.y - startY
-                if (velocityY > FLING_VELOCITY_THRESHOLD && deltaY > FLING_DISTANCE_THRESHOLD) {
-                    onSwipeDown()
-                    return true
-                }
-                return false
-            }
-        }
-    )
-
-    // ---------------------------------------------------------------------------
     // WindowManager params
     // ---------------------------------------------------------------------------
 
+    private val statusBarHeight = getStatusBarHeight()
+    private val captureHeight = maxOf(statusBarHeight, (48 * context.resources.displayMetrics.density).toInt())
+
     private val params = WindowManager.LayoutParams(
         WindowManager.LayoutParams.MATCH_PARENT,
-        /* height = 1 px */ 1,
+        captureHeight,
         WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
@@ -66,7 +42,8 @@ class GestureOverlay(
         PixelFormat.TRANSLUCENT,
     ).apply {
         gravity = Gravity.TOP or Gravity.START
-        y = getStatusBarHeight()
+        x = 0
+        y = 0
     }
 
     // ---------------------------------------------------------------------------
@@ -75,18 +52,56 @@ class GestureOverlay(
 
     /** Adds the overlay view to the WindowManager. Safe to call only once. */
     fun attach() {
-        check(overlayView == null) { "GestureOverlay is already attached" }
+        if (overlayView != null) return
+        var startX = 0f
+        var startY = 0f
+        var startTime = 0L
+        var triggered = false
+
         val view = View(context).apply {
             setOnTouchListener { _, event ->
-                gestureDetector.onTouchEvent(event)
-                true
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        startX = event.rawX
+                        startY = event.rawY
+                        startTime = System.currentTimeMillis()
+                        triggered = false
+                        true
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        val deltaX = kotlin.math.abs(event.rawX - startX)
+                        val deltaY = event.rawY - startY
+                        if (!triggered && deltaY > 40f && deltaY > deltaX * 1.1f) {
+                            triggered = true
+                            onSwipeDown()
+                        }
+                        true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        val deltaX = kotlin.math.abs(event.rawX - startX)
+                        val deltaY = event.rawY - startY
+                        val duration = System.currentTimeMillis() - startTime
+                        if (!triggered && deltaY > 30f && deltaY > deltaX && duration < 600) {
+                            triggered = true
+                            onSwipeDown()
+                        }
+                        true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        triggered = false
+                        true
+                    }
+                    else -> false
+                }
             }
         }
         overlayView = view
-        windowManager.addView(view, params)
+        try {
+            windowManager.addView(view, params)
+        } catch (_: Exception) {}
     }
 
-    /** Removes the overlay view.  Swallows all exceptions (system WM may already be gone). */
+    /** Removes the overlay view. Swallows all exceptions (system WM may already be gone). */
     fun detach() {
         overlayView?.let { view ->
             try {
@@ -104,14 +119,6 @@ class GestureOverlay(
 
     private fun getStatusBarHeight(): Int {
         val id = context.resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (id > 0) context.resources.getDimensionPixelSize(id) else 0
-    }
-
-    private companion object {
-        /** Minimum downward velocity (px/s) to qualify as a shade-open fling. */
-        const val FLING_VELOCITY_THRESHOLD = 500f
-
-        /** Minimum downward travel distance (px) to qualify as a shade-open fling. */
-        const val FLING_DISTANCE_THRESHOLD = 50f
+        return if (id > 0) context.resources.getDimensionPixelSize(id) else (24 * context.resources.displayMetrics.density).toInt()
     }
 }

@@ -95,6 +95,10 @@ fun ShadeRoot(
                         notifications = state.visibleNotifications,
                         onDismiss = { viewModel.dismissNotification(it) },
                         onClearAll = { viewModel.clearAllNotifications() },
+                        onNotificationClick = { notification ->
+                            viewModel.launchNotification(notification)
+                            onDismiss()
+                        },
                         modifier = Modifier.weight(1f),
                     )
 

@@ -53,10 +53,12 @@ fun SettingsScreen(
     notificationAccessGranted: Boolean,
     overlayGranted: Boolean,
     shadeActive: Boolean,
+    blockSystemShade: Boolean = true,
     selectedTheme: ShadeTheme,
     appVersion: String,
     darkThemeMode: DarkThemeMode = DarkThemeMode.SYSTEM,
     onToggleShade: (Boolean) -> Unit,
+    onBlockSystemShadeChange: (Boolean) -> Unit = {},
     onThemeChange: (ShadeTheme) -> Unit,
     onDarkModeChange: (DarkThemeMode) -> Unit = {},
     onGrantOverlay: () -> Unit,
@@ -161,13 +163,34 @@ fun SettingsScreen(
                         modifier = Modifier.padding(top = 8.dp),
                     )
                 }
-                if (shadeActive && allGranted) {
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedButton(
-                        onClick = onPreviewShade,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Open Shade Preview")
+                AnimatedVisibility(visible = shadeActive && allGranted) {
+                    Column {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Block system shade", style = MaterialTheme.typography.titleSmall)
+                                Text(
+                                    text = if (blockSystemShade) "System panel disabled" else "System panel allowed",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = blockSystemShade,
+                                onCheckedChange = onBlockSystemShadeChange,
+                            )
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        OutlinedButton(
+                            onClick = onPreviewShade,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("Open Shade Preview")
+                        }
                     }
                 }
             }

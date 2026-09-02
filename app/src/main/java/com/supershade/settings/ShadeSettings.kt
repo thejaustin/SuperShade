@@ -23,6 +23,7 @@ class ShadeSettings(private val context: Context) {
         private val ENABLED_TILES_KEY = stringPreferencesKey("enabled_tiles")
         private val LAST_SEEN_VERSION_KEY = stringPreferencesKey("last_seen_version")
         private val LAST_UPDATE_CHECK_KEY = longPreferencesKey("last_update_check_ms")
+        private val BLOCK_SYSTEM_SHADE_KEY = booleanPreferencesKey("block_system_shade")
     }
 
     val theme: Flow<ShadeTheme> = context.dataStore.data.map { prefs ->
@@ -53,6 +54,10 @@ class ShadeSettings(private val context: Context) {
 
     val lastUpdateCheckMs: Flow<Long> = context.dataStore.data.map { prefs ->
         prefs[LAST_UPDATE_CHECK_KEY] ?: 0L
+    }
+
+    val blockSystemShade: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[BLOCK_SYSTEM_SHADE_KEY] ?: true
     }
 
     suspend fun setTheme(theme: ShadeTheme) {
@@ -93,6 +98,12 @@ class ShadeSettings(private val context: Context) {
     suspend fun setLastUpdateCheckMs(ms: Long) {
         context.dataStore.edit { prefs ->
             prefs[LAST_UPDATE_CHECK_KEY] = ms
+        }
+    }
+
+    suspend fun setBlockSystemShade(block: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[BLOCK_SYSTEM_SHADE_KEY] = block
         }
     }
 }

@@ -47,6 +47,10 @@ private fun localReleaseNotes(version: String): String = when (version) {
         • Tap any notification to launch the app directly
         • One-tap "Open Shade Preview" in Settings
     """.trimIndent()
+    "1.2.4" -> """
+        ⚙️ Block system shade setting
+        Toggle whether the system notification panel is suppressed while SuperShade is active. Disable to let both panels coexist.
+    """.trimIndent()
     "1.2.3" -> """
         ✨ UI polish
         • Panel capped at 72 % height — scrim always visible below

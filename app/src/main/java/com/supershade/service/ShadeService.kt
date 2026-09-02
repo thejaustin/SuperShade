@@ -9,6 +9,7 @@ import android.os.IBinder
 import com.supershade.R
 import com.supershade.overlay.GestureOverlay
 import com.supershade.overlay.ShadeWindowManager
+import com.supershade.settings.ShadeSettings
 import com.supershade.shizuku.ShizukuPlusConnector
 import com.supershade.shizuku.StatusBarGovernor
 import com.supershade.viewmodel.ShadeViewModel
@@ -38,6 +39,7 @@ class ShadeService : Service() {
 
     private val governor: StatusBarGovernor by inject()
     private val connector: ShizukuPlusConnector by inject()
+    private val settings: ShadeSettings by inject()
 
     // ShadeViewModel is a Koin singleton — resolved here so the service and the
     // ComposeView overlay share the exact same instance.
@@ -84,9 +86,13 @@ class ShadeService : Service() {
         // Start the Shizuku UserService so tile-click and status-bar commands work.
         governor.bindService()
 
-        scope.launch {
-            governor.disableExpansion()
-        }
+        // Apply or lift the system-shade block whenever the setting changes.
+        settings.blockSystemShade
+            .distinctUntilChanged()
+            .onEach { block ->
+                if (block) governor.disableExpansion() else governor.enableExpansion()
+            }
+            .launchIn(scope)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

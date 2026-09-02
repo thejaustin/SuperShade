@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
             val theme by settings.theme.collectAsState(initial = ShadeTheme.OneUI)
             val darkThemeMode by settings.darkThemeMode.collectAsState(initial = com.supershade.ui.theme.DarkThemeMode.SYSTEM)
             val isActive by settings.isActive.collectAsState(initial = false)
+            val blockSystemShade by settings.blockSystemShade.collectAsState(initial = true)
             val availableUpdate by updateRepo.availableUpdate.collectAsState()
             val showWhatsNew by updateRepo.showWhatsNew.collectAsState()
 
@@ -122,12 +123,16 @@ class MainActivity : ComponentActivity() {
                         notificationAccessGranted = notifAccessGranted,
                         overlayGranted = overlayGranted,
                         shadeActive = isActive,
+                        blockSystemShade = blockSystemShade,
                         selectedTheme = theme,
                         darkThemeMode = darkThemeMode,
                         appVersion = BuildConfig.VERSION_NAME,
                         onToggleShade = { enabled ->
                             toggleShadeService(enabled)
                             scope.launch { settings.setActive(enabled) }
+                        },
+                        onBlockSystemShadeChange = { block ->
+                            scope.launch { settings.setBlockSystemShade(block) }
                         },
                         onThemeChange = { newTheme ->
                             scope.launch { settings.setTheme(newTheme) }

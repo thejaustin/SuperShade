@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,6 +42,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -186,12 +189,14 @@ class HeadsUpOverlay(private val context: Context) {
     @androidx.compose.runtime.Composable
     private fun HeadsUpCard(notification: ShadeNotification, onTap: () -> Unit) {
         val ctx = LocalContext.current
-        val appIcon: ImageBitmap? = remember(notification.packageName) {
-            try {
-                ctx.packageManager.getApplicationIcon(notification.packageName)
-                    .toBitmap(48, 48, android.graphics.Bitmap.Config.ARGB_8888)
-                    .asImageBitmap()
-            } catch (_: Exception) { null }
+        val appIcon by produceState<ImageBitmap?>(null, notification.packageName) {
+            value = withContext(Dispatchers.IO) {
+                try {
+                    ctx.packageManager.getApplicationIcon(notification.packageName)
+                        .toBitmap(48, 48, android.graphics.Bitmap.Config.ARGB_8888)
+                        .asImageBitmap()
+                } catch (_: Exception) { null }
+            }
         }
         val appName = remember(notification.packageName) {
             try {
@@ -242,7 +247,7 @@ class HeadsUpOverlay(private val context: Context) {
                     ) {
                         if (appIcon != null) {
                             Image(
-                                bitmap = appIcon,
+                                bitmap = appIcon!!,
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp).clip(RoundedCornerShape(3.dp)),
                             )

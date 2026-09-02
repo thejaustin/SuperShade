@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -45,8 +46,12 @@ import androidx.compose.ui.unit.dp
 import com.supershade.domain.notification.model.ShadeNotification
 
 import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.core.graphics.drawable.toBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,16 +74,23 @@ fun NotificationCard(
         }
     }
 
-    val appIconBitmap = remember(notification.packageName) {
-        try {
-            val drawable = context.packageManager.getApplicationIcon(notification.packageName)
-            drawable.toBitmap(
-                width = 48,
-                height = 48,
-                config = android.graphics.Bitmap.Config.ARGB_8888
-            ).asImageBitmap()
-        } catch (_: Exception) {
-            null
+    val appIconBitmap by produceState<ImageBitmap?>(null, notification.packageName) {
+        value = withContext(Dispatchers.IO) {
+            try {
+                context.packageManager.getApplicationIcon(notification.packageName)
+                    .toBitmap(48, 48, android.graphics.Bitmap.Config.ARGB_8888)
+                    .asImageBitmap()
+            } catch (_: Exception) { null }
+        }
+    }
+
+    val largeIconBitmap by produceState<ImageBitmap?>(null, notification.largeIcon) {
+        value = withContext(Dispatchers.IO) {
+            try {
+                notification.largeIcon?.loadDrawable(context)
+                    ?.toBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
+                    ?.asImageBitmap()
+            } catch (_: Exception) { null }
         }
     }
 
@@ -157,7 +169,7 @@ fun NotificationCard(
                     ) {
                         if (appIconBitmap != null) {
                             Image(
-                                bitmap = appIconBitmap,
+                                bitmap = appIconBitmap!!,
                                 contentDescription = null,
                                 modifier = Modifier
                                     .size(16.dp)
@@ -165,7 +177,9 @@ fun NotificationCard(
                             )
                         }
                         Text(
-                            text = appName,
+                            text = if (notification.isConversation && notification.conversationTitle != null)
+                                "$appName · ${notification.conversationTitle}"
+                            else appName,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -179,7 +193,7 @@ fun NotificationCard(
                     )
                 }
 
-                // Title + body
+                // Title + body + optional large icon (sender avatar / image)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -202,6 +216,17 @@ fun NotificationCard(
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
+                    }
+                    if (largeIconBitmap != null) {
+                        Spacer(Modifier.width(10.dp))
+                        Image(
+                            bitmap = largeIconBitmap!!,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp)),
+                        )
                     }
                     if (notification.actions.isNotEmpty()) {
                         IconButton(

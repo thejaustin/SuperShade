@@ -12,12 +12,15 @@ data class ShadeNotification(
     val subText: String?,
     val category: ShadeCategory,
     val smallIcon: Icon?,
+    val largeIcon: Icon? = null,
     val isGroupSummary: Boolean,
     val groupKey: String?,
     val postTime: Long,
     val actions: List<NotificationAction>,
     val isClearable: Boolean,
-    val contentIntent: android.app.PendingIntent? = null
+    val contentIntent: android.app.PendingIntent? = null,
+    val isConversation: Boolean = false,
+    val conversationTitle: String? = null,
 )
 
 data class NotificationAction(
@@ -42,6 +45,8 @@ fun StatusBarNotification.toShadeNotification(category: ShadeCategory): ShadeNot
     val rawSubText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()
         ?: extras.getCharSequence(Notification.EXTRA_INFO_TEXT)?.toString()
 
+    val conversationTitle = extras.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)?.toString()
+
     return ShadeNotification(
         key = key,
         packageName = packageName,
@@ -50,6 +55,7 @@ fun StatusBarNotification.toShadeNotification(category: ShadeCategory): ShadeNot
         subText = rawSubText?.trim(),
         category = category,
         smallIcon = notification.smallIcon,
+        largeIcon = notification.getLargeIcon(),
         isGroupSummary = notification.flags and Notification.FLAG_GROUP_SUMMARY != 0,
         groupKey = notification.group,
         postTime = postTime,
@@ -58,6 +64,8 @@ fun StatusBarNotification.toShadeNotification(category: ShadeCategory): ShadeNot
             if (!title.isNullOrBlank()) NotificationAction(title, action.actionIntent) else null
         } ?: emptyList(),
         isClearable = isClearable,
-        contentIntent = notification.contentIntent
+        contentIntent = notification.contentIntent,
+        isConversation = notification.category == Notification.CATEGORY_MESSAGE && conversationTitle != null,
+        conversationTitle = conversationTitle?.trim(),
     )
 }

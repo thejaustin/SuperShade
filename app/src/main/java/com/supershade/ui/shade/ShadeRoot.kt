@@ -26,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import android.os.Build
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -59,11 +60,14 @@ fun ShadeRoot(
 
     themeWrapper {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Dimmer scrim — tapping it dismisses the shade
+            // Dimmer scrim — tapping it dismisses the shade.
+            // On Android 12+ the compositor handles background blur so we can use
+            // a lighter tint; on older versions the darker value provides contrast.
+            val scrimAlpha = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.25f else 0.55f
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.55f))
+                    .background(Color.Black.copy(alpha = scrimAlpha))
                     .clickable(onClick = onDismiss),
             )
 

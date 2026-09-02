@@ -29,6 +29,14 @@ import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
 private fun localReleaseNotes(version: String): String = when (version) {
+    "1.2.7" -> """
+        ✨ Visual quality & notification richness
+        • Frosted-glass blur behind the shade panel on Android 12+ devices
+        • Lighter scrim on Android 12+ — blur provides contrast, no dark veil needed
+        • Large notification icons (sender avatars, images) displayed in cards
+        • Group chat / conversation title shown next to app name in header
+        • App icon and large icon loading moved off the composition thread
+    """.trimIndent()
     "1.2.6" -> """
         🔓 Shizuku-free mode
         • SuperShade now activates with just Notification Access + Display Over Other Apps

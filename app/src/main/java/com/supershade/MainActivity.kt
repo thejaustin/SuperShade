@@ -2,6 +2,7 @@ package com.supershade
 
 import android.content.ComponentName
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -60,18 +61,28 @@ class MainActivity : ComponentActivity() {
                 val showWhatsNew by updateRepo.showWhatsNew.collectAsState()
 
                 // Re-checked on every resume so user sees instant feedback after
-                // granting notification access in system Settings.
-                var notifAccessGranted by remember {
-                    mutableStateOf(isNotificationAccessGranted())
-                }
+                // granting access in system Settings.
+                var notifAccessGranted by remember { mutableStateOf(isNotificationAccessGranted()) }
+                var overlayGranted by remember { mutableStateOf(Settings.canDrawOverlays(this)) }
+                var shizukuPermGranted by remember { mutableStateOf(connector.hasPermission()) }
+
                 DisposableEffect(lifecycleOwner) {
                     val observer = LifecycleEventObserver { _, event ->
                         if (event == Lifecycle.Event.ON_RESUME) {
                             notifAccessGranted = isNotificationAccessGranted()
+                            overlayGranted = Settings.canDrawOverlays(this@MainActivity)
+                            shizukuPermGranted = connector.hasPermission()
                         }
                     }
                     lifecycleOwner.lifecycle.addObserver(observer)
                     onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                }
+
+                // Request Shizuku permission as soon as it connects but isn't granted.
+                LaunchedEffect(shizukuConnected) {
+                    if (shizukuConnected && !connector.hasPermission()) {
+                        connector.requestPermission(0)
+                    }
                 }
 
                 // Detect fresh install / version upgrade → show What's New sheet
@@ -94,7 +105,9 @@ class MainActivity : ComponentActivity() {
                 ) { padding ->
                     SettingsScreen(
                         shizukuConnected = shizukuConnected,
+                        shizukuPermGranted = shizukuPermGranted,
                         notificationAccessGranted = notifAccessGranted,
+                        overlayGranted = overlayGranted,
                         shadeActive = isActive,
                         selectedTheme = theme,
                         appVersion = BuildConfig.VERSION_NAME,
@@ -104,6 +117,14 @@ class MainActivity : ComponentActivity() {
                         },
                         onThemeChange = { newTheme ->
                             scope.launch { settings.setTheme(newTheme) }
+                        },
+                        onGrantOverlay = {
+                            startActivity(
+                                Intent(
+                                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    Uri.parse("package:$packageName"),
+                                )
+                            )
                         },
                         onCheckUpdate = {
                             scope.launch { updateRepo.checkForUpdate() }

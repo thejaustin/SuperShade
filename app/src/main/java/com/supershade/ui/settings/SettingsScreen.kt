@@ -2,6 +2,7 @@ package com.supershade.ui.settings
 
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Smartphone
@@ -46,12 +48,15 @@ import com.supershade.ui.theme.ShadeTheme
 @Composable
 fun SettingsScreen(
     shizukuConnected: Boolean,
+    shizukuPermGranted: Boolean,
     notificationAccessGranted: Boolean,
+    overlayGranted: Boolean,
     shadeActive: Boolean,
     selectedTheme: ShadeTheme,
     appVersion: String,
     onToggleShade: (Boolean) -> Unit,
     onThemeChange: (ShadeTheme) -> Unit,
+    onGrantOverlay: () -> Unit,
     onCheckUpdate: () -> Unit,
     onShowWhatsNew: () -> Unit,
     modifier: Modifier = Modifier,
@@ -68,18 +73,26 @@ fun SettingsScreen(
 
         // ---- Status section -----------------------------------------------
         SectionLabel("Status")
+        val shizukuOk = shizukuConnected && shizukuPermGranted
         StatusCard(
             icon = Icons.Default.Smartphone,
             label = "Shizuku",
-            ok = shizukuConnected,
+            ok = shizukuOk,
             okText = "Connected",
-            failText = "Not connected — open Shizuku",
-            action = if (!shizukuConnected) {
-                { context.startActivity(
-                    context.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")
-                        ?: Intent(Settings.ACTION_SETTINGS)
-                ) }
-            } else null,
+            failText = when {
+                shizukuConnected && !shizukuPermGranted -> "Connected — tap to grant permission"
+                else -> "Not connected — open Shizuku"
+            },
+            action = when {
+                shizukuConnected && !shizukuPermGranted -> null // permission dialog triggered automatically
+                !shizukuConnected -> {
+                    { context.startActivity(
+                        context.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")
+                            ?: Intent(Settings.ACTION_SETTINGS)
+                    ) }
+                }
+                else -> null
+            },
         )
         StatusCard(
             icon = Icons.Default.Notifications,
@@ -96,11 +109,20 @@ fun SettingsScreen(
                 }
             } else null,
         )
+        StatusCard(
+            icon = Icons.Default.Layers,
+            label = "Display Over Other Apps",
+            ok = overlayGranted,
+            okText = "Granted",
+            failText = "Tap to grant",
+            action = if (!overlayGranted) onGrantOverlay else null,
+        )
 
         HorizontalDivider()
 
         // ---- Shade section ------------------------------------------------
         SectionLabel("Shade")
+        val allGranted = shizukuOk && notificationAccessGranted && overlayGranted
         ElevatedCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
@@ -119,7 +141,20 @@ fun SettingsScreen(
                     Switch(
                         checked = shadeActive,
                         onCheckedChange = onToggleShade,
-                        enabled = shizukuConnected && notificationAccessGranted,
+                        enabled = allGranted,
+                    )
+                }
+                AnimatedVisibility(visible = !allGranted) {
+                    val missing = buildList {
+                        if (!shizukuOk) add("Shizuku")
+                        if (!notificationAccessGranted) add("Notification access")
+                        if (!overlayGranted) add("Display over other apps")
+                    }
+                    Text(
+                        text = "Requires: ${missing.joinToString(" · ")}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 8.dp),
                     )
                 }
             }

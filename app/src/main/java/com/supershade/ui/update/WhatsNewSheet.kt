@@ -28,6 +28,26 @@ import androidx.compose.ui.unit.dp
 import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
+private fun localReleaseNotes(version: String): String = when (version) {
+    "1.2.1", "1.2.0" -> """
+        🎨 OneUI 8.5 redesign
+        Samsung-accurate shade panel — large Light clock, Galaxy Blue accent, 22 dp tile corners, and transparent inactive category chips.
+
+        🐛 16 backend fixes
+        • Notification dismiss now also cancels from the system tray
+        • Quick Settings tiles work on Samsung (full component names)
+        • Media playback position stays in sync after seeking
+        • Theme selection takes effect immediately without restart
+        • Boot auto-start is crash-safe with a hard timeout
+        • Shizuku rebinds automatically after a restart
+    """.trimIndent()
+    "1.1.0" -> """
+        ✨ Initial public release
+        Functional custom shade with notifications, Quick Settings, brightness, and media controls.
+    """.trimIndent()
+    else -> "Thanks for keeping SuperShade up to date!"
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WhatsNewSheet(
@@ -65,18 +85,11 @@ fun WhatsNewSheet(
             HorizontalDivider()
             Spacer(Modifier.height(16.dp))
 
-            if (releaseNotes.isNotBlank()) {
-                Text(
-                    text = releaseNotes,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            } else {
-                Text(
-                    text = "Thanks for updating SuperShade!",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            val notes = releaseNotes.ifBlank { localReleaseNotes(BuildConfig.VERSION_NAME) }
+            Text(
+                text = notes,
+                style = MaterialTheme.typography.bodyMedium,
+            )
 
             Spacer(Modifier.height(24.dp))
             TextButton(

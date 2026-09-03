@@ -29,6 +29,13 @@ import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
 private fun localReleaseNotes(version: String): String = when (version) {
+    "1.3.0" -> """
+        📬 Notification grouping
+        • Notifications from the same app and group are stacked into a single card
+        • Collapsed stack shows the latest message with a "+N more" hint and ghost cards behind it
+        • Tap the card or the arrow to expand — each notification inside is individually swipe-dismissible
+        • Stacks of 3+ show a two-layer peek effect so you can see depth at a glance
+    """.trimIndent()
     "1.2.9" -> """
         🎨 Richer UI — gradients, inline reply, animated brightness
         • Media card background now pulls dominant color from album art with a live gradient

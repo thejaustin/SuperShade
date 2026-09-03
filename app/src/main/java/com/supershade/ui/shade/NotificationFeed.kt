@@ -50,6 +50,7 @@ fun NotificationFeed(
             )
         }
     } else {
+        val groups = notifications.toGroups()
         LazyColumn(
             modifier = modifier.fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -74,15 +75,26 @@ fun NotificationFeed(
                 }
             }
             items(
-                items = notifications,
-                key = { it.key },
-            ) { notification ->
-                NotificationCard(
-                    notification = notification,
-                    onDismiss = { onDismiss(notification.key) },
-                    onClick = { onNotificationClick(notification) },
-                    modifier = Modifier.animateItem(),
-                )
+                items = groups,
+                key = { "${it.packageName}::${it.groupKey.orEmpty()}" },
+            ) { group ->
+                if (group.isStacked) {
+                    GroupedNotificationCard(
+                        group = group,
+                        onDismissGroup = { group.notifications.forEach { onDismiss(it.key) } },
+                        onDismiss = onDismiss,
+                        onNotificationClick = onNotificationClick,
+                        modifier = Modifier.animateItem(),
+                    )
+                } else {
+                    val notification = group.preview
+                    NotificationCard(
+                        notification = notification,
+                        onDismiss = { onDismiss(notification.key) },
+                        onClick = { onNotificationClick(notification) },
+                        modifier = Modifier.animateItem(),
+                    )
+                }
             }
         }
     }

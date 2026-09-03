@@ -29,6 +29,13 @@ import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
 private fun localReleaseNotes(version: String): String = when (version) {
+    "1.2.9" -> """
+        🎨 Richer UI — gradients, inline reply, animated brightness
+        • Media card background now pulls dominant color from album art with a live gradient
+        • Brightness slider has a gradient track (dark → warm yellow) and icons that fade with brightness
+        • Tap a "Reply" action on any messaging notification to type and send inline — no app switch needed
+        • Heads-up peek card shows sender avatar at full circle size when available
+    """.trimIndent()
     "1.2.8" -> """
         🤌 Fluid interactions & live tiles
         • Swipe up on the drag handle to dismiss the shade — spring physics, velocity-gated

@@ -37,6 +37,7 @@ class ShadeViewModel(
     val state: StateFlow<ShadeState> = _state.asStateFlow()
 
     private var positionTickerJob: Job? = null
+    private var tileRefreshJob: Job? = null
 
     init {
         notificationRepo.notifications
@@ -96,10 +97,19 @@ class ShadeViewModel(
         mediaRepo.refresh()
         tileRepo.reload()
         notificationRepo.refresh()
+        tileRefreshJob?.cancel()
+        tileRefreshJob = viewModelScope.launch {
+            while (isActive) {
+                delay(5_000L)
+                tileRepo.reload()
+            }
+        }
     }
 
     fun close() {
         _state.update { it.copy(isOpen = false) }
+        tileRefreshJob?.cancel()
+        tileRefreshJob = null
     }
 
     fun selectCategory(category: ShadeCategory) {

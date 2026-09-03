@@ -29,6 +29,13 @@ import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
 private fun localReleaseNotes(version: String): String = when (version) {
+    "1.2.8" -> """
+        🤌 Fluid interactions & live tiles
+        • Swipe up on the drag handle to dismiss the shade — spring physics, velocity-gated
+        • QS tiles refresh every 5 s while the shade is open so state stays accurate
+        • FULL_TOGGLE tiles dim to 50 % when Shizuku is absent — tap still opens Settings
+        • Heads-up peek card shows sender avatar (large icon) instead of the tiny app icon
+    """.trimIndent()
     "1.2.7" -> """
         ✨ Visual quality & notification richness
         • Frosted-glass blur behind the shade panel on Android 12+ devices

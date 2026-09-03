@@ -19,6 +19,7 @@ import com.supershade.ui.theme.ShadeTheme
 fun QuickSettingsGrid(
     tiles: List<TileDefinition>,
     theme: ShadeTheme,
+    isShizukuConnected: Boolean,
     onTileClick: (TileDefinition) -> Unit,
 ) {
     LazyVerticalGrid(
@@ -35,6 +36,7 @@ fun QuickSettingsGrid(
             TileCard(
                 tile = tile,
                 theme = theme,
+                isShizukuConnected = isShizukuConnected,
                 onClick = { onTileClick(tile) },
             )
         }

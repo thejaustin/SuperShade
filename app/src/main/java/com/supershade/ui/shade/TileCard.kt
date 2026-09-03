@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.supershade.domain.tile.TileCapability
 import com.supershade.domain.tile.TileDefinition
 import com.supershade.ui.theme.ShadeTheme
 
@@ -59,6 +60,7 @@ import com.supershade.ui.theme.ShadeTheme
 fun TileCard(
     tile: TileDefinition,
     theme: ShadeTheme,
+    isShizukuConnected: Boolean,
     onClick: () -> Unit,
 ) {
     // Pixel uses a full pill; OneUI uses a very rounded rect
@@ -74,6 +76,13 @@ fun TileCard(
             stiffness    = Spring.StiffnessHigh,
         ),
         label = "tileScale",
+    )
+
+    // Dim FULL_TOGGLE tiles when Shizuku is absent — tap opens Settings instead.
+    val tileAlpha by animateFloatAsState(
+        targetValue = if (tile.capability == TileCapability.FULL_TOGGLE && !isShizukuConnected) 0.5f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "tileAlpha",
     )
 
     val containerColor by animateColorAsState(
@@ -107,7 +116,7 @@ fun TileCard(
         modifier = Modifier
             .fillMaxWidth()
             .height(72.dp)
-            .graphicsLayer { scaleX = scale; scaleY = scale },
+            .graphicsLayer { scaleX = scale; scaleY = scale; alpha = tileAlpha },
     ) {
         Column(
             modifier = Modifier

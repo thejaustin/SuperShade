@@ -198,6 +198,19 @@ class HeadsUpOverlay(private val context: Context) {
                 } catch (_: Exception) { null }
             }
         }
+        val largeIcon by produceState<ImageBitmap?>(null, notification.largeIcon) {
+            value = withContext(Dispatchers.IO) {
+                try {
+                    notification.largeIcon?.loadDrawable(ctx)
+                        ?.toBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
+                        ?.asImageBitmap()
+                } catch (_: Exception) { null }
+            }
+        }
+        // For the header: prefer sender avatar (largeIcon) over tiny app icon.
+        val headerIcon = largeIcon ?: appIcon
+        val headerIconSize = if (largeIcon != null) 28.dp else 14.dp
+        val headerIconCorner = if (largeIcon != null) 50 else 3
         val appName = remember(notification.packageName) {
             try {
                 val info = ctx.packageManager.getApplicationInfo(notification.packageName, 0)
@@ -245,11 +258,13 @@ class HeadsUpOverlay(private val context: Context) {
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.weight(1f),
                     ) {
-                        if (appIcon != null) {
+                        if (headerIcon != null) {
                             Image(
-                                bitmap = appIcon!!,
+                                bitmap = headerIcon!!,
                                 contentDescription = null,
-                                modifier = Modifier.size(14.dp).clip(RoundedCornerShape(3.dp)),
+                                modifier = Modifier
+                                    .size(headerIconSize)
+                                    .clip(RoundedCornerShape(headerIconCorner)),
                             )
                         }
                         Text(

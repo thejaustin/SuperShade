@@ -18,6 +18,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -43,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.supershade.domain.notification.model.NotificationAction
 import com.supershade.domain.notification.model.ShadeNotification
 
 import androidx.compose.foundation.Image
@@ -62,6 +66,7 @@ fun NotificationCard(
     onClick: () -> Unit = {},
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var replyingAction by remember { mutableStateOf<NotificationAction?>(null) }
     val context = LocalContext.current
 
     // Resolve readable app name from the package
@@ -252,7 +257,11 @@ fun NotificationCard(
                         notification.actions.take(3).forEach { action ->
                             OutlinedButton(
                                 onClick = {
-                                    try { action.pendingIntent?.send() } catch (_: Exception) {}
+                                    if (action.replyInput != null) {
+                                        replyingAction = action
+                                    } else {
+                                        try { action.pendingIntent?.send() } catch (_: Exception) {}
+                                    }
                                 },
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(12.dp),
@@ -263,6 +272,40 @@ fun NotificationCard(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
+                            }
+                        }
+                    }
+                    AnimatedVisibility(visible = replyingAction != null) {
+                        replyingAction?.let { action ->
+                            var replyText by remember(action) { mutableStateOf("") }
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                OutlinedTextField(
+                                    value = replyText,
+                                    onValueChange = { replyText = it },
+                                    placeholder = { Text("Reply…", style = MaterialTheme.typography.bodySmall) },
+                                    modifier = Modifier.weight(1f),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(20.dp),
+                                )
+                                IconButton(
+                                    onClick = {
+                                        val ri = action.replyInput ?: return@IconButton
+                                        val intent = android.content.Intent()
+                                        android.app.RemoteInput.addResultsToIntent(
+                                            arrayOf(ri), intent,
+                                            android.os.Bundle().apply { putCharSequence(ri.resultKey, replyText) }
+                                        )
+                                        try { action.pendingIntent?.send(intent) } catch (_: Exception) {}
+                                        replyingAction = null
+                                    },
+                                    enabled = replyText.isNotBlank(),
+                                ) {
+                                    Icon(Icons.Default.Send, contentDescription = "Send reply")
+                                }
                             }
                         }
                     }

@@ -1,6 +1,7 @@
 package com.supershade.domain.notification.model
 
 import android.app.Notification
+import android.app.RemoteInput
 import android.graphics.drawable.Icon
 import android.service.notification.StatusBarNotification
 
@@ -25,7 +26,8 @@ data class ShadeNotification(
 
 data class NotificationAction(
     val label: String,
-    val pendingIntent: android.app.PendingIntent?
+    val pendingIntent: android.app.PendingIntent?,
+    val replyInput: android.app.RemoteInput? = null,
 )
 
 fun StatusBarNotification.toShadeNotification(category: ShadeCategory): ShadeNotification {
@@ -61,7 +63,11 @@ fun StatusBarNotification.toShadeNotification(category: ShadeCategory): ShadeNot
         postTime = postTime,
         actions = notification.actions?.mapNotNull { action ->
             val title = action.title?.toString()?.trim()
-            if (!title.isNullOrBlank()) NotificationAction(title, action.actionIntent) else null
+            if (!title.isNullOrBlank()) NotificationAction(
+                label = title,
+                pendingIntent = action.actionIntent,
+                replyInput = action.remoteInputs?.firstOrNull(),
+            ) else null
         } ?: emptyList(),
         isClearable = isClearable,
         contentIntent = notification.contentIntent,

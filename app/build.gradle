@@ -121,6 +121,9 @@ dependencies {
     // Serialization (used by UpdateChecker for GitHub JSON)
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3'
 
+    // Palette (album art dominant color extraction)
+    implementation 'androidx.palette:palette-ktx:1.0.0'
+
     // HiddenApiBypass
     implementation 'org.lsposed.hiddenapibypass:hiddenapibypass:6.1'
 

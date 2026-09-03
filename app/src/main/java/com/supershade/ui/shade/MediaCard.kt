@@ -1,7 +1,12 @@
 package com.supershade.ui.shade
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,22 +20,27 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.palette.graphics.Palette
 import com.supershade.domain.media.MediaState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private fun formatMs(ms: Long): String {
     val totalSec = ms / 1000
@@ -44,14 +54,41 @@ fun MediaCard(
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
 ) {
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        ),
+    val fallbackColor = MaterialTheme.colorScheme.surfaceVariant
+
+    val dominantColor by produceState(initialValue = fallbackColor, key1 = media.albumArt) {
+        value = if (media.albumArt == null) {
+            fallbackColor
+        } else {
+            withContext(Dispatchers.IO) {
+                val palette = Palette.from(media.albumArt).generate()
+                val argb = palette.getMutedColor(
+                    palette.getVibrantColor(fallbackColor.value.toInt())
+                )
+                Color(argb)
+            }
+        }
+    }
+
+    val animatedColor by animateColorAsState(
+        targetValue = dominantColor,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "MediaCardGradientColor",
+    )
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        animatedColor.copy(alpha = 0.9f),
+                        animatedColor.copy(alpha = 0.4f),
+                    )
+                )
+            ),
     ) {
         Column {
             Row(
@@ -78,7 +115,7 @@ fun MediaCard(
                     Text(
                         text = media.title,
                         style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -86,7 +123,7 @@ fun MediaCard(
                         Text(
                             text = media.artist,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = Color.White.copy(alpha = 0.75f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -102,14 +139,14 @@ fun MediaCard(
                         Icon(
                             imageVector = Icons.Default.SkipPrevious,
                             contentDescription = "Previous",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = Color.White.copy(alpha = 0.7f),
                         )
                     }
                     IconButton(onClick = onPlayPause) {
                         Icon(
                             imageVector = if (media.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = if (media.isPlaying) "Pause" else "Play",
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = Color.White,
                             modifier = Modifier.size(30.dp),
                         )
                     }
@@ -117,7 +154,7 @@ fun MediaCard(
                         Icon(
                             imageVector = Icons.Default.SkipNext,
                             contentDescription = "Next",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = Color.White.copy(alpha = 0.7f),
                         )
                     }
                 }
@@ -132,8 +169,8 @@ fun MediaCard(
                         .fillMaxWidth()
                         .padding(horizontal = 14.dp)
                         .padding(bottom = 4.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f),
+                    color = Color.White.copy(alpha = 0.8f),
+                    trackColor = Color.White.copy(alpha = 0.2f),
                 )
                 Row(
                     modifier = Modifier
@@ -145,12 +182,12 @@ fun MediaCard(
                     Text(
                         text = formatMs(media.position),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color.White.copy(alpha = 0.6f),
                     )
                     Text(
                         text = formatMs(media.duration),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Color.White.copy(alpha = 0.6f),
                     )
                 }
             }

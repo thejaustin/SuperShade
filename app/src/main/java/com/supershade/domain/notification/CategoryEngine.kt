@@ -6,21 +6,29 @@ import com.supershade.domain.notification.model.ShadeCategory
 class CategoryEngine {
 
     fun categorize(sbn: StatusBarNotification): ShadeCategory {
+        val pkg = sbn.packageName
         val androidCategory = sbn.notification.category
+
+        // Package heuristics run first so well-known apps always land in the right
+        // category regardless of what androidCategory the notification declares.
+        // (e.g. Gmail uses CATEGORY_EMAIL; WhatsApp uses CATEGORY_MESSAGE — but a
+        // generic system app that happens to post CATEGORY_EMAIL should still be
+        // recognised by the androidCategory fallback below.)
+        if (isCallsApp(pkg))     return ShadeCategory.Calls
+        if (isMessagingApp(pkg)) return ShadeCategory.Messages
+        if (isSocialApp(pkg))    return ShadeCategory.Social
+        if (isEmailApp(pkg))     return ShadeCategory.Email
+
+        // Standard androidCategory mapping for everything else.
         if (androidCategory != null) {
             ShadeCategory.entries.forEach { cat ->
                 if (cat.androidCategory == androidCategory) return cat
             }
         }
-        // Package-based heuristics for uncategorized notifications
-        return when {
-            isCallsApp(sbn.packageName) -> ShadeCategory.Calls
-            isMessagingApp(sbn.packageName) -> ShadeCategory.Messages
-            isSocialApp(sbn.packageName) -> ShadeCategory.Social
-            isEmailApp(sbn.packageName) -> ShadeCategory.Email
-            isSystemApp(sbn.packageName) -> ShadeCategory.System
-            else -> ShadeCategory.Apps
-        }
+
+        // isSystemApp is intentionally last — it matches broad prefixes like
+        // com.google.android.* which would otherwise swallow Gmail, Maps, etc.
+        return if (isSystemApp(pkg)) ShadeCategory.System else ShadeCategory.Apps
     }
 
     private fun isCallsApp(pkg: String) = pkg in setOf(

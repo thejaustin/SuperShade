@@ -21,6 +21,9 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,7 +38,13 @@ fun BrightnessSlider(
     onBrightnessChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val fraction = (brightness - 1f) / 254f
+    // Local state drives smooth Slider movement during drag without calling
+    // Settings.System.putInt on every pixel. The write happens once on finger-up
+    // via onValueChangeFinished. Resync from the ViewModel value whenever it
+    // changes externally (e.g. auto-brightness event).
+    var localValue by remember(brightness) { mutableFloatStateOf(brightness.toFloat()) }
+
+    val fraction = (localValue - 1f) / 254f
     val dimAlpha by animateFloatAsState(
         targetValue = lerp(1f, 0.3f, fraction),
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
@@ -74,8 +83,9 @@ fun BrightnessSlider(
                     )
             )
             Slider(
-                value = brightness.toFloat(),
-                onValueChange = { onBrightnessChange(it.toInt()) },
+                value = localValue,
+                onValueChange = { localValue = it },
+                onValueChangeFinished = { onBrightnessChange(localValue.toInt()) },
                 valueRange = 1f..255f,
                 modifier = Modifier.fillMaxWidth(),
                 colors = SliderDefaults.colors(

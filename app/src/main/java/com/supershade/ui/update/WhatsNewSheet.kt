@@ -29,6 +29,14 @@ import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
 private fun localReleaseNotes(version: String): String = when (version) {
+    "1.3.1" -> """
+        🔧 Polish & correctness
+        • Heads-up toasts no longer fire for group-summary or updated notifications — only genuinely new ones
+        • Brightness slider no longer hammers Settings.System during drag — one write on finger-up
+        • Notification stacks now swipe-to-dismiss the whole group in one gesture
+        • Stack ghost cards now correctly peek behind the bottom of the main card, not above it
+        • Gmail, Maps, and other Google/OEM apps now land in their correct category (Messages, Social, Email) instead of System
+    """.trimIndent()
     "1.3.0" -> """
         📬 Notification grouping
         • Notifications from the same app and group are stacked into a single card

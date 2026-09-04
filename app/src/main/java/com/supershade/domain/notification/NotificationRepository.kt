@@ -32,21 +32,32 @@ class NotificationRepository {
         val category = categoryEngine.categorize(sbn)
         val shade = sbn.toShadeNotification(category)
 
-        // Ignore phantom notifications with neither title nor text
-        if (shade.title.isBlank() && shade.text.isBlank()) {
-            return
-        }
+        if (shade.title.isBlank() && shade.text.isBlank()) return
+
+        // Capture whether this key is genuinely new BEFORE updating the list.
+        val isNew = _notifications.value.none { it.key == shade.key }
 
         _notifications.update { current ->
             val without = current.filter { it.key != shade.key }
-            // If this is a group summary and we already have child notifications for this group, omit summary
-            if (shade.isGroupSummary && without.any { it.packageName == shade.packageName && it.groupKey == shade.groupKey && !it.isGroupSummary }) {
+            // If this is a group summary and we already have child notifications for
+            // this group, omit the summary — children carry all the visible content.
+            if (shade.isGroupSummary && without.any {
+                    it.packageName == shade.packageName &&
+                    it.groupKey == shade.groupKey &&
+                    !it.isGroupSummary
+                }) {
                 without
             } else {
                 (listOf(shade) + without).sortedByDescending { it.postTime }
             }
         }
-        _newNotifications.tryEmit(shade)
+
+        // Only show a heads-up peek card for genuinely new, non-summary notifications.
+        // Updates to existing notifications (badge count changes, progress updates, etc.)
+        // should not trigger another toast — they're already visible in the feed.
+        if (isNew && !shade.isGroupSummary) {
+            _newNotifications.tryEmit(shade)
+        }
     }
 
     fun onNotificationRemoved(key: String) {

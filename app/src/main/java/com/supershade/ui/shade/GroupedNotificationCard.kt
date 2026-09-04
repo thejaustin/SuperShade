@@ -13,23 +13,28 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,12 +44,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import androidx.core.graphics.drawable.toBitmap
 import com.supershade.domain.notification.model.ShadeNotification
 import kotlinx.coroutines.Dispatchers
@@ -74,6 +79,7 @@ fun List<ShadeNotification>.toGroups(): List<NotificationGroup> {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GroupedNotificationCard(
     group: NotificationGroup,
@@ -104,155 +110,185 @@ fun GroupedNotificationCard(
         }
     }
 
-    Column(modifier = modifier.fillMaxWidth()) {
-        // Stacked card peek effect — show up to 2 ghost cards behind
-        if (!expanded && group.notifications.size >= 3) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
-                    .height(12.dp)
-                    .offset(y = 10.dp)
-                    .zIndex(0f)
-                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-            )
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value != SwipeToDismissBoxValue.Settled) {
+                onDismissGroup(); true
+            } else false
         }
-        if (!expanded && group.notifications.size >= 2) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp)
-                    .height(12.dp)
-                    .offset(y = 6.dp)
-                    .zIndex(1f)
-                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f)),
-            )
-        }
+    )
 
-        // Main card
-        Card(
-            onClick = { expanded = !expanded },
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .zIndex(2f)
-                .animateContentSize(spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium)),
-        ) {
-            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-                // Group header
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color(0xFFE53935)),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete group",
+                    tint = Color.White,
+                    modifier = Modifier.padding(end = 20.dp),
+                )
+            }
+        },
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        // Box so ghost-peek strips can be drawn behind and below the main card.
+        // Ghost strips are first children (drawn behind), main card is last (on top).
+        Box(modifier = Modifier.fillMaxWidth()) {
+
+            // Farthest ghost — narrowest, offsets most below the main card
+            if (!expanded && group.notifications.size >= 3) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                        .align(Alignment.BottomCenter)
+                        .offset(y = 8.dp)
+                        .height(16.dp)
+                        .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                )
+            }
+            // Closer ghost — slightly less narrow, offset less
+            if (!expanded && group.notifications.size >= 2) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp)
+                        .align(Alignment.BottomCenter)
+                        .offset(y = 4.dp)
+                        .height(12.dp)
+                        .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f)),
+                )
+            }
+
+            // Main card — on top, determines Box height
+            Card(
+                onClick = { expanded = !expanded },
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium)),
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                    // Group header row: app icon + name + count badge + expand toggle
                     Row(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        if (appIconBitmap != null) {
-                            Image(
-                                bitmap = appIconBitmap!!,
-                                contentDescription = null,
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            if (appIconBitmap != null) {
+                                Image(
+                                    bitmap = appIconBitmap!!,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clip(RoundedCornerShape(4.dp)),
+                                )
+                            }
+                            Text(
+                                text = appName,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = "${group.notifications.size}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier
-                                    .size(16.dp)
-                                    .clip(RoundedCornerShape(4.dp)),
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.primaryContainer)
+                                    .padding(horizontal = 6.dp, vertical = 1.dp),
                             )
                         }
+                        IconButton(
+                            onClick = { expanded = !expanded },
+                            modifier = Modifier.size(32.dp),
+                        ) {
+                            Icon(
+                                imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = if (expanded) "Collapse" else "Expand",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    }
+
+                    // Collapsed preview: first notification title + text + "+N more"
+                    if (!expanded) {
+                        Spacer(Modifier.height(6.dp))
+                        val preview = group.preview
+                        val displayTitle = preview.title.ifBlank { appName }
                         Text(
-                            text = appName,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = displayTitle,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        Text(
-                            text = "${group.notifications.size}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.primaryContainer)
-                                .padding(horizontal = 6.dp, vertical = 1.dp),
-                        )
-                    }
-                    IconButton(
-                        onClick = { expanded = !expanded },
-                        modifier = Modifier.size(32.dp),
-                    ) {
-                        Icon(
-                            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                            contentDescription = if (expanded) "Collapse" else "Expand",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp),
-                        )
-                    }
-                }
-
-                if (!expanded) {
-                    // Collapsed: show preview of first notification
-                    Spacer(Modifier.height(6.dp))
-                    val preview = group.preview
-                    val displayTitle = preview.title.ifBlank { appName }
-                    Text(
-                        text = displayTitle,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (preview.text.isNotBlank()) {
-                        Text(
-                            text = preview.text,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    if (group.notifications.size > 1) {
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = "+${group.notifications.size - 1} more",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        )
-                    }
-                }
-            }
-
-            // Expanded: individual cards with dividers
-            AnimatedVisibility(
-                visible = expanded,
-                enter = expandVertically(spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium)),
-                exit = shrinkVertically(spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium)),
-            ) {
-                Column {
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 14.dp))
-                    group.notifications.forEachIndexed { index, notification ->
-                        NotificationCard(
-                            notification = notification,
-                            onDismiss = {
-                                onDismiss(notification.key)
-                                if (group.notifications.size == 1) expanded = false
-                            },
-                            onClick = { onNotificationClick(notification) },
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
-                        )
-                        if (index < group.notifications.lastIndex) {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 14.dp),
-                                thickness = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                        if (preview.text.isNotBlank()) {
+                            Text(
+                                text = preview.text,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        if (group.notifications.size > 1) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = "+${group.notifications.size - 1} more",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             )
                         }
                     }
-                    Spacer(Modifier.height(4.dp))
+                }
+
+                // Expanded: individual cards separated by subtle dividers
+                AnimatedVisibility(
+                    visible = expanded,
+                    enter = expandVertically(spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium)),
+                    exit = shrinkVertically(spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium)),
+                ) {
+                    Column {
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 14.dp))
+                        group.notifications.forEachIndexed { index, notification ->
+                            NotificationCard(
+                                notification = notification,
+                                onDismiss = { onDismiss(notification.key) },
+                                onClick = { onNotificationClick(notification) },
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                            )
+                            if (index < group.notifications.lastIndex) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 14.dp),
+                                    thickness = 0.5.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(4.dp))
+                    }
                 }
             }
         }

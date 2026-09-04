@@ -2,19 +2,20 @@ package com.supershade.overlay
 
 import android.content.Context
 import android.graphics.PixelFormat
-import android.view.GestureDetector
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 
 /**
- * A 1 px-tall invisible overlay window positioned immediately below the status
- * bar.  It owns a [GestureDetector] that translates a downward fling into a
- * call to [onSwipeDown], which in turn tells [ShadeWindowManager] to present
- * the full shade UI.
+ * An invisible touch-capture strip positioned just below the status bar.
  *
- * Call [attach] after constructing, and [detach] when the service is destroyed.
+ * Removing FLAG_LAYOUT_IN_SCREEN places this window in stable-bounds coordinates
+ * (y=0 = bottom of the system status bar). This avoids competing with the
+ * TYPE_STATUS_BAR window for touch events — the system shade handles swipes that
+ * start inside the status bar itself, while SuperShade handles swipes that start
+ * in the content area just below it. Without Shizuku this coexistence is the
+ * correct behaviour: both shades are reachable from slightly different drag origins.
  */
 class GestureOverlay(
     private val context: Context,
@@ -24,33 +25,20 @@ class GestureOverlay(
     private val windowManager = context.getSystemService(WindowManager::class.java)
     private var overlayView: View? = null
 
-    // ---------------------------------------------------------------------------
-    // WindowManager params
-    // ---------------------------------------------------------------------------
-
-    private val statusBarHeight = getStatusBarHeight()
-    private val captureHeight = maxOf(statusBarHeight, (48 * context.resources.displayMetrics.density).toInt())
+    // 56 dp strip just below the status bar — wide enough to catch a quick downward flick.
+    private val captureHeight = (56 * context.resources.displayMetrics.density).toInt()
 
     private val params = WindowManager.LayoutParams(
         WindowManager.LayoutParams.MATCH_PARENT,
         captureHeight,
         WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
         PixelFormat.TRANSLUCENT,
     ).apply {
         gravity = Gravity.TOP or Gravity.START
-        x = 0
-        y = 0
     }
 
-    // ---------------------------------------------------------------------------
-    // Public API
-    // ---------------------------------------------------------------------------
-
-    /** Adds the overlay view to the WindowManager. Safe to call only once. */
     fun attach() {
         if (overlayView != null) return
         var startX = 0f
@@ -101,24 +89,12 @@ class GestureOverlay(
         } catch (_: Exception) {}
     }
 
-    /** Removes the overlay view. Swallows all exceptions (system WM may already be gone). */
     fun detach() {
         overlayView?.let { view ->
             try {
                 windowManager.removeView(view)
-            } catch (_: Exception) {
-                // WindowManager.BadTokenException or IllegalArgumentException — view is gone.
-            }
+            } catch (_: Exception) {}
         }
         overlayView = null
-    }
-
-    // ---------------------------------------------------------------------------
-    // Helpers
-    // ---------------------------------------------------------------------------
-
-    private fun getStatusBarHeight(): Int {
-        val id = context.resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (id > 0) context.resources.getDimensionPixelSize(id) else (24 * context.resources.displayMetrics.density).toInt()
     }
 }

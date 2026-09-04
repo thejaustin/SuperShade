@@ -51,8 +51,11 @@ class ShadeWindowManager(
         WindowManager.LayoutParams.MATCH_PARENT,
         WindowManager.LayoutParams.MATCH_PARENT,
         WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+        // FLAG_LAYOUT_IN_SCREEN: draw from physical screen top so the scrim covers
+        // the full display and the shade background sits behind the status bar.
+        // FLAG_LAYOUT_NO_LIMITS intentionally omitted: keeps the window bounded
+        // above the navigation bar so the scrim dismiss area doesn't bleed into it.
+        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
         PixelFormat.TRANSLUCENT,
     ).apply {
         gravity = Gravity.TOP or Gravity.START
@@ -86,6 +89,9 @@ class ShadeWindowManager(
         }
         overlayView = view
         windowManager.addView(view, params)
+        // Dispatch window insets to the ComposeView so statusBarsPadding() and
+        // similar modifiers resolve to the correct values in an overlay window.
+        view.requestApplyInsets()
         viewModel.open()
     }
 

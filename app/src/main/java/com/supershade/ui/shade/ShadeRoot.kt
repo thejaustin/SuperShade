@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -106,7 +107,11 @@ fun ShadeRoot(
                         .fillMaxHeight(0.72f)
                         .offset { IntOffset(0, dragOffset.value.roundToInt()) }
                         .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-                        .background(MaterialTheme.colorScheme.surface),
+                        .background(MaterialTheme.colorScheme.surface)
+                        // Push content below the system status bar. The shade background
+                        // still fills from y=0 (behind the status bar), but StatusBarRow
+                        // and all subsequent content start at the status bar bottom.
+                        .statusBarsPadding(),
                 ) {
                     StatusBarRow(statusBar = state.statusBar)
                     QuickSettingsGrid(

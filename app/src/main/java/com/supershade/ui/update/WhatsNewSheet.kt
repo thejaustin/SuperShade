@@ -29,6 +29,14 @@ import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
 private fun localReleaseNotes(version: String): String = when (version) {
+    "1.6.0" -> """
+        🔦 Smarter toggles & richer notifications
+        • Flashlight tile works without Shizuku — toggles torch directly via CameraManager and tracks state live
+        • Alarm tile shows your next scheduled alarm time as a subtitle
+        • Notification timestamps switch from "2h ago" to an absolute clock time (e.g. 2:47 PM) once they're over an hour old
+        • Long-press a notification group to snooze the entire stack — each card inside also supports snooze individually
+        • Notifications with an attached image (BigPicture style) show a rounded preview when expanded
+    """.trimIndent()
     "1.5.0" -> """
         🎯 Smarter tiles & notification controls
         • Long-press any QS tile to jump straight to its Settings page — no Shizuku required

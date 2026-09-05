@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -245,7 +246,8 @@ fun NotificationCard(
                                 .clip(RoundedCornerShape(12.dp)),
                         )
                     }
-                    if (notification.actions.isNotEmpty()) {
+                    val canExpand = notification.actions.isNotEmpty() || notification.picture != null
+                    if (canExpand) {
                         IconButton(
                             onClick = { expanded = !expanded },
                             modifier = Modifier.size(32.dp),
@@ -301,6 +303,20 @@ fun NotificationCard(
                             },
                         )
                     }
+                }
+
+                // BigPicture preview — shown in expanded state
+                if (expanded && notification.picture != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Image(
+                        bitmap = notification.picture.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.FillWidth,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 180.dp)
+                            .clip(RoundedCornerShape(12.dp)),
+                    )
                 }
 
                 if (expanded && notification.actions.isNotEmpty()) {
@@ -373,9 +389,11 @@ fun NotificationCard(
 private fun relativeTime(postTime: Long): String {
     val delta = System.currentTimeMillis() - postTime
     return when {
-        delta < 60_000L        -> "now"
-        delta < 3_600_000L     -> "${delta / 60_000}m ago"
-        delta < 86_400_000L    -> "${delta / 3_600_000}h ago"
-        else                   -> "${delta / 86_400_000}d ago"
+        delta < 60_000L    -> "now"
+        delta < 3_600_000L -> "${delta / 60_000}m ago"
+        delta < 86_400_000L -> java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
+            .format(java.util.Date(postTime))
+        else -> java.text.SimpleDateFormat("EEE h:mm a", java.util.Locale.getDefault())
+            .format(java.util.Date(postTime))
     }
 }

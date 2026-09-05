@@ -25,6 +25,7 @@ data class ShadeNotification(
     val progress: Int = 0,
     val progressMax: Int = 0,
     val isProgressIndeterminate: Boolean = false,
+    val picture: android.graphics.Bitmap? = null,
 )
 
 data class NotificationAction(
@@ -55,6 +56,18 @@ fun StatusBarNotification.toShadeNotification(category: ShadeCategory): ShadeNot
     val progressMax = extras.getInt(Notification.EXTRA_PROGRESS_MAX, 0)
     val isProgressIndeterminate = extras.getBoolean(Notification.EXTRA_PROGRESS_INDETERMINATE, false)
 
+    // BigPictureStyle image — scale down to cap memory at ~512px wide
+    val rawPicture = extras.get(Notification.EXTRA_PICTURE) as? android.graphics.Bitmap
+    val picture = rawPicture?.let { bmp ->
+        val maxW = 512
+        if (bmp.width > maxW) {
+            val scale = maxW.toFloat() / bmp.width
+            android.graphics.Bitmap.createScaledBitmap(
+                bmp, maxW, (bmp.height * scale).toInt(), true
+            )
+        } else bmp
+    }
+
     return ShadeNotification(
         key = key,
         packageName = packageName,
@@ -82,5 +95,6 @@ fun StatusBarNotification.toShadeNotification(category: ShadeCategory): ShadeNot
         progress = progress,
         progressMax = progressMax,
         isProgressIndeterminate = isProgressIndeterminate,
+        picture = picture,
     )
 }

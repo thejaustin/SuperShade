@@ -1,11 +1,16 @@
 package com.supershade.domain.tile
 
+import android.app.AlarmManager
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.res.Configuration
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
 import android.location.LocationManager
 import android.net.wifi.WifiManager
 import android.nfc.NfcAdapter
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import android.app.NotificationManager
@@ -19,6 +24,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class TileRepository(
     private val context: Context,
@@ -28,10 +36,26 @@ class TileRepository(
     private val _tiles = MutableStateFlow<List<TileDefinition>>(emptyList())
     val tiles: StateFlow<List<TileDefinition>> = _tiles.asStateFlow()
 
+    @Volatile private var torchEnabled = false
+
     private val componentToId: Map<String, String> =
         TILE_COMPONENTS.entries.associate { (id, comp) -> comp to id }
 
     init {
+        // Track torch state without polling so the flashlight tile stays accurate
+        try {
+            val cm = context.getSystemService(CameraManager::class.java)
+            cm.registerTorchCallback(object : CameraManager.TorchCallback() {
+                override fun onTorchModeChanged(cameraId: String, enabled: Boolean) {
+                    torchEnabled = enabled
+                    _tiles.value = _tiles.value.map { tile ->
+                        if (tile.id.lowercase().contains("flashlight")) tile.copy(isActive = enabled)
+                        else tile
+                    }
+                }
+            }, Handler(Looper.getMainLooper()))
+        } catch (_: Exception) {}
+
         scope.launch { loadTiles() }
 
         governor.isCommanderConnected
@@ -92,6 +116,13 @@ class TileRepository(
                         else -> null
                     }
                 }
+                key.contains("alarm") -> {
+                    val am = context.getSystemService(AlarmManager::class.java)
+                    val next = am?.nextAlarmClock
+                    if (next != null)
+                        SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(next.triggerTime))
+                    else null
+                }
                 else -> null
             }
         } catch (_: Exception) { null }
@@ -134,6 +165,7 @@ class TileRepository(
                     val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
                     pm?.isPowerSaveMode == true
                 }
+                key.contains("flashlight") -> torchEnabled
                 else -> false
             }
         } catch (_: Exception) {

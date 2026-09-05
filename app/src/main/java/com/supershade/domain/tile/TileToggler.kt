@@ -2,6 +2,8 @@ package com.supershade.domain.tile
 
 import android.content.Context
 import android.content.Intent
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
 import android.provider.Settings
 import com.supershade.shizuku.StatusBarGovernor
 
@@ -10,14 +12,27 @@ class TileToggler(
     private val governor: StatusBarGovernor
 ) {
     suspend fun toggle(tile: TileDefinition) {
-        when (tile.capability) {
-            TileCapability.FULL_TOGGLE -> {
+        val id = tile.id.lowercase()
+        when {
+            // Flashlight is toggled directly via CameraManager — no Shizuku needed.
+            id.contains("flashlight") -> toggleFlashlight(!tile.isActive)
+            tile.capability == TileCapability.FULL_TOGGLE -> {
                 if (governor.isCommanderConnected.value) togglePrivileged(tile)
                 else openSettings(tile)
             }
-            TileCapability.SETTINGS_INTENT -> openSettings(tile)
-            TileCapability.READ_ONLY -> Unit
+            else -> openSettings(tile)
         }
+    }
+
+    private fun toggleFlashlight(on: Boolean) {
+        try {
+            val cm = context.getSystemService(CameraManager::class.java)
+            val cameraId = cm.cameraIdList.firstOrNull { id ->
+                cm.getCameraCharacteristics(id)
+                    .get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+            } ?: return
+            cm.setTorchMode(cameraId, on)
+        } catch (_: Exception) {}
     }
 
     private suspend fun togglePrivileged(tile: TileDefinition) {

@@ -7,7 +7,9 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +28,8 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -86,9 +90,11 @@ fun GroupedNotificationCard(
     onDismissGroup: () -> Unit,
     onDismiss: (String) -> Unit,
     onNotificationClick: (ShadeNotification) -> Unit,
+    onSnooze: (String, Long) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var showSnoozeMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     val appName = remember(group.packageName) {
@@ -172,14 +178,19 @@ fun GroupedNotificationCard(
 
             // Main card — on top, determines Box height
             Card(
-                onClick = { expanded = !expanded },
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .animateContentSize(spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium)),
+                    .animateContentSize(spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
+                    .combinedClickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = LocalIndication.current,
+                        onClick = { expanded = !expanded },
+                        onLongClick = { showSnoozeMenu = true },
+                    ),
             ) {
                 Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
                     // Group header row: app icon + name + count badge + expand toggle
@@ -262,6 +273,26 @@ fun GroupedNotificationCard(
                             )
                         }
                     }
+
+                    // Snooze dropdown for the whole group
+                    DropdownMenu(
+                        expanded = showSnoozeMenu,
+                        onDismissRequest = { showSnoozeMenu = false },
+                    ) {
+                        listOf(
+                            "Snooze 15 minutes" to 15 * 60 * 1_000L,
+                            "Snooze 1 hour"     to 60 * 60 * 1_000L,
+                            "Snooze 4 hours"    to 4 * 60 * 60 * 1_000L,
+                        ).forEach { (label, delayMs) ->
+                            DropdownMenuItem(
+                                text = { Text(label, style = MaterialTheme.typography.bodyMedium) },
+                                onClick = {
+                                    group.notifications.forEach { onSnooze(it.key, delayMs) }
+                                    showSnoozeMenu = false
+                                },
+                            )
+                        }
+                    }
                 }
 
                 // Expanded: individual cards separated by subtle dividers
@@ -277,6 +308,7 @@ fun GroupedNotificationCard(
                                 notification = notification,
                                 onDismiss = { onDismiss(notification.key) },
                                 onClick = { onNotificationClick(notification) },
+                                onSnooze = { delayMs -> onSnooze(notification.key, delayMs) },
                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                             )
                             if (index < group.notifications.lastIndex) {

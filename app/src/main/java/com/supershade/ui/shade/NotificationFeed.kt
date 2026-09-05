@@ -85,6 +85,7 @@ fun NotificationFeed(
                         onDismissGroup = { group.notifications.forEach { onDismiss(it.key) } },
                         onDismiss = onDismiss,
                         onNotificationClick = onNotificationClick,
+                        onSnooze = onSnooze,
                         modifier = Modifier.animateItem(),
                     )
                 } else {

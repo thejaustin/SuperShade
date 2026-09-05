@@ -2,6 +2,7 @@ package com.supershade.ui.shade
 
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.TrafficStats
 import android.os.BatteryManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,6 +44,12 @@ private fun formatTime(): String =
 private fun formatDate(): String =
     SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date())
 
+private fun formatNetSpeed(bytesPerSec: Long): String = when {
+    bytesPerSec < 1_024L              -> "${bytesPerSec} B/s"
+    bytesPerSec < 1_048_576L          -> "${bytesPerSec / 1_024} KB/s"
+    else                               -> "%.1f MB/s".format(bytesPerSec / 1_048_576.0)
+}
+
 @Composable
 fun StatusBarRow(statusBar: StatusBarState) {
     val context = LocalContext.current
@@ -65,6 +72,25 @@ fun StatusBarRow(statusBar: StatusBarState) {
             initStatus == BatteryManager.BATTERY_STATUS_CHARGING ||
             initStatus == BatteryManager.BATTERY_STATUS_FULL
         )
+    }
+
+    // Network speed: computed from TrafficStats delta every second.
+    // Only displayed when at least one direction has meaningful traffic (> 1 KB/s).
+    var netDown by remember { mutableStateOf("") }
+    var netUp   by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        var lastRx = TrafficStats.getTotalRxBytes()
+        var lastTx = TrafficStats.getTotalTxBytes()
+        while (true) {
+            delay(1_000L)
+            val rx = TrafficStats.getTotalRxBytes()
+            val tx = TrafficStats.getTotalTxBytes()
+            // UNSUPPORTED returns -1; guard against invalid reads.
+            netDown = if (rx > 0 && lastRx > 0 && rx > lastRx) formatNetSpeed(rx - lastRx) else ""
+            netUp   = if (tx > 0 && lastTx > 0 && tx > lastTx) formatNetSpeed(tx - lastTx) else ""
+            lastRx = rx; lastTx = tx
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -115,6 +141,17 @@ fun StatusBarRow(statusBar: StatusBarState) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            val netLabel = buildList {
+                if (netDown.isNotEmpty()) add("↓ $netDown")
+                if (netUp.isNotEmpty())   add("↑ $netUp")
+            }.joinToString("  ")
+            if (netLabel.isNotEmpty()) {
+                Text(
+                    text = netLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                )
+            }
         }
 
         // Right: battery percentage + icon, top-aligned

@@ -7,17 +7,20 @@ import android.os.Looper
 import android.view.Gravity
 import android.view.WindowManager
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -30,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,13 +41,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -123,6 +133,7 @@ class HeadsUpOverlay(private val context: Context) {
                             try { notification.contentIntent?.send() } catch (_: Exception) {}
                             handler.post { dismissCurrent() }
                         },
+                        onDismiss = { handler.post { dismissCurrent() } },
                     )
                 }
             }
@@ -187,7 +198,11 @@ class HeadsUpOverlay(private val context: Context) {
      * compiles independently of that layer.
      */
     @androidx.compose.runtime.Composable
-    private fun HeadsUpCard(notification: ShadeNotification, onTap: () -> Unit) {
+    private fun HeadsUpCard(
+        notification: ShadeNotification,
+        onTap: () -> Unit,
+        onDismiss: () -> Unit,
+    ) {
         val ctx = LocalContext.current
         val appIcon by produceState<ImageBitmap?>(null, notification.packageName) {
             value = withContext(Dispatchers.IO) {
@@ -231,6 +246,11 @@ class HeadsUpOverlay(private val context: Context) {
         var visible by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) { visible = true }
 
+        val offsetX = remember { Animatable(0f) }
+        val scope = rememberCoroutineScope()
+        // 240 dp in pixels — swipe past this to dismiss
+        val dismissThresholdPx = ctx.resources.displayMetrics.density * 180f
+
         AnimatedVisibility(
             visible = visible,
             enter = slideInVertically(tween(240)) { -it } + fadeIn(tween(180)),
@@ -240,6 +260,31 @@ class HeadsUpOverlay(private val context: Context) {
                     .fillMaxWidth()
                     .statusBarsPadding()
                     .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                    .graphicsLayer {
+                        alpha = (1f - abs(offsetX.value) / (dismissThresholdPx * 1.5f))
+                            .coerceIn(0f, 1f)
+                    }
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onDragEnd = {
+                                if (abs(offsetX.value) >= dismissThresholdPx) {
+                                    scope.launch {
+                                        val target = if (offsetX.value > 0) 1200f else -1200f
+                                        offsetX.animateTo(target, tween(160))
+                                        onDismiss()
+                                    }
+                                } else {
+                                    scope.launch { offsetX.animateTo(0f, tween(300)) }
+                                }
+                            },
+                            onDragCancel = {
+                                scope.launch { offsetX.animateTo(0f, tween(300)) }
+                            },
+                        ) { _, dragAmount ->
+                            scope.launch { offsetX.snapTo(offsetX.value + dragAmount) }
+                        }
+                    }
                     .clip(RoundedCornerShape(20.dp))
                     .background(Color(0xFF1E1E1E).copy(alpha = 0.97f))
                     .clickable(onClick = onTap)

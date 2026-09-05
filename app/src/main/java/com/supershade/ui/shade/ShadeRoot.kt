@@ -124,12 +124,14 @@ fun ShadeRoot(
                         brightness = state.brightness,
                         onBrightnessChange = { viewModel.setBrightness(it) },
                     )
+                    VolumeSlider()
                     state.media?.let { media ->
                         MediaCard(
                             media = media,
                             onPlayPause = { viewModel.mediaPlayPause() },
                             onSkipNext = { viewModel.mediaSkipNext() },
                             onSkipPrevious = { viewModel.mediaSkipPrevious() },
+                            onSeek = { viewModel.mediaSeek(it) },
                         )
                     }
                     CategoryBar(

@@ -65,6 +65,7 @@ class MediaRepository(private val context: Context) {
     fun pause() { activeController?.transportControls?.pause() }
     fun skipNext() { activeController?.transportControls?.skipToNext() }
     fun skipPrevious() { activeController?.transportControls?.skipToPrevious() }
+    fun seekTo(positionMs: Long) { activeController?.transportControls?.seekTo(positionMs) }
 
     fun dispose() {
         activeController?.unregisterCallback(controllerCallback)

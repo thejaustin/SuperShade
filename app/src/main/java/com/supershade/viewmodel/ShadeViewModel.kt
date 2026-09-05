@@ -150,6 +150,15 @@ class ShadeViewModel(
 
     fun mediaSkipPrevious() { mediaRepo.skipPrevious() }
 
+    fun mediaSeek(positionMs: Long) {
+        mediaRepo.seekTo(positionMs)
+        // Immediately reflect the seek in the UI so the thumb snaps to the
+        // new position without waiting for the next MediaController callback.
+        _state.update { s ->
+            s.copy(media = s.media?.copy(position = positionMs))
+        }
+    }
+
     // --- Brightness ---
 
     fun setBrightness(value: Int) {

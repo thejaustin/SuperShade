@@ -22,12 +22,17 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +58,7 @@ fun MediaCard(
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
+    onSeek: (Long) -> Unit = {},
 ) {
     val fallbackColor = MaterialTheme.colorScheme.surfaceVariant
 
@@ -161,16 +167,30 @@ fun MediaCard(
             }
 
             if (media.duration > 0) {
-                LinearProgressIndicator(
-                    progress = {
-                        (media.position.toFloat() / media.duration.toFloat()).coerceIn(0f, 1f)
+                // Seek bar: local state during drag to keep the thumb snappy;
+                // actual seek fires once on finger-up via onValueChangeFinished.
+                var isSeeking by remember { mutableStateOf(false) }
+                var seekPreview by remember(media.position) {
+                    mutableFloatStateOf(media.position.toFloat())
+                }
+                val displayPosition = if (isSeeking) seekPreview.toLong() else media.position
+
+                Slider(
+                    value = if (isSeeking) seekPreview else media.position.toFloat(),
+                    onValueChange = { seekPreview = it; isSeeking = true },
+                    onValueChangeFinished = {
+                        onSeek(seekPreview.toLong())
+                        isSeeking = false
                     },
+                    valueRange = 0f..media.duration.toFloat(),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp)
-                        .padding(bottom = 4.dp),
-                    color = Color.White.copy(alpha = 0.8f),
-                    trackColor = Color.White.copy(alpha = 0.2f),
+                        .padding(horizontal = 6.dp),
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color.White,
+                        activeTrackColor = Color.White.copy(alpha = 0.8f),
+                        inactiveTrackColor = Color.White.copy(alpha = 0.2f),
+                    ),
                 )
                 Row(
                     modifier = Modifier
@@ -180,7 +200,7 @@ fun MediaCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
-                        text = formatMs(media.position),
+                        text = formatMs(displayPosition),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White.copy(alpha = 0.6f),
                     )

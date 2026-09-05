@@ -33,6 +33,16 @@ class BrightnessRepository(private val context: Context) {
         false
     }
 
+    fun setAutoOn() {
+        try {
+            Settings.System.putInt(
+                context.contentResolver,
+                Settings.System.SCREEN_BRIGHTNESS_MODE,
+                Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC,
+            )
+        } catch (_: SecurityException) {}
+    }
+
     private fun setAutoOff() {
         Settings.System.putInt(
             context.contentResolver,

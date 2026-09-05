@@ -29,6 +29,14 @@ import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
 private fun localReleaseNotes(version: String): String = when (version) {
+    "1.4.0" -> """
+        🎛️ Controls & live status
+        • Volume slider in the shade — drag to change media volume; syncs with hardware keys
+        • Auto-brightness toggle pill on the brightness row — tap to enable adaptive screen brightness
+        • Media progress bar is now seekable — drag to any position and release to jump there
+        • Heads-up peek cards swipe left/right to dismiss with velocity-aware spring physics
+        • Live network speed shown below the date: ↓ download and ↑ upload update every second
+    """.trimIndent()
     "1.3.1" -> """
         🔧 Polish & correctness
         • Heads-up toasts no longer fire for group-summary or updated notifications — only genuinely new ones

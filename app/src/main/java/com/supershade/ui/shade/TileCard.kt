@@ -4,6 +4,9 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import android.content.Intent
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -50,8 +53,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.supershade.domain.tile.TileCapability
 import com.supershade.domain.tile.TileDefinition
 import com.supershade.ui.theme.ShadeTheme
@@ -63,6 +68,7 @@ fun TileCard(
     isShizukuConnected: Boolean,
     onClick: () -> Unit,
 ) {
+    val context = LocalContext.current
     // Pixel uses a full pill; OneUI uses a very rounded rect
     val cornerRadius = if (theme is ShadeTheme.Pixel) 50 else 22
 
@@ -109,14 +115,26 @@ fun TileCard(
     )
 
     Surface(
-        onClick = onClick,
         shape = RoundedCornerShape(cornerRadius),
         color = containerColor,
-        interactionSource = interactionSource,
         modifier = Modifier
             .fillMaxWidth()
             .height(72.dp)
-            .graphicsLayer { scaleX = scale; scaleY = scale; alpha = tileAlpha },
+            .graphicsLayer { scaleX = scale; scaleY = scale; alpha = tileAlpha }
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onClick = onClick,
+                onLongClick = tile.settingsAction?.let { action ->
+                    {
+                        try {
+                            context.startActivity(
+                                Intent(action).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                            )
+                        } catch (_: Exception) {}
+                    }
+                },
+            ),
     ) {
         Column(
             modifier = Modifier
@@ -130,13 +148,24 @@ fun TileCard(
                 tint = contentColor,
                 modifier = Modifier.size(22.dp),
             )
-            Text(
-                text = tile.label,
-                style = MaterialTheme.typography.labelSmall,
-                color = contentColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Column {
+                Text(
+                    text = tile.label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = contentColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (tile.subtitle != null) {
+                    Text(
+                        text = tile.subtitle,
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                        color = contentColor.copy(alpha = 0.65f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
         }
     }
 }

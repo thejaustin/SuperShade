@@ -1,7 +1,9 @@
 package com.supershade.ui.shade
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,9 +24,12 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -64,9 +69,11 @@ fun NotificationCard(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
+    onSnooze: ((Long) -> Unit)? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var replyingAction by remember { mutableStateOf<NotificationAction?>(null) }
+    var showSnoozeMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     // Resolve readable app name from the package
@@ -149,14 +156,19 @@ fun NotificationCard(
         modifier = modifier.fillMaxWidth(),
     ) {
         Card(
-            onClick = onClick,
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface,
             ),
             modifier = Modifier
                 .fillMaxWidth()
-                .animateContentSize(),
+                .animateContentSize()
+                .combinedClickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = LocalIndication.current,
+                    onClick = onClick,
+                    onLongClick = if (onSnooze != null) { { showSnoozeMenu = true } } else null,
+                ),
         ) {
             Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
                 // App icon + app name + post time header row
@@ -245,6 +257,49 @@ fun NotificationCard(
                                 modifier = Modifier.size(18.dp),
                             )
                         }
+                    }
+                }
+
+                // Notification progress bar (downloads, installs, etc.)
+                val hasProgress = notification.isProgressIndeterminate ||
+                    (notification.progressMax > 0 && notification.progress >= 0)
+                if (hasProgress) {
+                    Spacer(Modifier.height(8.dp))
+                    if (notification.isProgressIndeterminate) {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                        )
+                    } else {
+                        LinearProgressIndicator(
+                            progress = { notification.progress.toFloat() / notification.progressMax },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                        )
+                    }
+                }
+
+                // Snooze dropdown — shown on long-press
+                DropdownMenu(
+                    expanded = showSnoozeMenu,
+                    onDismissRequest = { showSnoozeMenu = false },
+                ) {
+                    listOf(
+                        "Snooze 15 minutes" to 15 * 60 * 1_000L,
+                        "Snooze 1 hour"     to 60 * 60 * 1_000L,
+                        "Snooze 4 hours"    to 4 * 60 * 60 * 1_000L,
+                    ).forEach { (label, delayMs) ->
+                        DropdownMenuItem(
+                            text = { Text(label, style = MaterialTheme.typography.bodyMedium) },
+                            onClick = {
+                                onSnooze?.invoke(delayMs)
+                                showSnoozeMenu = false
+                            },
+                        )
                     }
                 }
 

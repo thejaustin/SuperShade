@@ -28,6 +28,7 @@ fun NotificationFeed(
     onClearAll: () -> Unit,
     modifier: Modifier = Modifier,
     onNotificationClick: (ShadeNotification) -> Unit = {},
+    onSnooze: (String, Long) -> Unit = { _, _ -> },
 ) {
     if (notifications.isEmpty()) {
         Column(
@@ -92,6 +93,7 @@ fun NotificationFeed(
                         notification = notification,
                         onDismiss = { onDismiss(notification.key) },
                         onClick = { onNotificationClick(notification) },
+                        onSnooze = { delayMs -> onSnooze(notification.key, delayMs) },
                         modifier = Modifier.animateItem(),
                     )
                 }

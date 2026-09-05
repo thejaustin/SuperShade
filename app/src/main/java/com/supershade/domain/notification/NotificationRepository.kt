@@ -24,6 +24,20 @@ class NotificationRepository {
     // Called by cancelAndRemove to cancel the notification at the system level.
     var canceller: ((String) -> Unit)? = null
 
+    // key → timestamp when snooze expires; in-memory only, reset on service restart
+    private val snoozedUntil = mutableMapOf<String, Long>()
+
+    fun snooze(key: String, delayMs: Long) {
+        snoozedUntil[key] = System.currentTimeMillis() + delayMs
+        _notifications.update { current -> current.filter { it.key != key } }
+    }
+
+    private fun isSnoozed(key: String): Boolean {
+        val until = snoozedUntil[key] ?: return false
+        return if (System.currentTimeMillis() < until) true
+        else { snoozedUntil.remove(key); false }
+    }
+
     fun refresh() {
         com.supershade.service.NotificationCollector.instance?.refreshNotifications()
     }
@@ -33,6 +47,7 @@ class NotificationRepository {
         val shade = sbn.toShadeNotification(category)
 
         if (shade.title.isBlank() && shade.text.isBlank()) return
+        if (isSnoozed(shade.key)) return
 
         // Capture whether this key is genuinely new BEFORE updating the list.
         val isNew = _notifications.value.none { it.key == shade.key }

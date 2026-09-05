@@ -60,6 +60,8 @@ class TileRepository(
                 isActive = isActive,
                 capability = capability,
                 componentName = componentName,
+                settingsAction = TILE_SETTINGS_ACTIONS[id],
+                subtitle = queryTileSubtitle(id),
             )
         }
     }
@@ -68,6 +70,31 @@ class TileRepository(
         _tiles.value = _tiles.value.map {
             if (it.id == id) it.copy(isActive = active) else it
         }
+    }
+
+    private fun queryTileSubtitle(id: String): String? {
+        val key = id.lowercase()
+        return try {
+            when {
+                key.contains("wifi") || key.contains("internet") -> {
+                    val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
+                    if (wm?.isWifiEnabled != true) return null
+                    @Suppress("DEPRECATION")
+                    val raw = wm.connectionInfo?.ssid?.trim('"')
+                    if (!raw.isNullOrBlank() && raw != "<unknown ssid>") raw else "Connected"
+                }
+                key.contains("dnd") -> {
+                    val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                    when (nm?.currentInterruptionFilter) {
+                        NotificationManager.INTERRUPTION_FILTER_PRIORITY -> "Priority only"
+                        NotificationManager.INTERRUPTION_FILTER_ALARMS   -> "Alarms only"
+                        NotificationManager.INTERRUPTION_FILTER_NONE     -> "Silent"
+                        else -> null
+                    }
+                }
+                else -> null
+            }
+        } catch (_: Exception) { null }
     }
 
     private fun queryTileActiveState(id: String): Boolean {

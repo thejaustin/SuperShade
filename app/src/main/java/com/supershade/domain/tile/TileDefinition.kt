@@ -1,5 +1,7 @@
 package com.supershade.domain.tile
 
+import android.provider.Settings
+
 enum class TileCapability { FULL_TOGGLE, SETTINGS_INTENT, READ_ONLY }
 
 data class TileDefinition(
@@ -10,6 +12,33 @@ data class TileDefinition(
     val settingsAction: String? = null,
     // Bug 3 fix: full component name required by "cmd statusbar click-tile"
     val componentName: String? = null,
+    // Optional secondary line shown below the tile label (SSID, mode name, etc.)
+    val subtitle: String? = null,
+)
+
+val TILE_SETTINGS_ACTIONS: Map<String, String> = mapOf(
+    "internet"     to Settings.ACTION_WIFI_SETTINGS,
+    "wifi"         to Settings.ACTION_WIFI_SETTINGS,
+    "bt"           to Settings.ACTION_BLUETOOTH_SETTINGS,
+    "nfc"          to Settings.ACTION_NFC_SETTINGS,
+    "hotspot"      to Settings.ACTION_WIRELESS_SETTINGS,
+    "airplane"     to Settings.ACTION_AIRPLANE_MODE_SETTINGS,
+    "cell"         to Settings.ACTION_DATA_ROAMING_SETTINGS,
+    "vpn"          to Settings.ACTION_VPN_SETTINGS,
+    "dark"         to Settings.ACTION_DISPLAY_SETTINGS,
+    "night"        to Settings.ACTION_DISPLAY_SETTINGS,
+    "rotation"     to Settings.ACTION_DISPLAY_SETTINGS,
+    "cast"         to Settings.ACTION_CAST_SETTINGS,
+    "screenrecord" to Settings.ACTION_DISPLAY_SETTINGS,
+    "dnd"          to Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS,
+    "mute"         to Settings.ACTION_SOUND_SETTINGS,
+    "volume"       to Settings.ACTION_SOUND_SETTINGS,
+    "battery"      to Settings.ACTION_BATTERY_SAVER_SETTINGS,
+    "location"     to Settings.ACTION_LOCATION_SOURCE_SETTINGS,
+    "alarm"        to Settings.ACTION_DATE_SETTINGS,
+    "sync"         to Settings.ACTION_SYNC_SETTINGS,
+    "datasaver"    to Settings.ACTION_DATA_ROAMING_SETTINGS,
+    "onehanded"    to Settings.ACTION_ACCESSIBILITY_SETTINGS,
 )
 
 val KNOWN_TILES: Map<String, Pair<String, TileCapability>> = mapOf(

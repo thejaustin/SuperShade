@@ -148,6 +148,7 @@ fun ShadeRoot(
                             viewModel.launchNotification(notification)
                             onDismiss()
                         },
+                        onSnooze = { key, delayMs -> viewModel.snoozeNotification(key, delayMs) },
                         modifier = Modifier.weight(1f),
                     )
 

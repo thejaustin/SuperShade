@@ -22,6 +22,9 @@ data class ShadeNotification(
     val contentIntent: android.app.PendingIntent? = null,
     val isConversation: Boolean = false,
     val conversationTitle: String? = null,
+    val progress: Int = 0,
+    val progressMax: Int = 0,
+    val isProgressIndeterminate: Boolean = false,
 )
 
 data class NotificationAction(
@@ -48,6 +51,9 @@ fun StatusBarNotification.toShadeNotification(category: ShadeCategory): ShadeNot
         ?: extras.getCharSequence(Notification.EXTRA_INFO_TEXT)?.toString()
 
     val conversationTitle = extras.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)?.toString()
+    val progress = extras.getInt(Notification.EXTRA_PROGRESS, 0)
+    val progressMax = extras.getInt(Notification.EXTRA_PROGRESS_MAX, 0)
+    val isProgressIndeterminate = extras.getBoolean(Notification.EXTRA_PROGRESS_INDETERMINATE, false)
 
     return ShadeNotification(
         key = key,
@@ -73,5 +79,8 @@ fun StatusBarNotification.toShadeNotification(category: ShadeCategory): ShadeNot
         contentIntent = notification.contentIntent,
         isConversation = notification.category == Notification.CATEGORY_MESSAGE && conversationTitle != null,
         conversationTitle = conversationTitle?.trim(),
+        progress = progress,
+        progressMax = progressMax,
+        isProgressIndeterminate = isProgressIndeterminate,
     )
 }

@@ -29,6 +29,13 @@ import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
 private fun localReleaseNotes(version: String): String = when (version) {
+    "1.5.0" -> """
+        🎯 Smarter tiles & notification controls
+        • Long-press any QS tile to jump straight to its Settings page — no Shizuku required
+        • Wi-Fi tile now shows the connected network name; DND tile shows the active mode
+        • Notification cards show a live progress bar for downloads, installs, and similar ongoing operations
+        • Long-press any notification to snooze it for 15 minutes, 1 hour, or 4 hours — it re-appears automatically
+    """.trimIndent()
     "1.4.0" -> """
         🎛️ Controls & live status
         • Volume slider in the shade — drag to change media volume; syncs with hardware keys

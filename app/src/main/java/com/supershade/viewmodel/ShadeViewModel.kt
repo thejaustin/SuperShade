@@ -133,6 +133,14 @@ class ShadeViewModel(
         notificationRepo.cancelAll()
     }
 
+    fun snoozeNotification(key: String, delayMs: Long) {
+        notificationRepo.snooze(key, delayMs)
+        viewModelScope.launch {
+            delay(delayMs)
+            notificationRepo.refresh()
+        }
+    }
+
     fun launchNotification(notification: com.supershade.domain.notification.model.ShadeNotification) {
         try {
             notification.contentIntent?.send()

@@ -47,18 +47,20 @@ class ShadeWindowManager(
     // LifecycleRegistry cannot transition out of DESTROYED back to RESUMED.
     private var lifecycleOwner: ShadeLifecycleOwner? = null
 
+    private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main)
+    private var hideJob: kotlinx.coroutines.Job? = null
+
     private val params = WindowManager.LayoutParams(
         WindowManager.LayoutParams.MATCH_PARENT,
         WindowManager.LayoutParams.MATCH_PARENT,
         WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-        // FLAG_LAYOUT_IN_SCREEN: draw from physical screen top so the scrim covers
-        // the full display and the shade background sits behind the status bar.
-        // FLAG_LAYOUT_NO_LIMITS intentionally omitted: keeps the window bounded
-        // above the navigation bar so the scrim dismiss area doesn't bleed into it.
         WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
         PixelFormat.TRANSLUCENT,
     ).apply {
         gravity = Gravity.TOP or Gravity.START
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+        }
         // Android 12+ window compositor blur — blurs everything behind the overlay.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             @Suppress("DEPRECATION")
@@ -73,6 +75,8 @@ class ShadeWindowManager(
 
     /** Adds the shade overlay to the window stack and notifies the ViewModel. */
     fun show() {
+        hideJob?.cancel()
+        hideJob = null
         if (overlayView != null) return
         val owner = ShadeLifecycleOwner().also { lifecycleOwner = it }
         owner.start()
@@ -95,20 +99,27 @@ class ShadeWindowManager(
         viewModel.open()
     }
 
-    /** Removes the shade overlay and cleans up Compose / Lifecycle resources. */
+    /** Removes the shade overlay and cleans up Compose / Lifecycle resources after exit animation. */
     fun hide() {
-        overlayView?.let { view ->
-            try {
-                windowManager.removeView(view)
-            } catch (_: Exception) {
-                // WindowManager.BadTokenException or IllegalArgumentException —
-                // the view token is already gone; nothing we can do.
-            }
-            overlayView = null
-        }
-        lifecycleOwner?.stop()
-        lifecycleOwner = null
+        if (overlayView == null) return
+        if (hideJob?.isActive == true) return
         viewModel.close()
+        val viewToRemove = overlayView
+        val ownerToStop = lifecycleOwner
+        hideJob = scope.launch {
+            kotlinx.coroutines.delay(260L)
+            if (viewToRemove != null) {
+                try {
+                    windowManager.removeView(viewToRemove)
+                } catch (_: Exception) {}
+            }
+            if (overlayView === viewToRemove) {
+                overlayView = null
+                lifecycleOwner = null
+            }
+            ownerToStop?.stop()
+            hideJob = null
+        }
     }
 
     /** Returns true when the shade overlay is currently attached to the window. */

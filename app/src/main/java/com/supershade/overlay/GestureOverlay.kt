@@ -25,18 +25,26 @@ class GestureOverlay(
     private val windowManager = context.getSystemService(WindowManager::class.java)
     private var overlayView: View? = null
 
-    // 56 dp strip just below the status bar — wide enough to catch a quick downward flick.
-    private val captureHeight = (56 * context.resources.displayMetrics.density).toInt()
+    // Ultra-thin top bezel strip (4dp) positioned at y=0.
+    // In Android WindowManager coordinates, pointer capture guarantees that any
+    // swipe starting at the top edge forwards all ACTION_MOVE events down the screen
+    // without blocking any toolbar buttons, back arrows, or tabs in apps below.
+    private val captureHeight = (4 * context.resources.displayMetrics.density).toInt().coerceAtLeast(10)
 
     private val params = WindowManager.LayoutParams(
         WindowManager.LayoutParams.MATCH_PARENT,
         captureHeight,
         WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
         PixelFormat.TRANSLUCENT,
     ).apply {
         gravity = Gravity.TOP or Gravity.START
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+        }
     }
 
     fun attach() {

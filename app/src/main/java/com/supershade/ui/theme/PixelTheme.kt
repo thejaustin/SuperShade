@@ -17,10 +17,19 @@ private val PixelColors = darkColorScheme(
     outline = Color(0xFF3A3A3C)
 )
 
+private val PixelAmoledColors = PixelColors.copy(
+    background = Color.Black,
+    surface = Color.Black,
+    surfaceVariant = Color(0xFF141414),
+)
+
 @Composable
-fun PixelShadeTheme(content: @Composable () -> Unit) {
+fun PixelShadeTheme(
+    isAmoled: Boolean = false,
+    content: @Composable () -> Unit,
+) {
     MaterialTheme(
-        colorScheme = PixelColors,
-        content = content
+        colorScheme = if (isAmoled) PixelAmoledColors else PixelColors,
+        content = content,
     )
 }

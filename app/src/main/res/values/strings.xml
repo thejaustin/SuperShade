@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">SuperShade</string>
+    <string name="accessibility_service_description">Enables SuperShade to replace the system notification shade seamlessly without ADB or root.</string>
 </resources>

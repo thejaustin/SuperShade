@@ -39,6 +39,7 @@ fun VolumeSlider(modifier: Modifier = Modifier) {
     val audioManager = remember { context.getSystemService(AudioManager::class.java) }
     val maxVol = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat() }
 
+    var isDragging by remember { mutableStateOf(false) }
     var localValue by remember {
         mutableFloatStateOf(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat())
     }
@@ -46,9 +47,11 @@ fun VolumeSlider(modifier: Modifier = Modifier) {
     // Poll for hardware-key volume changes (e.g. user adjusts while shade is open).
     LaunchedEffect(Unit) {
         while (true) {
-            delay(500L)
-            val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
-            if (kotlin.math.abs(current - localValue) >= 1f) localValue = current
+            delay(400L)
+            if (!isDragging) {
+                val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
+                if (kotlin.math.abs(current - localValue) >= 1f) localValue = current
+            }
         }
     }
 
@@ -66,14 +69,38 @@ fun VolumeSlider(modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Icon(
-            imageVector = volumeIcon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                alpha = if (localValue == 0f) 1f else 0.55f
-            ),
-            modifier = Modifier.size(20.dp),
-        )
+        androidx.compose.material3.IconButton(
+            onClick = {
+                try {
+                    val panelIntent = android.content.Intent(Settings.Panel.ACTION_VOLUME)
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(panelIntent)
+                } catch (_: Exception) {
+                    if (localValue > 0f) {
+                        try {
+                            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
+                            localValue = 0f
+                        } catch (_: Exception) {}
+                    } else {
+                        val half = (maxVol / 2f).coerceAtLeast(1f)
+                        try {
+                            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, half.toInt(), 0)
+                            localValue = half
+                        } catch (_: Exception) {}
+                    }
+                }
+            },
+            modifier = Modifier.size(24.dp),
+        ) {
+            Icon(
+                imageVector = volumeIcon,
+                contentDescription = "Volume Settings",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                    alpha = if (localValue == 0f) 1f else 0.85f
+                ),
+                modifier = Modifier.size(20.dp),
+            )
+        }
         Box(modifier = Modifier.weight(1f)) {
             Box(
                 modifier = Modifier
@@ -89,13 +116,26 @@ fun VolumeSlider(modifier: Modifier = Modifier) {
             )
             Slider(
                 value = localValue,
-                onValueChange = { localValue = it },
+                onValueChange = {
+                    isDragging = true
+                    localValue = it
+                    try {
+                        audioManager.setStreamVolume(
+                            AudioManager.STREAM_MUSIC,
+                            it.toInt().coerceIn(0, maxVol.toInt()),
+                            0,
+                        )
+                    } catch (_: Exception) {}
+                },
                 onValueChangeFinished = {
-                    audioManager.setStreamVolume(
-                        AudioManager.STREAM_MUSIC,
-                        localValue.toInt().coerceIn(0, maxVol.toInt()),
-                        0,
-                    )
+                    isDragging = false
+                    try {
+                        audioManager.setStreamVolume(
+                            AudioManager.STREAM_MUSIC,
+                            localValue.toInt().coerceIn(0, maxVol.toInt()),
+                            0,
+                        )
+                    } catch (_: Exception) {}
                 },
                 valueRange = 0f..maxVol,
                 modifier = Modifier.fillMaxWidth(),

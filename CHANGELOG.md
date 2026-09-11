@@ -5,6 +5,35 @@ Releases follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.7.0] — 2026-09-11
+
+### Fixed & Enhanced (Sliders, Zero-ADB Architecture & Media)
+- **Brightness & Volume Sliders Fully Functional**:
+  - Live brightness adjustment during drag with auto-brightness permission handling (`WRITE_SETTINGS` / `Settings.ACTION_MANAGE_WRITE_SETTINGS`).
+  - Added direct fallback via Shizuku shell when `WRITE_SETTINGS` is not granted.
+  - Eliminated volume slider drag fighting and snap-back by adding an `isDragging` guard and real-time `AudioManager` synchronization.
+  - Tapping the volume icon opens Google's native floating Volume Panel (`Settings.Panel.ACTION_VOLUME`) with one-tap mute fallback.
+- **Media Controls & Scrubbing Fixes**:
+  - Resolved seek slider thumb fighting by decoupling `seekPreview` from the 1-second position ticker during user dragging.
+  - Eliminated fatal bitmap recycling crashes by removing manual `oldArt.recycle()` calls and enabling GC native bitmap lifecycle.
+  - Added support for loading album art from `METADATA_KEY_ART_URI` / `METADATA_KEY_ALBUM_ART_URI`.
+- **Zero-ADB & Zero-Shizuku Native Shade Replacement**:
+  - Introduced `SuperShadeAccessibilityService` using `GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE` (API 31+) to instantly collapse the system shade and open SuperShade without ADB or root.
+  - Refactored `GestureOverlay` from an intrusive 56dp strip into an ultra-thin 4dp top-edge trigger with `FLAG_LAYOUT_IN_SCREEN` so toolbar buttons, back arrows, and tabs in underlying apps are never blocked.
+  - Animated exit transition preserved in `ShadeWindowManager` with smooth 260ms delay before view detachment.
+  - Added camera cutout/notch support with `LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS`.
+- **Quick Settings & System Toggles Without Shizuku**:
+  - Cleaned default tiles to ensure Flashlight, Auto-Rotate, DND, Airplane, Battery Saver, Location, and Dark Mode are all accessible.
+  - Removed artificial 50% opacity dimming on `FULL_TOGGLE` tiles when Shizuku is disconnected.
+  - Direct non-root tile execution: Auto-Rotate via `WRITE_SETTINGS`, DND via `NotificationCollector`/`NotificationManager`, Sound mode via `AudioManager`, and Wi-Fi / Mobile Data / NFC via official native floating slice panels (`Settings.Panel.*`).
+  - Real-time reactive state tracking via system `BroadcastReceiver`s and `ContentObserver`s (0ms latency instead of 5-second polling).
+- **Notification Improvements**:
+  - Fixed fatal `NoSuchMethodError` on inline replies by updating `PendingIntent.send(context, 0, intent)` with foreground receiver flags.
+  - Native framework `snoozeNotification` and `cancelAllNotifications` hooked through `NotificationCollector`.
+  - Fixed 1-on-1 direct message conversation formatting in `ShadeNotification`.
+  - Refined `CategoryEngine` to prioritize calls and prevent misclassifying user consumer apps into "System".
+  - Connected AMOLED black theme styling directly to the shade root surface.
+
 ## [1.2.5] — 2026-09-02
 
 ### Added & Improved

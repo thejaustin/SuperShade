@@ -52,6 +52,8 @@ fun SettingsScreen(
     shizukuPermGranted: Boolean,
     notificationAccessGranted: Boolean,
     overlayGranted: Boolean,
+    writeSettingsGranted: Boolean = false,
+    accessibilityGranted: Boolean = false,
     shadeActive: Boolean,
     blockSystemShade: Boolean = true,
     selectedTheme: ShadeTheme,
@@ -62,6 +64,8 @@ fun SettingsScreen(
     onThemeChange: (ShadeTheme) -> Unit,
     onDarkModeChange: (DarkThemeMode) -> Unit = {},
     onGrantOverlay: () -> Unit,
+    onGrantWriteSettings: () -> Unit = {},
+    onGrantAccessibility: () -> Unit = {},
     onCheckUpdate: () -> Unit,
     onShowWhatsNew: () -> Unit,
     onPreviewShade: () -> Unit = {},
@@ -84,10 +88,10 @@ fun SettingsScreen(
             icon = Icons.Default.Smartphone,
             label = "Shizuku (Optional)",
             ok = shizukuOk,
-            okText = "Connected — QS tile toggling enabled",
+            okText = "Connected — privileged hardware commands active",
             failText = when {
                 shizukuConnected && !shizukuPermGranted -> "Connected — tap to grant permission"
-                else -> "Not connected — tiles will open Settings instead"
+                else -> "Not connected — running in standalone non-root mode"
             },
             action = when {
                 shizukuConnected && !shizukuPermGranted -> null
@@ -123,6 +127,24 @@ fun SettingsScreen(
             okText = "Granted",
             failText = "Tap to grant",
             action = if (!overlayGranted) onGrantOverlay else null,
+        )
+        StatusCard(
+            icon = Icons.Default.AutoAwesome,
+            label = "Modify System Settings",
+            ok = writeSettingsGranted,
+            okText = "Granted — direct brightness & auto-rotate control",
+            failText = "Tap to grant — allows direct slider control without Shizuku",
+            action = if (!writeSettingsGranted) onGrantWriteSettings else null,
+            isOptional = true,
+        )
+        StatusCard(
+            icon = Icons.Default.Layers,
+            label = "Accessibility Service (Zero-ADB Shade)",
+            ok = accessibilityGranted,
+            okText = "Active — seamlessly intercepts native status bar pulls",
+            failText = "Tap to enable — recommended for devices without Shizuku/ADB",
+            action = if (!accessibilityGranted) onGrantAccessibility else null,
+            isOptional = true,
         )
 
         HorizontalDivider()

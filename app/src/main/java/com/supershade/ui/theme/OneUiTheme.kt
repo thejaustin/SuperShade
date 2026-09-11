@@ -74,10 +74,20 @@ private val OneUiTypography = Typography(
     ),
 )
 
+private val OneUiAmoledColors = OneUiColors.copy(
+    background = Color.Black,
+    surface = Color.Black,
+    surfaceVariant = Color(0xFF141414),
+    surfaceContainer = Color(0xFF0A0A0A),
+)
+
 @Composable
-fun OneUiShadeTheme(content: @Composable () -> Unit) {
+fun OneUiShadeTheme(
+    isAmoled: Boolean = false,
+    content: @Composable () -> Unit,
+) {
     MaterialTheme(
-        colorScheme = OneUiColors,
+        colorScheme = if (isAmoled) OneUiAmoledColors else OneUiColors,
         typography  = OneUiTypography,
         content     = content,
     )

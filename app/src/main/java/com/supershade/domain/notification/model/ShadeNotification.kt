@@ -57,7 +57,8 @@ fun StatusBarNotification.toShadeNotification(category: ShadeCategory): ShadeNot
     val isProgressIndeterminate = extras.getBoolean(Notification.EXTRA_PROGRESS_INDETERMINATE, false)
 
     // BigPictureStyle image — scale down to cap memory at ~512px wide
-    val rawPicture = extras.get(Notification.EXTRA_PICTURE) as? android.graphics.Bitmap
+    val rawPicture = (extras.get(Notification.EXTRA_PICTURE) as? android.graphics.Bitmap)
+        ?: (extras.get(Notification.EXTRA_PICTURE_ICON) as? android.graphics.Bitmap)
     val picture = rawPicture?.let { bmp ->
         val maxW = 512
         if (bmp.width > maxW) {
@@ -67,6 +68,11 @@ fun StatusBarNotification.toShadeNotification(category: ShadeCategory): ShadeNot
             )
         } else bmp
     }
+
+    val isMessaging = notification.category == Notification.CATEGORY_MESSAGE ||
+        extras.containsKey(Notification.EXTRA_MESSAGING_PERSON) ||
+        extras.containsKey(Notification.EXTRA_MESSAGES) ||
+        !conversationTitle.isNullOrBlank()
 
     return ShadeNotification(
         key = key,
@@ -90,7 +96,7 @@ fun StatusBarNotification.toShadeNotification(category: ShadeCategory): ShadeNot
         } ?: emptyList(),
         isClearable = isClearable,
         contentIntent = notification.contentIntent,
-        isConversation = notification.category == Notification.CATEGORY_MESSAGE && conversationTitle != null,
+        isConversation = isMessaging,
         conversationTitle = conversationTitle?.trim(),
         progress = progress,
         progressMax = progressMax,

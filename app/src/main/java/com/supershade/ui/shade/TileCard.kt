@@ -84,12 +84,7 @@ fun TileCard(
         label = "tileScale",
     )
 
-    // Dim FULL_TOGGLE tiles when Shizuku is absent — tap opens Settings instead.
-    val tileAlpha by animateFloatAsState(
-        targetValue = if (tile.capability == TileCapability.FULL_TOGGLE && !isShizukuConnected) 0.5f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "tileAlpha",
-    )
+    val tileAlpha = 1f
 
     val containerColor by animateColorAsState(
         targetValue = if (tile.isActive)

@@ -170,13 +170,18 @@ fun MediaCard(
                 // Seek bar: local state during drag to keep the thumb snappy;
                 // actual seek fires once on finger-up via onValueChangeFinished.
                 var isSeeking by remember { mutableStateOf(false) }
-                var seekPreview by remember(media.position) {
+                var seekPreview by remember {
                     mutableFloatStateOf(media.position.toFloat())
+                }
+                androidx.compose.runtime.LaunchedEffect(media.position) {
+                    if (!isSeeking) {
+                        seekPreview = media.position.toFloat()
+                    }
                 }
                 val displayPosition = if (isSeeking) seekPreview.toLong() else media.position
 
                 Slider(
-                    value = if (isSeeking) seekPreview else media.position.toFloat(),
+                    value = if (isSeeking) seekPreview else media.position.toFloat().coerceIn(0f, media.duration.toFloat()),
                     onValueChange = { seekPreview = it; isSeeking = true },
                     onValueChangeFinished = {
                         onSeek(seekPreview.toLong())

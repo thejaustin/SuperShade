@@ -75,8 +75,6 @@ class MediaRepository(private val context: Context) {
             try { sessionManager.removeOnActiveSessionsChangedListener(sessionsListener) } catch (_: Exception) {}
             listenerRegistered = false
         }
-        // Bug 3: recycle old album art before nulling the flow
-        _media.value?.albumArt?.takeIf { !it.isRecycled }?.recycle()
     }
 
     // ---------------------------------------------------------------------------
@@ -103,16 +101,23 @@ class MediaRepository(private val context: Context) {
         val meta = controller?.metadata
         val newArt = meta?.getBitmap(MediaMetadata.METADATA_KEY_ART)
             ?: meta?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
-        // Bug 3: recycle the old Bitmap if it's a different instance
-        val oldArt = _media.value?.albumArt
-        if (oldArt != null && oldArt !== newArt && !oldArt.isRecycled) {
-            oldArt.recycle()
-        }
+        val artUriStr = meta?.getString(MediaMetadata.METADATA_KEY_ART_URI)
+            ?: meta?.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI)
+        val uriArt = if (newArt == null && !artUriStr.isNullOrBlank()) {
+            try {
+                val uri = android.net.Uri.parse(artUriStr)
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    android.graphics.BitmapFactory.decodeStream(stream)
+                }
+            } catch (_: Exception) { null }
+        } else null
+        val finalArt = newArt ?: uriArt
+
         _media.value = if (meta == null) null else MediaState(
             title = meta.getString(MediaMetadata.METADATA_KEY_TITLE) ?: "",
             artist = meta.getString(MediaMetadata.METADATA_KEY_ARTIST)
                 ?: meta.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST) ?: "",
-            albumArt = newArt,
+            albumArt = finalArt,
             isPlaying = controller.playbackState?.state == PlaybackState.STATE_PLAYING,
             packageName = controller.packageName ?: "",
             duration = meta.getLong(MediaMetadata.METADATA_KEY_DURATION),

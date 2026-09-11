@@ -66,6 +66,10 @@ class ShadeViewModel(
             .onEach { t -> _state.update { it.copy(theme = t) } }
             .launchIn(viewModelScope)
 
+        settings.darkThemeMode
+            .onEach { m -> _state.update { it.copy(darkThemeMode = m) } }
+            .launchIn(viewModelScope)
+
         governor.isCommanderConnected
             .onEach { connected -> _state.update { it.copy(isShizukuConnected = connected) } }
             .launchIn(viewModelScope)
@@ -170,9 +174,11 @@ class ShadeViewModel(
     // --- Brightness ---
 
     fun setBrightness(value: Int) {
-        brightnessRepo.set(value)
-        val actual = brightnessRepo.getCurrent()
-        _state.update { it.copy(brightness = actual) }
+        viewModelScope.launch {
+            brightnessRepo.set(value)
+            val actual = brightnessRepo.getCurrent()
+            _state.update { it.copy(brightness = actual) }
+        }
     }
 
     // --- Lifecycle ---

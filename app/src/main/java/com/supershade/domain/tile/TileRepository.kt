@@ -56,6 +56,37 @@ class TileRepository(
             }, Handler(Looper.getMainLooper()))
         } catch (_: Exception) {}
 
+        try {
+            val filter = android.content.IntentFilter().apply {
+                addAction(WifiManager.WIFI_STATE_CHANGED_ACTION)
+                addAction(android.bluetooth.BluetoothAdapter.ACTION_STATE_CHANGED)
+                addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
+                addAction(android.content.Intent.ACTION_AIRPLANE_MODE_CHANGED)
+                addAction(LocationManager.MODE_CHANGED_ACTION)
+                addAction(NfcAdapter.ACTION_ADAPTER_STATE_CHANGED)
+                addAction(android.media.AudioManager.RINGER_MODE_CHANGED_ACTION)
+                addAction("android.media.VOLUME_CHANGED_ACTION")
+                addAction(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
+            }
+            context.registerReceiver(object : android.content.BroadcastReceiver() {
+                override fun onReceive(c: Context?, intent: android.content.Intent?) {
+                    scope.launch { updateActiveStates() }
+                }
+            }, filter)
+        } catch (_: Exception) {}
+
+        try {
+            context.contentResolver.registerContentObserver(
+                Settings.System.getUriFor(Settings.System.ACCELEROMETER_ROTATION),
+                false,
+                object : android.database.ContentObserver(Handler(Looper.getMainLooper())) {
+                    override fun onChange(selfChange: Boolean) {
+                        scope.launch { updateActiveStates() }
+                    }
+                }
+            )
+        } catch (_: Exception) {}
+
         scope.launch { loadTiles() }
 
         governor.isCommanderConnected
@@ -68,10 +99,19 @@ class TileRepository(
         scope.launch { loadTiles() }
     }
 
+    private fun updateActiveStates() {
+        _tiles.value = _tiles.value.map { tile ->
+            tile.copy(
+                isActive = queryTileActiveState(tile.id),
+                subtitle = queryTileSubtitle(tile.id),
+            )
+        }
+    }
+
     private suspend fun loadTiles() {
         val raw = governor.getCurrentTiles()
-        val tokens = if (raw.isBlank()) KNOWN_TILES.keys.take(8).toList()
-                     else raw.split(",").map { it.trim() }
+        val tokens = if (raw.isNotBlank()) raw.split(",").map { it.trim() }
+                     else DEFAULT_TILES
 
         _tiles.value = tokens.map { token ->
             val id = componentToId[token] ?: token
@@ -166,6 +206,25 @@ class TileRepository(
                     pm?.isPowerSaveMode == true
                 }
                 key.contains("flashlight") -> torchEnabled
+                key.contains("cell") || key.contains("cellular") || key.contains("data") -> {
+                    val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as? android.telephony.TelephonyManager
+                    try { tm?.isDataEnabled == true } catch (_: Exception) { false }
+                }
+                key.contains("hotspot") -> {
+                    val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+                    try {
+                        val m = wm?.javaClass?.getDeclaredMethod("isWifiApEnabled")
+                        m?.isAccessible = true
+                        (m?.invoke(wm) as? Boolean) == true
+                    } catch (_: Exception) { false }
+                }
+                key.contains("mute") || key.contains("sound") -> {
+                    val am = context.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
+                    am?.ringerMode != android.media.AudioManager.RINGER_MODE_NORMAL
+                }
+                key.contains("sync") -> {
+                    android.content.ContentResolver.getMasterSyncAutomatically()
+                }
                 else -> false
             }
         } catch (_: Exception) {

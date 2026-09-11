@@ -9,11 +9,14 @@ class CategoryEngine {
         val pkg = sbn.packageName
         val androidCategory = sbn.notification.category
 
+        // Call notifications (incoming or active) always take highest precedence
+        if (androidCategory == android.app.Notification.CATEGORY_CALL ||
+            androidCategory == android.app.Notification.CATEGORY_MISSED_CALL) {
+            return ShadeCategory.Calls
+        }
+
         // Package heuristics run first so well-known apps always land in the right
         // category regardless of what androidCategory the notification declares.
-        // (e.g. Gmail uses CATEGORY_EMAIL; WhatsApp uses CATEGORY_MESSAGE — but a
-        // generic system app that happens to post CATEGORY_EMAIL should still be
-        // recognised by the androidCategory fallback below.)
         if (isCallsApp(pkg))     return ShadeCategory.Calls
         if (isMessagingApp(pkg)) return ShadeCategory.Messages
         if (isSocialApp(pkg))    return ShadeCategory.Social
@@ -26,8 +29,7 @@ class CategoryEngine {
             }
         }
 
-        // isSystemApp is intentionally last — it matches broad prefixes like
-        // com.google.android.* which would otherwise swallow Gmail, Maps, etc.
+        // isSystemApp is intentionally last
         return if (isSystemApp(pkg)) ShadeCategory.System else ShadeCategory.Apps
     }
 
@@ -87,14 +89,25 @@ class CategoryEngine {
         "com.basecamp.hey", "com.easilydo.mail"
     )
 
-    private fun isSystemApp(pkg: String) =
-        pkg.startsWith("com.android.") ||
-        pkg.startsWith("com.samsung.android.") ||
-        pkg.startsWith("com.google.android.") ||
-        pkg.startsWith("com.oneplus.") ||
-        pkg.startsWith("com.miui.") ||
-        pkg.startsWith("com.huawei.") ||
-        pkg.startsWith("com.oppo.") ||
-        pkg.startsWith("com.realme.") ||
-        pkg == "android"
+    private fun isSystemApp(pkg: String): Boolean {
+        if (pkg == "android" || pkg.startsWith("com.android.systemui") ||
+            pkg.startsWith("com.android.providers.") || pkg.startsWith("com.google.android.gms") ||
+            pkg.startsWith("com.google.android.gsf") || pkg.startsWith("com.samsung.android.incallui")) {
+            return true
+        }
+        // Preserve common consumer apps in Apps category
+        if (pkg.contains("apps.maps") || pkg.contains("photos") || pkg.contains("keep") ||
+            pkg.contains("drive") || pkg.contains("notes") || pkg.contains("chrome") ||
+            pkg.contains("youtube") || pkg.contains("calendar")) {
+            return false
+        }
+        return pkg.startsWith("com.android.") ||
+            pkg.startsWith("com.samsung.android.") ||
+            pkg.startsWith("com.google.android.") ||
+            pkg.startsWith("com.oneplus.") ||
+            pkg.startsWith("com.miui.") ||
+            pkg.startsWith("com.huawei.") ||
+            pkg.startsWith("com.oppo.") ||
+            pkg.startsWith("com.realme.")
+    }
 }

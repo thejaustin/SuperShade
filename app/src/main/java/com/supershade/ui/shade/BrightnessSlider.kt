@@ -64,18 +64,41 @@ fun BrightnessSlider(
             Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL
         else
             Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC
-        try {
-            Settings.System.putInt(
-                context.contentResolver,
-                Settings.System.SCREEN_BRIGHTNESS_MODE,
-                newMode,
-            )
-            isAuto = !isAuto
-        } catch (_: SecurityException) {}
+        if (Settings.System.canWrite(context)) {
+            try {
+                Settings.System.putInt(
+                    context.contentResolver,
+                    Settings.System.SCREEN_BRIGHTNESS_MODE,
+                    newMode,
+                )
+                isAuto = !isAuto
+            } catch (_: SecurityException) {}
+        } else {
+            try {
+                val intent = android.content.Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                    data = android.net.Uri.parse("package:${context.packageName}")
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            } catch (_: Exception) {
+                try {
+                    context.startActivity(
+                        android.content.Intent(Settings.ACTION_DISPLAY_SETTINGS)
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                } catch (_: Exception) {}
+            }
+        }
     }
 
-    // Local float drives the slider during drag; writes Settings on finger-up.
-    var localValue by remember(brightness) { mutableFloatStateOf(brightness.toFloat()) }
+    var isDragging by remember { mutableStateOf(false) }
+    var localValue by remember { mutableFloatStateOf(brightness.toFloat().coerceIn(1f, 255f)) }
+
+    androidx.compose.runtime.LaunchedEffect(brightness) {
+        if (!isDragging) {
+            localValue = brightness.toFloat().coerceIn(1f, 255f)
+        }
+    }
 
     val fraction = (localValue - 1f) / 254f
     val dimAlpha by animateFloatAsState(
@@ -138,8 +161,19 @@ fun BrightnessSlider(
             )
             Slider(
                 value = localValue,
-                onValueChange = { if (!isAuto) localValue = it },
-                onValueChangeFinished = { if (!isAuto) onBrightnessChange(localValue.toInt()) },
+                onValueChange = {
+                    if (!isAuto) {
+                        isDragging = true
+                        localValue = it
+                        onBrightnessChange(it.toInt().coerceIn(1, 255))
+                    }
+                },
+                onValueChangeFinished = {
+                    if (!isAuto) {
+                        isDragging = false
+                        onBrightnessChange(localValue.toInt().coerceIn(1, 255))
+                    }
+                },
                 valueRange = 1f..255f,
                 enabled = !isAuto,
                 modifier = Modifier.fillMaxWidth(),

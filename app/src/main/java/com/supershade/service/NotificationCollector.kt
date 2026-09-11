@@ -38,6 +38,16 @@ class NotificationCollector : NotificationListenerService() {
                 cancelNotification(key)
             } catch (_: Exception) {}
         }
+        repository.snoozer = { key, durationMs ->
+            try {
+                snoozeNotification(key, durationMs)
+            } catch (_: Exception) {}
+        }
+        repository.clearAller = {
+            try {
+                cancelAllNotifications()
+            } catch (_: Exception) {}
+        }
         refreshNotifications()
     }
 
@@ -45,6 +55,8 @@ class NotificationCollector : NotificationListenerService() {
         super.onListenerDisconnected()
         instance = null
         repository.canceller = null
+        repository.snoozer = null
+        repository.clearAller = null
     }
 
     fun refreshNotifications() {

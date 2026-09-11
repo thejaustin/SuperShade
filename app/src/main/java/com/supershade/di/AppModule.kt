@@ -22,7 +22,7 @@ val appModule = module {
     single { TileRepository(androidContext(), get()) }
     single { TileToggler(androidContext(), get()) }
     single { MediaRepository(androidContext()) }
-    single { BrightnessRepository(androidContext()) }
+    single { BrightnessRepository(androidContext(), get()) }
     single { UpdateChecker() }
     single { UpdateRepository(get(), get()) }
     // Singleton (not viewModel) because ShadeService — not an Activity — owns it.

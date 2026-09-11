@@ -23,4 +23,5 @@ data class ShadeState(
     val statusBar: StatusBarState = StatusBarState(),
     val isShizukuConnected: Boolean = false,
     val brightness: Int = 128,
+    val darkThemeMode: com.supershade.ui.theme.DarkThemeMode = com.supershade.ui.theme.DarkThemeMode.SYSTEM,
 )

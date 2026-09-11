@@ -69,6 +69,8 @@ class MainActivity : ComponentActivity() {
                 var notifAccessGranted by remember { mutableStateOf(isNotificationAccessGranted()) }
                 var overlayGranted by remember { mutableStateOf(Settings.canDrawOverlays(this)) }
                 var shizukuPermGranted by remember { mutableStateOf(connector.hasPermission()) }
+                var writeSettingsGranted by remember { mutableStateOf(Settings.System.canWrite(this)) }
+                var accessibilityGranted by remember { mutableStateOf(isAccessibilityServiceEnabled()) }
 
                 DisposableEffect(lifecycleOwner) {
                     val observer = LifecycleEventObserver { _, event ->
@@ -76,6 +78,8 @@ class MainActivity : ComponentActivity() {
                             notifAccessGranted = isNotificationAccessGranted()
                             overlayGranted = Settings.canDrawOverlays(this@MainActivity)
                             shizukuPermGranted = connector.hasPermission()
+                            writeSettingsGranted = Settings.System.canWrite(this@MainActivity)
+                            accessibilityGranted = isAccessibilityServiceEnabled()
                             if (isActive && notifAccessGranted && overlayGranted) {
                                 toggleShadeService(true)
                             }
@@ -122,6 +126,8 @@ class MainActivity : ComponentActivity() {
                         shizukuPermGranted = shizukuPermGranted,
                         notificationAccessGranted = notifAccessGranted,
                         overlayGranted = overlayGranted,
+                        writeSettingsGranted = writeSettingsGranted,
+                        accessibilityGranted = accessibilityGranted,
                         shadeActive = isActive,
                         blockSystemShade = blockSystemShade,
                         selectedTheme = theme,
@@ -147,6 +153,21 @@ class MainActivity : ComponentActivity() {
                                     Uri.parse("package:$packageName"),
                                 )
                             )
+                        },
+                        onGrantWriteSettings = {
+                            try {
+                                startActivity(
+                                    Intent(
+                                        Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                                        Uri.parse("package:$packageName"),
+                                    )
+                                )
+                            } catch (_: Exception) {}
+                        },
+                        onGrantAccessibility = {
+                            try {
+                                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                            } catch (_: Exception) {}
                         },
                         onCheckUpdate = {
                             scope.launch { updateRepo.checkForUpdate() }
@@ -176,6 +197,20 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             }
+        }
+    }
+
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        return try {
+            val am = getSystemService(android.view.accessibility.AccessibilityManager::class.java) ?: return false
+            val enabledServices = am.getEnabledAccessibilityServiceList(android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+            val expected = ComponentName(this, com.supershade.service.SuperShadeAccessibilityService::class.java)
+            enabledServices.any {
+                it.resolveInfo.serviceInfo.packageName == expected.packageName &&
+                it.resolveInfo.serviceInfo.name == expected.className
+            }
+        } catch (_: Exception) {
+            false
         }
     }
 

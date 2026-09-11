@@ -41,6 +41,19 @@ val TILE_SETTINGS_ACTIONS: Map<String, String> = mapOf(
     "onehanded"    to Settings.ACTION_ACCESSIBILITY_SETTINGS,
 )
 
+val DEFAULT_TILES: List<String> = listOf(
+    "internet",
+    "bt",
+    "flashlight",
+    "rotation",
+    "dnd",
+    "mute",
+    "battery",
+    "location",
+    "dark",
+    "airplane",
+)
+
 val KNOWN_TILES: Map<String, Pair<String, TileCapability>> = mapOf(
     // Connectivity
     "internet"           to ("Internet"          to TileCapability.FULL_TOGGLE),

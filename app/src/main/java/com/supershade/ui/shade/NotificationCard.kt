@@ -365,12 +365,12 @@ fun NotificationCard(
                                 IconButton(
                                     onClick = {
                                         val ri = action.replyInput ?: return@IconButton
-                                        val intent = android.content.Intent()
+                                        val intent = android.content.Intent().addFlags(android.content.Intent.FLAG_RECEIVER_FOREGROUND)
                                         android.app.RemoteInput.addResultsToIntent(
                                             arrayOf(ri), intent,
                                             android.os.Bundle().apply { putCharSequence(ri.resultKey, replyText) }
                                         )
-                                        try { action.pendingIntent?.send(intent) } catch (_: Exception) {}
+                                        try { action.pendingIntent?.send(context, 0, intent) } catch (_: Exception) {}
                                         replyingAction = null
                                     },
                                     enabled = replyText.isNotBlank(),

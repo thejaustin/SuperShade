@@ -79,14 +79,27 @@ class NotificationRepository {
         _notifications.update { current -> current.filter { it.key != key } }
     }
 
+    var canceller: ((String) -> Unit)? = null
+    var snoozer: ((String, Long) -> Unit)? = null
+    var clearAller: (() -> Unit)? = null
+
+    fun snooze(key: String, delayMs: Long) {
+        snoozer?.invoke(key, delayMs)
+        onNotificationRemoved(key)
+    }
+
     fun cancelAndRemove(key: String) {
         canceller?.invoke(key)
         onNotificationRemoved(key)
     }
 
     fun cancelAll() {
-        val dismissible = _notifications.value.filter { it.isClearable }
-        dismissible.forEach { note -> canceller?.invoke(note.key) }
+        if (clearAller != null) {
+            clearAller?.invoke()
+        } else {
+            val dismissible = _notifications.value.filter { it.isClearable }
+            dismissible.forEach { note -> canceller?.invoke(note.key) }
+        }
         _notifications.update { current -> current.filter { !it.isClearable } }
     }
 

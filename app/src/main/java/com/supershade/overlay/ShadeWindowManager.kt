@@ -20,6 +20,12 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.supershade.ui.shade.ShadeRoot
 import com.supershade.viewmodel.ShadeViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Creates and manages the full-screen [TYPE_APPLICATION_OVERLAY] Compose window
@@ -47,8 +53,8 @@ class ShadeWindowManager(
     // LifecycleRegistry cannot transition out of DESTROYED back to RESUMED.
     private var lifecycleOwner: ShadeLifecycleOwner? = null
 
-    private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main)
-    private var hideJob: kotlinx.coroutines.Job? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var hideJob: Job? = null
 
     private val params = WindowManager.LayoutParams(
         WindowManager.LayoutParams.MATCH_PARENT,
@@ -107,7 +113,7 @@ class ShadeWindowManager(
         val viewToRemove = overlayView
         val ownerToStop = lifecycleOwner
         hideJob = scope.launch {
-            kotlinx.coroutines.delay(260L)
+            delay(260L)
             if (viewToRemove != null) {
                 try {
                     windowManager.removeView(viewToRemove)

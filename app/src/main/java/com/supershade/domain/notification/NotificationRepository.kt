@@ -21,15 +21,17 @@ class NotificationRepository {
     val newNotifications: SharedFlow<ShadeNotification> = _newNotifications.asSharedFlow()
 
     // Set by NotificationCollector when the listener service is connected.
-    // Called by cancelAndRemove to cancel the notification at the system level.
     var canceller: ((String) -> Unit)? = null
+    var snoozer: ((String, Long) -> Unit)? = null
+    var clearAller: (() -> Unit)? = null
 
     // key → timestamp when snooze expires; in-memory only, reset on service restart
     private val snoozedUntil = mutableMapOf<String, Long>()
 
     fun snooze(key: String, delayMs: Long) {
         snoozedUntil[key] = System.currentTimeMillis() + delayMs
-        _notifications.update { current -> current.filter { it.key != key } }
+        snoozer?.invoke(key, delayMs)
+        onNotificationRemoved(key)
     }
 
     private fun isSnoozed(key: String): Boolean {
@@ -77,15 +79,6 @@ class NotificationRepository {
 
     fun onNotificationRemoved(key: String) {
         _notifications.update { current -> current.filter { it.key != key } }
-    }
-
-    var canceller: ((String) -> Unit)? = null
-    var snoozer: ((String, Long) -> Unit)? = null
-    var clearAller: (() -> Unit)? = null
-
-    fun snooze(key: String, delayMs: Long) {
-        snoozer?.invoke(key, delayMs)
-        onNotificationRemoved(key)
     }
 
     fun cancelAndRemove(key: String) {

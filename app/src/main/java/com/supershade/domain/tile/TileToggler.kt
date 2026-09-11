@@ -5,6 +5,7 @@ import android.content.Intent
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.provider.Settings
+import com.supershade.service.NotificationCollector
 import com.supershade.shizuku.StatusBarGovernor
 
 class TileToggler(

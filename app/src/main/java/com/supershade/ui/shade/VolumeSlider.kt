@@ -1,6 +1,8 @@
 package com.supershade.ui.shade
 
+import android.content.Intent
 import android.media.AudioManager
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +17,7 @@ import androidx.compose.material.icons.filled.VolumeDown
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -22,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -69,11 +73,11 @@ fun VolumeSlider(modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        androidx.compose.material3.IconButton(
+        IconButton(
             onClick = {
                 try {
-                    val panelIntent = android.content.Intent(Settings.Panel.ACTION_VOLUME)
-                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    val panelIntent = Intent(Settings.Panel.ACTION_VOLUME)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     context.startActivity(panelIntent)
                 } catch (_: Exception) {
                     if (localValue > 0f) {

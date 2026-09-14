@@ -22,13 +22,13 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -123,12 +123,11 @@ fun ShadeRoot(
             ) {
                 Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(0.93f)
+                        .fillMaxSize()
                         .offset { IntOffset(0, dragOffset.value.roundToInt()) }
-                        .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
                         .background(MaterialTheme.colorScheme.surface)
-                        .statusBarsPadding(),
+                        .statusBarsPadding()
+                        .navigationBarsPadding(),
                 ) {
                     StatusBarRow(statusBar = state.statusBar)
 
@@ -165,7 +164,33 @@ fun ShadeRoot(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(22.dp)
+                            .height(26.dp)
+                            .draggable(
+                                orientation = Orientation.Vertical,
+                                state = rememberDraggableState { delta ->
+                                    if (delta > 8f && !isQsExpanded) {
+                                        viewModel.setQsExpanded(true)
+                                    } else if (delta < -8f && isQsExpanded) {
+                                        viewModel.setQsExpanded(false)
+                                    } else if (delta < -4f && !isQsExpanded) {
+                                        coroutineScope.launch {
+                                            dragOffset.snapTo((dragOffset.value + delta).coerceAtMost(0f))
+                                        }
+                                    }
+                                },
+                                onDragStopped = { velocity ->
+                                    if (!isQsExpanded && (velocity < -velocityThresholdPxPerSec || dragOffset.value < -dismissThresholdPx)) {
+                                        coroutineScope.launch {
+                                            dragOffset.animateTo(-3000f, tween(200))
+                                            onDismiss()
+                                        }
+                                    } else {
+                                        coroutineScope.launch {
+                                            dragOffset.animateTo(0f, spring(0.55f, 450f))
+                                        }
+                                    }
+                                },
+                            )
                             .clickable { viewModel.setQsExpanded(!isQsExpanded) },
                         contentAlignment = Alignment.Center,
                     ) {

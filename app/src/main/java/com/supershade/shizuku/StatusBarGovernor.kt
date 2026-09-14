@@ -85,11 +85,28 @@ class StatusBarGovernor(
         _isCommanderConnected.value = false
     }
 
+    private fun executeShizukuProcess(cmd: Array<String>): java.lang.Process? {
+        return try {
+            val method = Shizuku::class.java.getDeclaredMethod(
+                "newProcess",
+                Array<String>::class.java,
+                Array<String>::class.java,
+                String::class.java,
+            ).apply { isAccessible = true }
+            method.invoke(null, cmd, null, null) as? java.lang.Process
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     suspend fun runShell(vararg args: String): Boolean = withContext(Dispatchers.IO) {
         try {
             if (!connector.hasPermission()) return@withContext false
             val cmd = Array(args.size) { args[it] }
-            commander?.exec(cmd) ?: false
+            val direct = commander?.exec(cmd)
+            if (direct != null) return@withContext direct
+            val proc = executeShizukuProcess(cmd)
+            proc?.waitFor() == 0
         } catch (_: Exception) { false }
     }
 
@@ -97,8 +114,24 @@ class StatusBarGovernor(
         try {
             if (!connector.hasPermission()) return@withContext ""
             val cmd = Array(args.size) { args[it] }
-            commander?.execForOutput(cmd) ?: ""
+            val direct = commander?.execForOutput(cmd)
+            if (!direct.isNullOrEmpty()) return@withContext direct
+            val proc = executeShizukuProcess(cmd)
+            val output = proc?.inputStream?.bufferedReader()?.use { it.readText() }?.trim().orEmpty()
+            proc?.waitFor()
+            output
         } catch (_: Exception) { "" }
+    }
+
+    fun runShellBlocking(vararg args: String): Boolean {
+        return try {
+            if (!connector.hasPermission()) return false
+            val cmd = Array(args.size) { args[it] }
+            val direct = commander?.exec(cmd)
+            if (direct != null) return direct
+            val proc = executeShizukuProcess(cmd)
+            proc?.waitFor() == 0
+        } catch (_: Exception) { false }
     }
 
     suspend fun disableExpansion(): Boolean {
@@ -109,6 +142,11 @@ class StatusBarGovernor(
     suspend fun enableExpansion(): Boolean {
         shouldDisableExpansion = false
         return runShell("cmd", "statusbar", "send-disable-flag", "none")
+    }
+
+    fun enableExpansionBlocking(): Boolean {
+        shouldDisableExpansion = false
+        return runShellBlocking("cmd", "statusbar", "send-disable-flag", "none")
     }
 
     suspend fun clickTile(component: String): Boolean =
@@ -123,3 +161,4 @@ class StatusBarGovernor(
     suspend fun expandSettings(): Boolean =
         runShell("cmd", "statusbar", "expand-settings")
 }
+

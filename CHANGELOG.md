@@ -5,6 +5,20 @@ Releases follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.8.3] — 2026-09-14
+
+### Added & Fixed (Full-Height Pull-Down & Native Status Bar Restoration)
+- **Full-Height Edge-to-Edge Shade Pull-Down**:
+  - Replaced the restrictive `0.93f` height limit with `.fillMaxSize()` on the shade root container and added `FLAG_LAYOUT_NO_LIMITS` to `ShadeWindowManager`.
+  - The notification panel now pulls all the way down to 100% full screen height, unlocking maximum vertical space for notifications on large screens and Galaxy S-series displays.
+  - Integrated `navigationBarsPadding()` across the shade layout so bottom notifications, the "Clear all" action, and the dismiss drag handle adaptively clear 3-button navigation bars and gesture navigation pills.
+  - Added bidirectional swipe gestures on the Quick Settings chevron handle: swipe down to expand Quick Settings, swipe up to collapse Quick Settings, or swipe up when collapsed to smoothly dismiss the panel.
+- **Clean Native Status Bar Restoration When SuperShade is Disabled**:
+  - Added `enableExpansionBlocking()` and reflection-based fallback in `StatusBarGovernor` ensuring `cmd statusbar send-disable-flag none` executes synchronously without binder-lifecycle race conditions.
+  - `SuperShadeAccessibilityService` now reacts dynamically to `settings.isActive`: when SuperShade is toggled OFF, it instantly detaches the `TYPE_ACCESSIBILITY_OVERLAY` catchment strip, disables SystemUI window state interception, and restores native status bar expansion. When re-enabled, it smoothly re-attaches.
+  - `ShadeService` monitors `settings.isActive` to cleanly stop itself and guarantee native status bar restoration upon service destruction.
+  - `MainActivity` actively drives `StatusBarGovernor` on "Enable SuperShade" and "Block System Shade" toggle changes for immediate, responsive state transitions.
+
 ## [1.8.2] — 2026-09-14
 
 ### Fixed & Enhanced (Samsung One UI 8 & Android 16 Status Bar Override)

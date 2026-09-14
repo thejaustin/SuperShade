@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() {
     private val settings: ShadeSettings by inject()
     private val updateRepo: UpdateRepository by inject()
     private val shadeViewModel: ShadeViewModel by inject()
+    private val governor: com.supershade.shizuku.StatusBarGovernor by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -135,10 +136,22 @@ class MainActivity : ComponentActivity() {
                         appVersion = BuildConfig.VERSION_NAME,
                         onToggleShade = { enabled ->
                             toggleShadeService(enabled)
-                            scope.launch { settings.setActive(enabled) }
+                            scope.launch {
+                                settings.setActive(enabled)
+                                if (!enabled) {
+                                    governor.enableExpansion()
+                                } else if (blockSystemShade) {
+                                    governor.disableExpansion()
+                                }
+                            }
                         },
                         onBlockSystemShadeChange = { block ->
-                            scope.launch { settings.setBlockSystemShade(block) }
+                            scope.launch {
+                                settings.setBlockSystemShade(block)
+                                if (isActive) {
+                                    if (block) governor.disableExpansion() else governor.enableExpansion()
+                                }
+                            }
                         },
                         onThemeChange = { newTheme ->
                             scope.launch { settings.setTheme(newTheme) }

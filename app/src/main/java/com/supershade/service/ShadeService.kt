@@ -101,6 +101,16 @@ class ShadeService : Service() {
         // Start the Shizuku UserService so tile-click and status-bar commands work.
         governor.bindService()
 
+        // Stop foreground service whenever SuperShade is disabled.
+        settings.isActive
+            .distinctUntilChanged()
+            .onEach { active ->
+                if (!active) {
+                    stopSelf()
+                }
+            }
+            .launchIn(scope)
+
         // Apply or lift the system-shade block whenever the setting changes.
         settings.blockSystemShade
             .distinctUntilChanged()
@@ -124,12 +134,14 @@ class ShadeService : Service() {
         gestureOverlay = null
         headsUpOverlay.destroy()
         windowManager.hide()
-        // Re-enable the system shade before we fully shut down, then cancel scope.
-        scope.launch { governor.enableExpansion() }.invokeOnCompletion { scope.cancel() }
+
+        // Re-enable the native system status bar synchronously before unbinding service.
+        governor.enableExpansionBlocking()
 
         // Tear down the Shizuku UserService and clean up binder listeners.
         governor.unbindService()
         connector.cleanup()
+        scope.cancel()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

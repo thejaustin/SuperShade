@@ -10,12 +10,17 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import com.supershade.settings.ShadeSettings
 import com.supershade.shizuku.StatusBarGovernor
 import com.supershade.viewmodel.ShadeViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 
@@ -42,17 +47,44 @@ class SuperShadeAccessibilityService : AccessibilityService() {
 
     private val governor: StatusBarGovernor by inject()
     private val shadeViewModel: ShadeViewModel by inject()
+    private val settings: ShadeSettings by inject()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private var windowManager: WindowManager? = null
     private var touchCaptureView: View? = null
+    @Volatile private var isSuperShadeActive = false
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        android.util.Log.i("SuperShadeA11y", "onServiceConnected: attaching accessibility touch overlay")
-        attachAccessibilityTouchCapture()
+        android.util.Log.i("SuperShadeA11y", "onServiceConnected: initializing settings observer")
+
+        settings.isActive
+            .distinctUntilChanged()
+            .onEach { active ->
+                isSuperShadeActive = active
+                if (active) {
+                    attachAccessibilityTouchCapture()
+                    if (settings.blockSystemShade.first()) {
+                        governor.disableExpansion()
+                    }
+                } else {
+                    detachAccessibilityTouchCapture()
+                    governor.enableExpansion()
+                }
+            }
+            .launchIn(scope)
+
+        settings.blockSystemShade
+            .distinctUntilChanged()
+            .onEach { block ->
+                if (isSuperShadeActive) {
+                    if (block) governor.disableExpansion() else governor.enableExpansion()
+                }
+            }
+            .launchIn(scope)
     }
+
 
     private fun attachAccessibilityTouchCapture() {
         if (touchCaptureView != null) return
@@ -161,6 +193,7 @@ class SuperShadeAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (!isSuperShadeActive) return
         if (event == null) return
         val eventType = event.eventType
 
@@ -236,7 +269,9 @@ class SuperShadeAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         super.onDestroy()
         detachAccessibilityTouchCapture()
+        governor.enableExpansionBlocking()
         scope.cancel()
         instance = null
     }
 }
+

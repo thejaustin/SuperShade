@@ -25,11 +25,12 @@ class GestureOverlay(
     private val windowManager = context.getSystemService(WindowManager::class.java)
     private var overlayView: View? = null
 
-    // Ultra-thin top bezel strip (4dp) positioned at y=0.
-    // In Android WindowManager coordinates, pointer capture guarantees that any
-    // swipe starting at the top edge forwards all ACTION_MOVE events down the screen
-    // without blocking any toolbar buttons, back arrows, or tabs in apps below.
-    private val captureHeight = (4 * context.resources.displayMetrics.density).toInt().coerceAtLeast(10)
+    // Top bezel strip matching the system status bar height positioned at y=0.
+    private val captureHeight = run {
+        val resId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+        val h = if (resId > 0) context.resources.getDimensionPixelSize(resId) else 0
+        h.coerceAtLeast((36 * context.resources.displayMetrics.density).toInt())
+    }
 
     private val params = WindowManager.LayoutParams(
         WindowManager.LayoutParams.MATCH_PARENT,

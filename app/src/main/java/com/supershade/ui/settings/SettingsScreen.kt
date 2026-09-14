@@ -234,8 +234,8 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
-                val themes = listOf(ShadeTheme.OneUI, ShadeTheme.Pixel)
-                val labels = listOf("One UI", "Pixel")
+                val themes = listOf(ShadeTheme.OneUI, ShadeTheme.Pixel, ShadeTheme.PureMaterial)
+                val labels = listOf("One UI", "Pixel", "Pure Material")
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     themes.forEachIndexed { index, theme ->
                         SegmentedButton(

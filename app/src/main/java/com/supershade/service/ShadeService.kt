@@ -68,7 +68,7 @@ class ShadeService : Service() {
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
 
-        windowManager = ShadeWindowManager(applicationContext, shadeViewModel)
+        windowManager = ShadeWindowManager(applicationContext, shadeViewModel, governor)
         headsUpOverlay = HeadsUpOverlay(applicationContext)
 
         // Attach the gesture capture overlay. When a downward swipe is detected

@@ -27,7 +27,11 @@ class ShadeSettings(private val context: Context) {
     }
 
     val theme: Flow<ShadeTheme> = context.dataStore.data.map { prefs ->
-        if (prefs[THEME_KEY] == "pixel") ShadeTheme.Pixel else ShadeTheme.OneUI
+        when (prefs[THEME_KEY]) {
+            "pixel" -> ShadeTheme.Pixel
+            "material" -> ShadeTheme.PureMaterial
+            else -> ShadeTheme.OneUI
+        }
     }
 
     val darkThemeMode: Flow<com.supershade.ui.theme.DarkThemeMode> = context.dataStore.data.map { prefs ->
@@ -62,7 +66,11 @@ class ShadeSettings(private val context: Context) {
 
     suspend fun setTheme(theme: ShadeTheme) {
         context.dataStore.edit { prefs ->
-            prefs[THEME_KEY] = if (theme is ShadeTheme.Pixel) "pixel" else "onui"
+            prefs[THEME_KEY] = when (theme) {
+                is ShadeTheme.Pixel -> "pixel"
+                is ShadeTheme.PureMaterial -> "material"
+                else -> "oneui"
+            }
         }
     }
 

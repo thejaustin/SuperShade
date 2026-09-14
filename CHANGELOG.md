@@ -5,6 +5,26 @@ Releases follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.8.0] — 2026-09-14
+
+### Added & Overhauled (Samsung One UI 8 & Android 16 Alignment, Pure Material Theme & Layout Overhaul)
+- **Zero-Flicker Status Bar Suppression (Android 16 & Samsung One UI 8)**:
+  - Added `TYPE_ACCESSIBILITY_OVERLAY` gesture capture in `SuperShadeAccessibilityService` positioned at window layer ~33 (above `TYPE_STATUS_BAR` layer ~28), preventing SystemUI from ever receiving top-edge `ACTION_DOWN` gestures.
+  - Resolved logic inversion where Accessibility Service skipped interception when Shizuku was connected; now unconditionally collapses native panels (`GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE` + `cmd statusbar collapse`).
+  - Added `TYPE_WINDOWS_CHANGED` listener to catch Samsung Quick Panel expansion events.
+  - Immediate system panel collapse on `ShadeWindowManager.show()` to eliminate peeking.
+  - Adjusted `GestureOverlay` to the full status bar height (`status_bar_height` dimen) for reliable swipe detection when accessibility service is initializing.
+- **Notification Visibility & Layout Overhaul**:
+  - Expanded shade panel height from `fillMaxHeight(0.72f)` to `fillMaxHeight(0.93f)` (~828dp on Galaxy S24/S25/S26 Ultra), providing 550dp+ of clean vertical space for notifications.
+  - Created expandable Quick Settings: 1-row compact mode (4 tiles, 84dp) with smooth spring animation to 2-row full mode (8 tiles, 168dp), toggled via interactive chevron.
+  - Consolidated Brightness and Volume sliders into a compact side-by-side row (only ~40dp high), saving over 60dp of vertical height.
+- **Pure Material System Theme**:
+  - Introduced `ShadeTheme.PureMaterial` powered by Android dynamic coloring (`dynamicDarkColorScheme` / `dynamicLightColorScheme`) matching the system wallpaper on Android 12+.
+  - Added AMOLED pure black mode (`#000000`) for OLED power savings while maintaining vibrant Monet accent hues.
+  - Material 3 Expressive shapes with rounded cards and pill sliders.
+  - Upgraded `OneUiTheme` to match Samsung One UI 8 (squircle 22dp, One UI typography, surface containers).
+  - Upgraded `PixelTheme` with authentic Google Pixel Material You typography, dark surfaces, and shapes.
+
 ## [1.7.0] — 2026-09-11
 
 ### Fixed & Enhanced (Sliders, Zero-ADB Architecture & Media)

@@ -44,6 +44,7 @@ import kotlinx.coroutines.launch
 class ShadeWindowManager(
     private val context: Context,
     private val viewModel: ShadeViewModel,
+    private val governor: com.supershade.shizuku.StatusBarGovernor? = null,
 ) {
 
     private val windowManager: WindowManager = context.getSystemService()!!
@@ -103,6 +104,7 @@ class ShadeWindowManager(
         // similar modifiers resolve to the correct values in an overlay window.
         view.requestApplyInsets()
         viewModel.open()
+        scope.launch { governor?.collapse() }
     }
 
     /** Removes the shade overlay and cleans up Compose / Lifecycle resources after exit animation. */

@@ -38,7 +38,10 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
 @Composable
-fun VolumeSlider(modifier: Modifier = Modifier) {
+fun VolumeSlider(
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+) {
     val context = LocalContext.current
     val audioManager = remember { context.getSystemService(AudioManager::class.java) }
     val maxVol = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat() }
@@ -69,9 +72,12 @@ fun VolumeSlider(modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp),
+            .padding(
+                horizontal = if (compact) 8.dp else 20.dp,
+                vertical = if (compact) 2.dp else 4.dp,
+            ),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 10.dp),
     ) {
         IconButton(
             onClick = {
@@ -150,11 +156,13 @@ fun VolumeSlider(modifier: Modifier = Modifier) {
                 ),
             )
         }
-        Icon(
-            imageVector = Icons.Default.VolumeUp,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
-            modifier = Modifier.size(20.dp),
-        )
+        if (!compact) {
+            Icon(
+                imageVector = Icons.Default.VolumeUp,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }

@@ -14,25 +14,35 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +54,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.supershade.domain.notification.model.ShadeCategory
 import com.supershade.ui.theme.OneUiShadeTheme
 import com.supershade.ui.theme.PixelShadeTheme
+import com.supershade.ui.theme.PureMaterialShadeTheme
 import com.supershade.ui.theme.ShadeTheme
 import com.supershade.viewmodel.ShadeViewModel
 import kotlinx.coroutines.launch
@@ -55,6 +66,7 @@ fun ShadeRoot(
     onDismiss: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var isQsExpanded by remember { mutableStateOf(false) }
 
     val categoryCounts by remember {
         derivedStateOf {
@@ -69,7 +81,14 @@ fun ShadeRoot(
     val isAmoled = state.darkThemeMode == com.supershade.ui.theme.DarkThemeMode.AMOLED
     val themeWrapper: @Composable (@Composable () -> Unit) -> Unit = when (state.theme) {
         ShadeTheme.Pixel -> { content -> PixelShadeTheme(isAmoled = isAmoled, content = content) }
-        else             -> { content -> OneUiShadeTheme(isAmoled = isAmoled, content = content) }
+        ShadeTheme.PureMaterial -> { content ->
+            PureMaterialShadeTheme(
+                isAmoled = isAmoled,
+                darkThemeMode = state.darkThemeMode,
+                content = content,
+            )
+        }
+        else -> { content -> OneUiShadeTheme(isAmoled = isAmoled, content = content) }
     }
 
     val coroutineScope = rememberCoroutineScope()
@@ -80,15 +99,16 @@ fun ShadeRoot(
 
     // Reset drag position whenever the shade re-opens.
     LaunchedEffect(state.isOpen) {
-        if (state.isOpen) dragOffset.snapTo(0f)
+        if (state.isOpen) {
+            dragOffset.snapTo(0f)
+            isQsExpanded = false
+        }
     }
 
     themeWrapper {
         Box(modifier = Modifier.fillMaxSize()) {
             // Dimmer scrim — tapping it dismisses the shade.
-            // On Android 12+ the compositor handles background blur so we can use
-            // a lighter tint; on older versions the darker value provides contrast.
-            val scrimAlpha = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.25f else 0.55f
+            val scrimAlpha = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.35f else 0.60f
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -96,7 +116,7 @@ fun ShadeRoot(
                     .clickable(onClick = onDismiss),
             )
 
-            // Shade panel: slides down from the top, rounded bottom corners
+            // Shade panel: expands down from the top, rounded bottom corners
             AnimatedVisibility(
                 visible = state.isOpen,
                 enter = slideInVertically(tween(300)) { -it } + fadeIn(tween(200)),
@@ -105,27 +125,60 @@ fun ShadeRoot(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(0.72f)
+                        .fillMaxHeight(0.93f)
                         .offset { IntOffset(0, dragOffset.value.roundToInt()) }
-                        .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
+                        .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
                         .background(MaterialTheme.colorScheme.surface)
-                        // Push content below the system status bar. The shade background
-                        // still fills from y=0 (behind the status bar), but StatusBarRow
-                        // and all subsequent content start at the status bar bottom.
                         .statusBarsPadding(),
                 ) {
                     StatusBarRow(statusBar = state.statusBar)
+
+                    // Quick Settings grid (compact 1-row or expanded 2-row)
                     QuickSettingsGrid(
                         tiles = state.tiles,
                         theme = state.theme,
                         isShizukuConnected = state.isShizukuConnected,
+                        isExpanded = isQsExpanded,
                         onTileClick = { viewModel.toggleTile(it) },
                     )
-                    BrightnessSlider(
-                        brightness = state.brightness,
-                        onBrightnessChange = { viewModel.setBrightness(it) },
-                    )
-                    VolumeSlider()
+
+                    // Compact Dual Sliders Row: Brightness & Volume side-by-side
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        BrightnessSlider(
+                            brightness = state.brightness,
+                            onBrightnessChange = { viewModel.setBrightness(it) },
+                            compact = true,
+                            modifier = Modifier.weight(1f),
+                        )
+                        VolumeSlider(
+                            compact = true,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+
+                    // Quick Settings expansion chevron / drag handle
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(22.dp)
+                            .clickable { isQsExpanded = !isQsExpanded },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = if (isQsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = if (isQsExpanded) "Collapse Quick Settings" else "Expand Quick Settings",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+
+                    // Media playback card (if active)
                     state.media?.let { media ->
                         MediaCard(
                             media = media,
@@ -135,12 +188,16 @@ fun ShadeRoot(
                             onSeek = { viewModel.mediaSeek(it) },
                         )
                     }
+
+                    // Notification category bar
                     CategoryBar(
                         categories = ShadeCategory.entries,
                         selected = state.selectedCategory,
                         onSelect = { viewModel.selectCategory(it) },
                         counts = categoryCounts,
                     )
+
+                    // Notification feed with full remaining space
                     NotificationFeed(
                         notifications = state.visibleNotifications,
                         onDismiss = { viewModel.dismissNotification(it) },
@@ -153,16 +210,15 @@ fun ShadeRoot(
                         modifier = Modifier.weight(1f),
                     )
 
-                    // Drag-handle — swipe up to dismiss with spring physics.
+                    // Bottom drag-handle — swipe up to dismiss with spring physics
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 12.dp)
+                            .padding(vertical = 10.dp)
                             .draggable(
                                 orientation = Orientation.Vertical,
                                 state = rememberDraggableState { delta ->
                                     coroutineScope.launch {
-                                        // Only accept upward drags (negative delta).
                                         dragOffset.snapTo(
                                             (dragOffset.value + delta).coerceAtMost(0f)
                                         )
@@ -173,14 +229,12 @@ fun ShadeRoot(
                                         if (dragOffset.value < -dismissThresholdPx ||
                                             velocity < -velocityThresholdPxPerSec
                                         ) {
-                                            // Fly off screen then dismiss.
                                             dragOffset.animateTo(
                                                 targetValue = -3000f,
                                                 animationSpec = tween(durationMillis = 200),
                                             )
                                             onDismiss()
                                         } else {
-                                            // Spring back to resting position.
                                             dragOffset.animateTo(
                                                 targetValue = 0f,
                                                 animationSpec = spring(
@@ -196,10 +250,10 @@ fun ShadeRoot(
                     ) {
                         Box(
                             modifier = Modifier
-                                .width(36.dp)
+                                .width(40.dp)
                                 .height(4.dp)
                                 .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.25f)),
+                                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)),
                         )
                     }
                 }

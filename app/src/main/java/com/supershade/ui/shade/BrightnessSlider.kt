@@ -44,6 +44,7 @@ fun BrightnessSlider(
     brightness: Int,
     onBrightnessChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     val context = LocalContext.current
 
@@ -131,15 +132,18 @@ fun BrightnessSlider(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp),
+            .padding(
+                horizontal = if (compact) 8.dp else 20.dp,
+                vertical = if (compact) 2.dp else 4.dp,
+            ),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 10.dp),
     ) {
         Icon(
             imageVector = Icons.Default.BrightnessLow,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isAuto) 0.3f else dimAlpha),
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(if (compact) 18.dp else 20.dp),
         )
         Box(modifier = Modifier.weight(1f)) {
             Box(
@@ -187,17 +191,19 @@ fun BrightnessSlider(
                 ),
             )
         }
-        Icon(
-            imageVector = Icons.Default.BrightnessHigh,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isAuto) 0.3f else brightAlpha),
-            modifier = Modifier.size(20.dp),
-        )
+        if (!compact) {
+            Icon(
+                imageVector = Icons.Default.BrightnessHigh,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isAuto) 0.3f else brightAlpha),
+                modifier = Modifier.size(20.dp),
+            )
+        }
         // Auto-brightness toggle pill
         IconButton(
             onClick = { toggleAuto() },
             modifier = Modifier
-                .size(32.dp)
+                .size(if (compact) 28.dp else 32.dp)
                 .clip(CircleShape)
                 .background(autoBg),
         ) {
@@ -205,7 +211,7 @@ fun BrightnessSlider(
                 imageVector = Icons.Default.BrightnessAuto,
                 contentDescription = if (isAuto) "Disable auto brightness" else "Enable auto brightness",
                 tint = autoIconTint,
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(if (compact) 14.dp else 16.dp),
             )
         }
     }

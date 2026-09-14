@@ -26,6 +26,8 @@ data class ShadeNotification(
     val progressMax: Int = 0,
     val isProgressIndeterminate: Boolean = false,
     val picture: android.graphics.Bitmap? = null,
+    val channelId: String? = null,
+    val isOngoing: Boolean = false,
 )
 
 data class NotificationAction(
@@ -102,5 +104,7 @@ fun StatusBarNotification.toShadeNotification(category: ShadeCategory): ShadeNot
         progressMax = progressMax,
         isProgressIndeterminate = isProgressIndeterminate,
         picture = picture,
+        channelId = notification.channelId,
+        isOngoing = (notification.flags and Notification.FLAG_ONGOING_EVENT != 0) || !isClearable,
     )
 }

@@ -5,6 +5,26 @@ Releases follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.8.1] — 2026-09-14
+
+### Added & Overhauled (Heads-Up Popup 2D Gestures, OS Notification Settings & Notification Backend)
+- **Heads-Up Popup 2D Gestures & Interactions**:
+  - Implemented 2D multi-touch gesture detection engine in `HeadsUpOverlay`:
+    - **Swipe Up (< -36dp)**: Dismisses and hides popup toast while safely preserving the notification in the notification shade.
+    - **Swipe Left or Right (> 110dp)**: Cancels and dismisses notification from the Android system via `NotificationRepository.cancelAndRemove()`.
+    - **Hold Down / Long-Press**: Pauses auto-dismiss countdown timer, vibrates with haptic confirmation, and unfolds native OS notification controls.
+- **Native OS Notification Controls on Long-Press**:
+  - Integrated full OS settings controls on heads-up popups, standard notification cards, and grouped notification cards:
+    - "Notification settings": Launches system app notification preferences (`Settings.ACTION_APP_NOTIFICATION_SETTINGS`).
+    - "Turn off notifications": Directly opens channel-level settings (`Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS`) for the specific notification channel.
+    - Snooze options: Quick-snooze directly from the menu for 15 minutes, 1 hour, or 4 hours.
+- **Interactive Popup Actions & Inline Replies**:
+  - Added direct inline reply text field with send button for messaging notifications via Android `RemoteInput`.
+  - Added actionable buttons directly to the heads-up banner for quick actions without needing to open the shade.
+- **Notification Spam Prevention & Repository Filtering**:
+  - Filtered ongoing system services (`FLAG_ONGOING_EVENT`), non-clearable foreground tasks, group summaries, and SuperShade's own status notifications from generating heads-up popups.
+  - Theme-aware styling matching active One UI, Pixel, or Pure Material design systems.
+
 ## [1.8.0] — 2026-09-14
 
 ### Added & Overhauled (Samsung One UI 8 & Android 16 Alignment, Pure Material Theme & Layout Overhaul)

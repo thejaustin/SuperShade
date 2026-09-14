@@ -69,10 +69,9 @@ class NotificationRepository {
             }
         }
 
-        // Only show a heads-up peek card for genuinely new, non-summary notifications.
-        // Updates to existing notifications (badge count changes, progress updates, etc.)
-        // should not trigger another toast — they're already visible in the feed.
-        if (isNew && !shade.isGroupSummary) {
+        // Only show a heads-up peek card for genuinely new, non-summary, non-ongoing notifications.
+        // Updates to existing notifications or ongoing services shouldn't spam toasts.
+        if (isNew && !shade.isGroupSummary && !shade.isOngoing && shade.packageName != "com.supershade") {
             _newNotifications.tryEmit(shade)
         }
     }

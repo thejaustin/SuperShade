@@ -17,17 +17,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Snooze
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -74,7 +80,7 @@ fun NotificationCard(
 ) {
     var expanded by remember { mutableStateOf(false) }
     var replyingAction by remember { mutableStateOf<NotificationAction?>(null) }
-    var showSnoozeMenu by remember { mutableStateOf(false) }
+    var showSettingsMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     // Resolve readable app name from the package
@@ -168,7 +174,7 @@ fun NotificationCard(
                     interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                     indication = LocalIndication.current,
                     onClick = onClick,
-                    onLongClick = if (onSnooze != null) { { showSnoozeMenu = true } } else null,
+                    onLongClick = { showSettingsMenu = true },
                 ),
         ) {
             Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
@@ -285,23 +291,64 @@ fun NotificationCard(
                     }
                 }
 
-                // Snooze dropdown — shown on long-press
+                // Settings & Snooze dropdown — shown on long-press (OS-style)
                 DropdownMenu(
-                    expanded = showSnoozeMenu,
-                    onDismissRequest = { showSnoozeMenu = false },
+                    expanded = showSettingsMenu,
+                    onDismissRequest = { showSettingsMenu = false },
                 ) {
-                    listOf(
-                        "Snooze 15 minutes" to 15 * 60 * 1_000L,
-                        "Snooze 1 hour"     to 60 * 60 * 1_000L,
-                        "Snooze 4 hours"    to 4 * 60 * 60 * 1_000L,
-                    ).forEach { (label, delayMs) ->
+                    DropdownMenuItem(
+                        text = { Text("Notification settings", style = MaterialTheme.typography.bodyMedium) },
+                        leadingIcon = {
+                            Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(20.dp))
+                        },
+                        onClick = {
+                            showSettingsMenu = false
+                            try {
+                                val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                    putExtra(Settings.EXTRA_APP_PACKAGE, notification.packageName)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                            } catch (_: Exception) {}
+                        },
+                    )
+                    if (notification.channelId != null) {
                         DropdownMenuItem(
-                            text = { Text(label, style = MaterialTheme.typography.bodyMedium) },
+                            text = { Text("Turn off notifications", style = MaterialTheme.typography.bodyMedium) },
+                            leadingIcon = {
+                                Icon(Icons.Default.NotificationsOff, contentDescription = null, modifier = Modifier.size(20.dp))
+                            },
                             onClick = {
-                                onSnooze?.invoke(delayMs)
-                                showSnoozeMenu = false
+                                showSettingsMenu = false
+                                try {
+                                    val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+                                        putExtra(Settings.EXTRA_APP_PACKAGE, notification.packageName)
+                                        putExtra(Settings.EXTRA_CHANNEL_ID, notification.channelId)
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {}
                             },
                         )
+                    }
+                    if (onSnooze != null) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        listOf(
+                            "Snooze 15 minutes" to 15 * 60 * 1_000L,
+                            "Snooze 1 hour"     to 60 * 60 * 1_000L,
+                            "Snooze 4 hours"    to 4 * 60 * 60 * 1_000L,
+                        ).forEach { (label, delayMs) ->
+                            DropdownMenuItem(
+                                text = { Text(label, style = MaterialTheme.typography.bodyMedium) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Snooze, contentDescription = null, modifier = Modifier.size(20.dp))
+                                },
+                                onClick = {
+                                    onSnooze.invoke(delayMs)
+                                    showSettingsMenu = false
+                                },
+                            )
+                        }
                     }
                 }
 

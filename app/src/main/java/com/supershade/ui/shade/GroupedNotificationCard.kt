@@ -22,10 +22,15 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Snooze
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -94,7 +99,7 @@ fun GroupedNotificationCard(
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    var showSnoozeMenu by remember { mutableStateOf(false) }
+    var showSettingsMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     val appName = remember(group.packageName) {
@@ -189,7 +194,7 @@ fun GroupedNotificationCard(
                         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                         indication = LocalIndication.current,
                         onClick = { expanded = !expanded },
-                        onLongClick = { showSnoozeMenu = true },
+                        onLongClick = { showSettingsMenu = true },
                     ),
             ) {
                 Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
@@ -274,11 +279,48 @@ fun GroupedNotificationCard(
                         }
                     }
 
-                    // Snooze dropdown for the whole group
+                    // Settings & Snooze dropdown for the whole group — shown on long-press (OS-style)
                     DropdownMenu(
-                        expanded = showSnoozeMenu,
-                        onDismissRequest = { showSnoozeMenu = false },
+                        expanded = showSettingsMenu,
+                        onDismissRequest = { showSettingsMenu = false },
                     ) {
+                        DropdownMenuItem(
+                            text = { Text("Notification settings", style = MaterialTheme.typography.bodyMedium) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(20.dp))
+                            },
+                            onClick = {
+                                showSettingsMenu = false
+                                try {
+                                    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                        putExtra(Settings.EXTRA_APP_PACKAGE, group.packageName)
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {}
+                            },
+                        )
+                        val channelId = group.preview.channelId
+                        if (channelId != null) {
+                            DropdownMenuItem(
+                                text = { Text("Turn off notifications", style = MaterialTheme.typography.bodyMedium) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.NotificationsOff, contentDescription = null, modifier = Modifier.size(20.dp))
+                                },
+                                onClick = {
+                                    showSettingsMenu = false
+                                    try {
+                                        val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+                                            putExtra(Settings.EXTRA_APP_PACKAGE, group.packageName)
+                                            putExtra(Settings.EXTRA_CHANNEL_ID, channelId)
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        }
+                                        context.startActivity(intent)
+                                    } catch (_: Exception) {}
+                                },
+                            )
+                        }
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                         listOf(
                             "Snooze 15 minutes" to 15 * 60 * 1_000L,
                             "Snooze 1 hour"     to 60 * 60 * 1_000L,
@@ -286,9 +328,12 @@ fun GroupedNotificationCard(
                         ).forEach { (label, delayMs) ->
                             DropdownMenuItem(
                                 text = { Text(label, style = MaterialTheme.typography.bodyMedium) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Snooze, contentDescription = null, modifier = Modifier.size(20.dp))
+                                },
                                 onClick = {
                                     group.notifications.forEach { onSnooze(it.key, delayMs) }
-                                    showSnoozeMenu = false
+                                    showSettingsMenu = false
                                 },
                             )
                         }

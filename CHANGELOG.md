@@ -5,6 +5,27 @@ Releases follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.8.4] — 2026-09-14
+
+### Added & Enhanced (System Quick Settings Tile, Tap Customization & Long-Press Controls Menu)
+- **SuperShade Quick Settings Tile (`SuperShadeTileService`)**:
+  - Integrated native Android Quick Settings tile service registered with `BIND_QUICK_SETTINGS_TILE` and active tile state reporting (`STATE_ACTIVE` / `STATE_INACTIVE`).
+  - Tile displays live subtitle feedback: "Active", "Disabled", "Tap to Open", or "Tap for Menu".
+  - One-tap "Add Tile to System Quick Settings" button in Settings on Android 13+ (API 33+) via `StatusBarManager.requestAddTileService`.
+- **Customizable Single-Tap Action**:
+  - Configurable tile single-tap action via `ShadeSettings.qsTileTapAction`:
+    - **Toggle On/Off**: Instant toggle of SuperShade replacement and native status bar expansion.
+    - **Open Shade**: Instantly collapses the native system Quick Settings panel and pulls down SuperShade.
+    - **Show Menu**: Displays the interactive quick controls dialog.
+- **Interactive Long-Press Quick Controls Dialog (`TilePreferencesActivity`)**:
+  - Registered with `android.service.quicksettings.action.QS_TILE_PREFERENCES` for native long-press support from Android SystemUI / Samsung Quick Panel.
+  - Presents a modal bottom sheet dialog with:
+    - Primary "Open SuperShade Now" launch action.
+    - Master "SuperShade Active" switch with instant status reflection.
+    - Segmented selector for single-tap behavior ("Toggle", "Open Shade", "Show Menu").
+    - "Block System Status Bar" switch to toggle Samsung One UI suppression.
+    - Direct shortcut to open full application settings.
+
 ## [1.8.3] — 2026-09-14
 
 ### Added & Fixed (Full-Height Pull-Down & Native Status Bar Restoration)

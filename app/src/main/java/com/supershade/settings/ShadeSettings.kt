@@ -12,6 +12,12 @@ import com.supershade.ui.theme.ShadeTheme
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
+enum class QsTileTapAction {
+    TOGGLE_ACTIVE,
+    OPEN_SHADE,
+    SHOW_MENU,
+}
+
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "supershade_prefs")
 
 class ShadeSettings(private val context: Context) {
@@ -24,6 +30,7 @@ class ShadeSettings(private val context: Context) {
         private val LAST_SEEN_VERSION_KEY = stringPreferencesKey("last_seen_version")
         private val LAST_UPDATE_CHECK_KEY = longPreferencesKey("last_update_check_ms")
         private val BLOCK_SYSTEM_SHADE_KEY = booleanPreferencesKey("block_system_shade")
+        private val QS_TILE_TAP_ACTION_KEY = stringPreferencesKey("qs_tile_tap_action")
     }
 
     val theme: Flow<ShadeTheme> = context.dataStore.data.map { prefs ->
@@ -64,6 +71,14 @@ class ShadeSettings(private val context: Context) {
         prefs[BLOCK_SYSTEM_SHADE_KEY] ?: true
     }
 
+    val qsTileTapAction: Flow<QsTileTapAction> = context.dataStore.data.map { prefs ->
+        when (prefs[QS_TILE_TAP_ACTION_KEY]) {
+            "open_shade" -> QsTileTapAction.OPEN_SHADE
+            "show_menu" -> QsTileTapAction.SHOW_MENU
+            else -> QsTileTapAction.TOGGLE_ACTIVE
+        }
+    }
+
     suspend fun setTheme(theme: ShadeTheme) {
         context.dataStore.edit { prefs ->
             prefs[THEME_KEY] = when (theme) {
@@ -88,6 +103,16 @@ class ShadeSettings(private val context: Context) {
     suspend fun setActive(active: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[IS_ACTIVE_KEY] = active
+        }
+    }
+
+    suspend fun setQsTileTapAction(action: QsTileTapAction) {
+        context.dataStore.edit { prefs ->
+            prefs[QS_TILE_TAP_ACTION_KEY] = when (action) {
+                QsTileTapAction.OPEN_SHADE -> "open_shade"
+                QsTileTapAction.SHOW_MENU -> "show_menu"
+                QsTileTapAction.TOGGLE_ACTIVE -> "toggle_active"
+            }
         }
     }
 

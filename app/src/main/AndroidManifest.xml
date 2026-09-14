@@ -95,6 +95,32 @@
             </intent-filter>
         </receiver>
 
+        <!-- Quick Settings Tile Service -->
+        <service
+            android:name=".service.SuperShadeTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_notification_shade"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="true" />
+        </service>
+
+        <!-- Quick Settings Tile Preferences Activity (Long-press & options) -->
+        <activity
+            android:name=".ui.tile.TilePreferencesActivity"
+            android:exported="true"
+            android:label="SuperShade Quick Controls"
+            android:theme="@style/Theme.SuperShade.Dialog">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+            </intent-filter>
+        </activity>
+
     </application>
 
 </manifest>

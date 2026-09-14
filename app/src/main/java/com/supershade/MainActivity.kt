@@ -28,11 +28,14 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.supershade.domain.update.UpdateRepository
 import com.supershade.service.NotificationCollector
 import com.supershade.service.ShadeService
+import com.supershade.service.SuperShadeTileService
+import com.supershade.settings.QsTileTapAction
 import com.supershade.settings.ShadeSettings
 import com.supershade.shizuku.ShizukuPlusConnector
 import com.supershade.ui.settings.SettingsScreen
 import com.supershade.ui.theme.ShadeTheme
 import com.supershade.ui.theme.SuperShadeAppTheme
+import com.supershade.ui.tile.TilePreferencesActivity
 import com.supershade.ui.update.UpdateDialog
 import com.supershade.ui.update.WhatsNewSheet
 import com.supershade.viewmodel.ShadeViewModel
@@ -61,6 +64,7 @@ class MainActivity : ComponentActivity() {
             val darkThemeMode by settings.darkThemeMode.collectAsState(initial = com.supershade.ui.theme.DarkThemeMode.SYSTEM)
             val isActive by settings.isActive.collectAsState(initial = false)
             val blockSystemShade by settings.blockSystemShade.collectAsState(initial = true)
+            val qsTileTapAction by settings.qsTileTapAction.collectAsState(initial = QsTileTapAction.TOGGLE_ACTIVE)
             val availableUpdate by updateRepo.availableUpdate.collectAsState()
             val showWhatsNew by updateRepo.showWhatsNew.collectAsState()
 
@@ -143,6 +147,7 @@ class MainActivity : ComponentActivity() {
                                 } else if (blockSystemShade) {
                                     governor.disableExpansion()
                                 }
+                                SuperShadeTileService.requestUpdate(this@MainActivity)
                             }
                         },
                         onBlockSystemShadeChange = { block ->
@@ -189,6 +194,16 @@ class MainActivity : ComponentActivity() {
                         onPreviewShade = {
                             toggleShadeService(true)
                             shadeViewModel.open()
+                        },
+                        qsTileTapAction = qsTileTapAction,
+                        onQsTileTapActionChange = { action ->
+                            scope.launch {
+                                settings.setQsTileTapAction(action)
+                                SuperShadeTileService.requestUpdate(this@MainActivity)
+                            }
+                        },
+                        onOpenTilePreferences = {
+                            startActivity(Intent(this@MainActivity, TilePreferencesActivity::class.java))
                         },
                         modifier = Modifier.padding(padding),
                     )

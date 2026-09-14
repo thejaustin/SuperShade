@@ -1,6 +1,7 @@
 package com.supershade.ui.settings
 
 import android.content.Intent
+import android.os.Build
 import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
@@ -22,6 +24,10 @@ import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.ui.res.painterResource
+import com.supershade.R
+import com.supershade.settings.QsTileTapAction
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
@@ -69,6 +75,9 @@ fun SettingsScreen(
     onCheckUpdate: () -> Unit,
     onShowWhatsNew: () -> Unit,
     onPreviewShade: () -> Unit = {},
+    qsTileTapAction: QsTileTapAction = QsTileTapAction.TOGGLE_ACTIVE,
+    onQsTileTapActionChange: (QsTileTapAction) -> Unit = {},
+    onOpenTilePreferences: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -273,6 +282,104 @@ fun SettingsScreen(
                             Text(label)
                         }
                     }
+                }
+            }
+        }
+
+        HorizontalDivider()
+
+        // ---- Quick Settings Tile section ----------------------------------
+        SectionLabel("System Quick Settings Tile")
+        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Quick Settings Tile", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "Control or launch SuperShade directly from your device's Quick Settings pull-down",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_notification_shade),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .size(28.dp),
+                    )
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    OutlinedButton(
+                        onClick = {
+                            try {
+                                val sbm = context.getSystemService(android.app.StatusBarManager::class.java)
+                                val component = android.content.ComponentName(
+                                    context,
+                                    com.supershade.service.SuperShadeTileService::class.java,
+                                )
+                                sbm?.requestAddTileService(
+                                    component,
+                                    "SuperShade",
+                                    android.graphics.drawable.Icon.createWithResource(
+                                        context,
+                                        R.drawable.ic_notification_shade,
+                                    ),
+                                    context.mainExecutor,
+                                ) { _ -> }
+                            } catch (_: Exception) {}
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Add Tile to System Quick Settings")
+                    }
+                }
+
+                Text(
+                    "Single-Tap Tile Action",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                val tileActions = listOf(
+                    QsTileTapAction.TOGGLE_ACTIVE to "Toggle",
+                    QsTileTapAction.OPEN_SHADE to "Open Shade",
+                    QsTileTapAction.SHOW_MENU to "Show Menu",
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    tileActions.forEachIndexed { index, (action, label) ->
+                        SegmentedButton(
+                            selected = qsTileTapAction == action,
+                            onClick = { onQsTileTapActionChange(action) },
+                            shape = SegmentedButtonDefaults.itemShape(index, tileActions.size),
+                            icon = {},
+                        ) {
+                            Text(label, style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+
+                Text(
+                    "💡 Tip: Hold down (long-press) on the SuperShade Quick Settings tile anytime to open the full quick controls menu.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                TextButton(
+                    onClick = onOpenTilePreferences,
+                    modifier = Modifier.align(Alignment.End),
+                ) {
+                    Text("Preview Tile Quick Menu")
                 }
             }
         }

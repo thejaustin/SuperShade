@@ -52,6 +52,8 @@ val DEFAULT_TILES: List<String> = listOf(
     "location",
     "dark",
     "airplane",
+    "nfc",
+    "hotspot",
 )
 
 val KNOWN_TILES: Map<String, Pair<String, TileCapability>> = mapOf(

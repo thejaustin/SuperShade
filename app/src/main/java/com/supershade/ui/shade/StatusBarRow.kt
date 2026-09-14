@@ -1,15 +1,23 @@
 package com.supershade.ui.shade
 
+import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.net.TrafficStats
 import android.os.BatteryManager
+import android.provider.AlarmClock
+import android.provider.Settings
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Battery2Bar
 import androidx.compose.material.icons.filled.Battery3Bar
@@ -17,7 +25,10 @@ import androidx.compose.material.icons.filled.Battery4Bar
 import androidx.compose.material.icons.filled.Battery5Bar
 import androidx.compose.material.icons.filled.Battery6Bar
 import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -47,11 +59,75 @@ private fun formatDate(): String =
 private fun formatNetSpeed(bytesPerSec: Long): String = when {
     bytesPerSec < 1_024L              -> "${bytesPerSec} B/s"
     bytesPerSec < 1_048_576L          -> "${bytesPerSec / 1_024} KB/s"
-    else                               -> "%.1f MB/s".format(bytesPerSec / 1_048_576.0)
+    else                              -> "%.1f MB/s".format(bytesPerSec / 1_048_576.0)
+}
+
+private fun launchClock(context: Context) {
+    val intents = listOf(
+        Intent(AlarmClock.ACTION_SHOW_ALARMS),
+        Intent(AlarmClock.ACTION_SET_ALARM),
+        context.packageManager.getLaunchIntentForPackage("com.sec.android.app.clockpackage"),
+        context.packageManager.getLaunchIntentForPackage("com.google.android.deskclock"),
+        context.packageManager.getLaunchIntentForPackage("com.android.deskclock"),
+    )
+    for (intent in intents) {
+        if (intent != null) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            try {
+                context.startActivity(intent)
+                return
+            } catch (_: Exception) {}
+        }
+    }
+}
+
+private fun launchCalendar(context: Context) {
+    val intents = listOf(
+        Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_CALENDAR),
+        context.packageManager.getLaunchIntentForPackage("com.samsung.android.calendar"),
+        context.packageManager.getLaunchIntentForPackage("com.google.android.calendar"),
+        Intent(Intent.ACTION_VIEW).setData(android.net.Uri.parse("content://com.android.calendar/time")),
+    )
+    for (intent in intents) {
+        if (intent != null) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            try {
+                context.startActivity(intent)
+                return
+            } catch (_: Exception) {}
+        }
+    }
+}
+
+private fun launchBatterySettings(context: Context) {
+    val intents = listOf(
+        Intent(Intent.ACTION_POWER_USAGE_SUMMARY),
+        Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS),
+        Intent(Settings.ACTION_SETTINGS),
+    )
+    for (intent in intents) {
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            context.startActivity(intent)
+            return
+        } catch (_: Exception) {}
+    }
+}
+
+private fun launchSystemSettings(context: Context) {
+    try {
+        context.startActivity(
+            Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    } catch (_: Exception) {}
 }
 
 @Composable
-fun StatusBarRow(statusBar: StatusBarState) {
+fun StatusBarRow(
+    statusBar: StatusBarState,
+    onOpenPowerMenu: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+) {
     val context = LocalContext.current
 
     var time by remember { mutableStateOf(formatTime()) }
@@ -75,7 +151,6 @@ fun StatusBarRow(statusBar: StatusBarState) {
     }
 
     // Network speed: computed from TrafficStats delta every second.
-    // Only displayed when at least one direction has meaningful traffic (> 1 KB/s).
     var netDown by remember { mutableStateOf("") }
     var netUp   by remember { mutableStateOf("") }
 
@@ -86,7 +161,6 @@ fun StatusBarRow(statusBar: StatusBarState) {
             delay(1_000L)
             val rx = TrafficStats.getTotalRxBytes()
             val tx = TrafficStats.getTotalTxBytes()
-            // UNSUPPORTED returns -1; guard against invalid reads.
             netDown = if (rx > 0 && lastRx > 0 && rx > lastRx) formatNetSpeed(rx - lastRx) else ""
             netUp   = if (tx > 0 && lastTx > 0 && tx > lastTx) formatNetSpeed(tx - lastTx) else ""
             lastRx = rx; lastTx = tx
@@ -125,7 +199,7 @@ fun StatusBarRow(statusBar: StatusBarState) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 20.dp),
+            .padding(start = 22.dp, end = 16.dp, top = 16.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top,
     ) {
@@ -135,11 +209,17 @@ fun StatusBarRow(statusBar: StatusBarState) {
                 text = time,
                 style = MaterialTheme.typography.displayMedium,
                 color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { launchClock(context) },
             )
             Text(
                 text = date,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable { launchCalendar(context) },
             )
             val netLabel = buildList {
                 if (netDown.isNotEmpty()) add("↓ $netDown")
@@ -154,23 +234,70 @@ fun StatusBarRow(statusBar: StatusBarState) {
             }
         }
 
-        // Right: battery percentage + icon, top-aligned
-        Row(
-            modifier = Modifier.padding(top = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        // Right side: Header actions (Power & Settings) + Battery Status
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(
-                text = "$batteryPct%",
-                style = MaterialTheme.typography.bodySmall,
-                color = batteryTint,
-            )
-            Icon(
-                imageVector = batteryIcon,
-                contentDescription = "Battery",
-                tint = batteryTint,
-                modifier = Modifier.size(18.dp),
-            )
+            // Top action buttons: Power menu & Settings gear
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                IconButton(
+                    onClick = onOpenPowerMenu,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PowerSettingsNew,
+                        contentDescription = "Power options",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .combinedClickable(
+                            onClick = onOpenSettings,
+                            onLongClick = { launchSystemSettings(context) },
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+
+            // Battery percentage + icon (clickable -> battery settings)
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { launchBatterySettings(context) }
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = "$batteryPct%",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = batteryTint,
+                )
+                Icon(
+                    imageVector = batteryIcon,
+                    contentDescription = "Battery",
+                    tint = batteryTint,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
     }
 }

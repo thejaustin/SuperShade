@@ -3,12 +3,15 @@ package com.supershade.ui.shade
 import android.provider.Settings
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -19,12 +22,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.BrightnessHigh
 import androidx.compose.material.icons.filled.BrightnessLow
+import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -35,9 +39,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.lerp
+import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 
 @Composable
 fun BrightnessSlider(
@@ -47,6 +57,7 @@ fun BrightnessSlider(
     compact: Boolean = false,
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
 
     // Auto-brightness state: read once from Settings.System, then track locally.
     var isAuto by remember {
@@ -73,6 +84,7 @@ fun BrightnessSlider(
                     newMode,
                 )
                 isAuto = !isAuto
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             } catch (_: SecurityException) {}
         } else {
             try {
@@ -95,23 +107,20 @@ fun BrightnessSlider(
     var isDragging by remember { mutableStateOf(false) }
     var localValue by remember { mutableFloatStateOf(brightness.toFloat().coerceIn(1f, 255f)) }
 
-    androidx.compose.runtime.LaunchedEffect(brightness) {
+    LaunchedEffect(brightness) {
         if (!isDragging) {
             localValue = brightness.toFloat().coerceIn(1f, 255f)
         }
     }
 
-    val fraction = (localValue - 1f) / 254f
-    val dimAlpha by animateFloatAsState(
-        targetValue = lerp(1f, 0.3f, fraction),
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "dimAlpha",
-    )
-    val brightAlpha by animateFloatAsState(
-        targetValue = lerp(0.3f, 1f, fraction),
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "brightAlpha",
-    )
+    val fraction = ((localValue - 1f) / 254f).coerceIn(0f, 1f)
+
+    val sunIcon = when {
+        fraction < 0.33f -> Icons.Default.BrightnessLow
+        fraction < 0.67f -> Icons.Default.BrightnessMedium
+        else             -> Icons.Default.BrightnessHigh
+    }
+
     val autoIconTint by animateColorAsState(
         targetValue = if (isAuto)
             MaterialTheme.colorScheme.primary
@@ -129,81 +138,120 @@ fun BrightnessSlider(
         label = "autoBg",
     )
 
+    var trackWidthPx by remember { mutableFloatStateOf(1f) }
+
+    fun updateValueFromFraction(newFraction: Float) {
+        val clamped = newFraction.coerceIn(0f, 1f)
+        val newInt = (1f + clamped * 254f).roundToInt().coerceIn(1, 255)
+        localValue = newInt.toFloat()
+        onBrightnessChange(newInt)
+    }
+
+    val fillGradient = Brush.horizontalGradient(
+        if (isAuto) {
+            listOf(
+                Color(0xFFFFA000).copy(alpha = 0.55f),
+                Color(0xFFFFD54F).copy(alpha = 0.55f),
+            )
+        } else {
+            listOf(
+                Color(0xFFFFA000),
+                Color(0xFFFFD54F),
+            )
+        }
+    )
+
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(
-                horizontal = if (compact) 8.dp else 20.dp,
-                vertical = if (compact) 2.dp else 4.dp,
+                horizontal = if (compact) 4.dp else 16.dp,
+                vertical = 4.dp,
             ),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Icon(
-            imageVector = Icons.Default.BrightnessLow,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isAuto) 0.3f else dimAlpha),
-            modifier = Modifier.size(if (compact) 18.dp else 20.dp),
-        )
-        Box(modifier = Modifier.weight(1f)) {
+        // Main Tactile Slider Pill
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(44.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                .onSizeChanged { trackWidthPx = it.width.toFloat().coerceAtLeast(1f) }
+                .pointerInput(isAuto) {
+                    detectTapGestures { offset ->
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        updateValueFromFraction(offset.x / trackWidthPx)
+                    }
+                }
+                .pointerInput(isAuto) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { offset ->
+                            isDragging = true
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            updateValueFromFraction(offset.x / trackWidthPx)
+                        },
+                        onDragEnd = {
+                            isDragging = false
+                            onBrightnessChange(localValue.roundToInt().coerceIn(1, 255))
+                        },
+                        onDragCancel = {
+                            isDragging = false
+                        },
+                        onHorizontalDrag = { change, _ ->
+                            change.consume()
+                            updateValueFromFraction(change.position.x / trackWidthPx)
+                        }
+                    )
+                },
+        ) {
+            // Active Progress Fill
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .align(Alignment.Center)
-                    .clip(RoundedCornerShape(50))
-                    .background(
-                        if (isAuto) Brush.horizontalGradient(
-                            listOf(
-                                Color(0xFF37474F).copy(alpha = 0.35f),
-                                Color(0xFFFFEE58).copy(alpha = 0.35f),
-                            )
-                        ) else Brush.horizontalGradient(
-                            listOf(Color(0xFF37474F), Color(0xFFFFEE58))
-                        )
+                    .fillMaxHeight()
+                    .fillMaxWidth(fraction)
+                    .background(fillGradient)
+            )
+
+            // Embedded Content Row
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                // Sun icon on the left
+                Icon(
+                    imageVector = sunIcon,
+                    contentDescription = "Brightness",
+                    tint = if (fraction > 0.18f) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+
+                // Percentage indicator or Auto badge on the right
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = if (isAuto) "Auto ${(fraction * 100).roundToInt()}%" else "${(fraction * 100).roundToInt()}%",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                        ),
+                        color = if (fraction > 0.85f) Color.White else MaterialTheme.colorScheme.onSurface,
                     )
-            )
-            Slider(
-                value = localValue,
-                onValueChange = {
-                    if (!isAuto) {
-                        isDragging = true
-                        localValue = it
-                        onBrightnessChange(it.toInt().coerceIn(1, 255))
-                    }
-                },
-                onValueChangeFinished = {
-                    if (!isAuto) {
-                        isDragging = false
-                        onBrightnessChange(localValue.toInt().coerceIn(1, 255))
-                    }
-                },
-                valueRange = 1f..255f,
-                enabled = !isAuto,
-                modifier = Modifier.fillMaxWidth(),
-                colors = SliderDefaults.colors(
-                    thumbColor = MaterialTheme.colorScheme.primary,
-                    disabledThumbColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                    activeTrackColor = Color.Transparent,
-                    inactiveTrackColor = Color.Transparent,
-                    disabledActiveTrackColor = Color.Transparent,
-                    disabledInactiveTrackColor = Color.Transparent,
-                ),
-            )
+                }
+            }
         }
-        if (!compact) {
-            Icon(
-                imageVector = Icons.Default.BrightnessHigh,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isAuto) 0.3f else brightAlpha),
-                modifier = Modifier.size(20.dp),
-            )
-        }
-        // Auto-brightness toggle pill
+
+        // Auto Toggle Pill Button
         IconButton(
             onClick = { toggleAuto() },
             modifier = Modifier
-                .size(if (compact) 28.dp else 32.dp)
+                .size(36.dp)
                 .clip(CircleShape)
                 .background(autoBg),
         ) {
@@ -211,7 +259,7 @@ fun BrightnessSlider(
                 imageVector = Icons.Default.BrightnessAuto,
                 contentDescription = if (isAuto) "Disable auto brightness" else "Enable auto brightness",
                 tint = autoIconTint,
-                modifier = Modifier.size(if (compact) 14.dp else 16.dp),
+                modifier = Modifier.size(18.dp),
             )
         }
     }

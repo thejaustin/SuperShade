@@ -19,7 +19,7 @@ import com.supershade.ui.theme.ShadeTheme
 
 /**
  * Quick settings grid supporting compact mode (1 row, 4 primary quick tiles)
- * and expanded mode (2 rows, 8 quick tiles).
+ * and expanded mode (up to 3 rows, 12 quick tiles) with smooth spring transitions.
  */
 @Composable
 fun QuickSettingsGrid(
@@ -29,9 +29,12 @@ fun QuickSettingsGrid(
     isExpanded: Boolean = false,
     onTileClick: (TileDefinition) -> Unit,
 ) {
-    val displayedTiles = if (isExpanded) tiles.take(8) else tiles.take(4)
+    val displayedTiles = if (isExpanded) tiles.take(12) else tiles.take(4)
+    val rowCount = if (isExpanded) ((displayedTiles.size + 3) / 4).coerceAtLeast(1) else 1
+    val targetHeight = (rowCount * 72 + (rowCount - 1) * 8 + 12).dp
+
     val gridHeight by animateDpAsState(
-        targetValue = if (isExpanded) 168.dp else 84.dp,
+        targetValue = targetHeight,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioLowBouncy,
             stiffness = Spring.StiffnessMediumLow,

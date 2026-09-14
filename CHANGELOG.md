@@ -5,6 +5,37 @@ Releases follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.8.5] — 2026-09-14
+
+### Added & Enhanced (Tactile Pill Sliders, Interactive Header, Quick Power Menu & 12-Tile Expanded Grid)
+- **Modern One UI Tactile Pill Sliders (`BrightnessSlider` & `VolumeSlider`)**:
+  - Replaced legacy thin 4dp lines with 44dp rounded pill tracks (`RoundedCornerShape(22.dp)`) featuring active progress fill, smooth spring physics, and full touch/drag responsiveness.
+  - **Brightness Pill**:
+    - Embedded dynamic sun icon (low/medium/high) with contrast color adaptation.
+    - Real-time brightness percentage indicator (e.g. `82%` or `Auto 82%`).
+    - Integrated Auto-brightness toggle with vibrant active state styling and haptic feedback.
+    - Drag anywhere across the pill or tap to set exact brightness level instantly.
+  - **Volume Pill**:
+    - Embedded dynamic speaker icon (off/down/up) with tap-to-mute/unmute and long-press to open system Volume Panel (`Settings.Panel.ACTION_VOLUME`).
+    - Real-time volume percentage indicator or "Mute" status.
+    - Integrated Volume Mixer button for multi-stream volume adjustments.
+- **Interactive System Status Bar Header (`StatusBarRow`)**:
+  - **Clickable Clock**: Tapping launches Alarm / Clock app (`AlarmClock.ACTION_SHOW_ALARMS`, Samsung Clock package fallback).
+  - **Clickable Date**: Tapping launches Calendar (`ACTION_MAIN` with `CATEGORY_APP_CALENDAR`, Samsung Calendar fallback).
+  - **Clickable Battery**: Tapping opens Battery Settings (`Settings.ACTION_POWER_USAGE_SUMMARY`).
+  - **Top-Right Quick Actions**:
+    - Power button: Opens the Quick Power Menu dialog.
+    - Settings button: Single-tap opens SuperShade Settings; long-press opens Android System Settings.
+- **Quick Power Menu (`PowerMenuDialog`)**:
+  - One UI style modal dialog with direct actions:
+    - **Power Off**: Executes shutdown via Shizuku shell (`svc power shutdown`).
+    - **Restart**: Executes system reboot via Shizuku shell (`svc power reboot`).
+    - **Lock Screen**: Triggers immediate lock via `AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN`.
+    - **System Dialog**: Invokes Android's native system power dialog via `AccessibilityService.GLOBAL_ACTION_POWER_DIALOG`.
+- **Expanded 12-Tile Quick Settings Grid (`QuickSettingsGrid`)**:
+  - Expanded mode now scales to 12 tiles (3 rows of 4) with animated height interpolation.
+  - Added NFC and Mobile Hotspot to default quick tiles.
+
 ## [1.8.4] — 2026-09-14
 
 ### Added & Enhanced (System Quick Settings Tile, Tap Customization & Long-Press Controls Menu)

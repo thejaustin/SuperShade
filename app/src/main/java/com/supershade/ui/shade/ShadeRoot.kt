@@ -1,6 +1,8 @@
 package com.supershade.ui.shade
 
+import android.content.Intent
 import android.os.Build
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
@@ -68,6 +70,9 @@ fun ShadeRoot(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val isQsExpanded = state.isQsExpanded
 
+    val context = LocalContext.current
+    var showPowerMenu by remember { mutableStateOf(false) }
+
     val categoryCounts by remember {
         derivedStateOf {
             val all = state.allNotifications
@@ -115,6 +120,33 @@ fun ShadeRoot(
                     .clickable(onClick = onDismiss),
             )
 
+            // Quick Power Menu Dialog
+            if (showPowerMenu) {
+                PowerMenuDialog(
+                    onDismiss = { showPowerMenu = false },
+                    onLockScreen = {
+                        showPowerMenu = false
+                        viewModel.lockScreen()
+                        onDismiss()
+                    },
+                    onRestart = {
+                        showPowerMenu = false
+                        viewModel.restartDevice()
+                        onDismiss()
+                    },
+                    onPowerOff = {
+                        showPowerMenu = false
+                        viewModel.powerOffDevice()
+                        onDismiss()
+                    },
+                    onSystemPowerDialog = {
+                        showPowerMenu = false
+                        viewModel.openSystemPowerDialog()
+                        onDismiss()
+                    },
+                )
+            }
+
             // Shade panel: expands down from the top, rounded bottom corners
             AnimatedVisibility(
                 visible = state.isOpen,
@@ -129,7 +161,19 @@ fun ShadeRoot(
                         .statusBarsPadding()
                         .navigationBarsPadding(),
                 ) {
-                    StatusBarRow(statusBar = state.statusBar)
+                    StatusBarRow(
+                        statusBar = state.statusBar,
+                        onOpenPowerMenu = { showPowerMenu = true },
+                        onOpenSettings = {
+                            try {
+                                val intent = Intent(context, com.supershade.MainActivity::class.java).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                                onDismiss()
+                            } catch (_: Exception) {}
+                        },
+                    )
 
                     // Quick Settings grid (compact 1-row or expanded 2-row)
                     QuickSettingsGrid(

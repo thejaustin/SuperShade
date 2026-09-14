@@ -185,6 +185,52 @@ class ShadeViewModel(
         }
     }
 
+    // --- Power & Security actions ---
+
+    fun lockScreen() {
+        viewModelScope.launch {
+            close()
+            val handled = com.supershade.service.SuperShadeAccessibilityService.instance?.performGlobalAction(
+                android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN
+            ) == true
+            if (!handled) {
+                governor.runShell("input", "keyevent", "26")
+            }
+        }
+    }
+
+    fun restartDevice() {
+        viewModelScope.launch {
+            close()
+            val handled = governor.runShell("svc", "power", "reboot")
+            if (!handled) {
+                governor.runShell("reboot")
+            }
+        }
+    }
+
+    fun powerOffDevice() {
+        viewModelScope.launch {
+            close()
+            val handled = governor.runShell("svc", "power", "shutdown")
+            if (!handled) {
+                governor.runShell("reboot", "-p")
+            }
+        }
+    }
+
+    fun openSystemPowerDialog() {
+        viewModelScope.launch {
+            close()
+            val handled = com.supershade.service.SuperShadeAccessibilityService.instance?.performGlobalAction(
+                android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_POWER_DIALOG
+            ) == true
+            if (!handled) {
+                governor.runShell("input", "keyevent", "--longpress", "26")
+            }
+        }
+    }
+
     // --- Lifecycle ---
 
     override fun onCleared() {

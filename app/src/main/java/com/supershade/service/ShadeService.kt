@@ -57,6 +57,7 @@ class ShadeService : Service() {
         const val CHANNEL_ID = "supershade_service"
         const val NOTIFICATION_ID = 1001
         const val ACTION_OPEN_SHADE = "com.supershade.action.OPEN_SHADE"
+        const val EXTRA_EXPAND_QS = "expand_qs"
     }
 
     // ---------------------------------------------------------------------------
@@ -73,7 +74,9 @@ class ShadeService : Service() {
 
         // Attach the gesture capture overlay. When a downward swipe is detected
         // the overlay tells the ShadeWindowManager to show the full shade UI.
-        gestureOverlay = GestureOverlay(this) { windowManager.show() }
+        gestureOverlay = GestureOverlay(this) { expandQs ->
+            shadeViewModel.open(expandQs)
+        }
         gestureOverlay?.attach()
 
         // Show peek cards for new notifications when the shade panel is closed.
@@ -109,7 +112,8 @@ class ShadeService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_OPEN_SHADE) {
-            shadeViewModel.open()
+            val expandQs = intent.getBooleanExtra(EXTRA_EXPAND_QS, false)
+            shadeViewModel.open(expandQs)
         }
         return START_STICKY
     }

@@ -19,7 +19,7 @@ import android.view.WindowManager
  */
 class GestureOverlay(
     private val context: Context,
-    private val onSwipeDown: () -> Unit,
+    private val onSwipeDown: (expandQs: Boolean) -> Unit,
 ) {
 
     private val windowManager = context.getSystemService(WindowManager::class.java)
@@ -29,7 +29,7 @@ class GestureOverlay(
     private val captureHeight = run {
         val resId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
         val h = if (resId > 0) context.resources.getDimensionPixelSize(resId) else 0
-        h.coerceAtLeast((36 * context.resources.displayMetrics.density).toInt())
+        h.coerceAtLeast((48 * context.resources.displayMetrics.density).toInt())
     }
 
     private val params = WindowManager.LayoutParams(
@@ -68,9 +68,11 @@ class GestureOverlay(
                     MotionEvent.ACTION_MOVE -> {
                         val deltaX = kotlin.math.abs(event.rawX - startX)
                         val deltaY = event.rawY - startY
-                        if (!triggered && deltaY > 40f && deltaY > deltaX * 1.1f) {
+                        if (!triggered && deltaY > 25f && deltaY > deltaX * 1.05f) {
                             triggered = true
-                            onSwipeDown()
+                            val screenWidth = context.resources.displayMetrics.widthPixels
+                            val expandQs = startX > screenWidth * 0.72f
+                            onSwipeDown(expandQs)
                         }
                         true
                     }
@@ -78,9 +80,11 @@ class GestureOverlay(
                         val deltaX = kotlin.math.abs(event.rawX - startX)
                         val deltaY = event.rawY - startY
                         val duration = System.currentTimeMillis() - startTime
-                        if (!triggered && deltaY > 30f && deltaY > deltaX && duration < 600) {
+                        if (!triggered && deltaY > 15f && deltaY > deltaX && duration < 600) {
                             triggered = true
-                            onSwipeDown()
+                            val screenWidth = context.resources.displayMetrics.widthPixels
+                            val expandQs = startX > screenWidth * 0.72f
+                            onSwipeDown(expandQs)
                         }
                         true
                     }

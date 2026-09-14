@@ -26,12 +26,23 @@ class StatusBarGovernor(
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val serviceArgs: Shizuku.UserServiceArgs get() = Shizuku.UserServiceArgs(
-        ComponentName(context.packageName, ShadeCommanderService::class.java.name)
-    ).daemon(false).processNameSuffix("commander").debuggable(false).version(1)
+    private val serviceArgs: Shizuku.UserServiceArgs get() {
+        val ver = try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode.toInt()
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.getPackageInfo(context.packageName, 0).versionCode
+            }
+        } catch (_: Exception) { 1 }
+        return Shizuku.UserServiceArgs(
+            ComponentName(context.packageName, ShadeCommanderService::class.java.name)
+        ).daemon(false).processNameSuffix("commander").debuggable(false).version(ver)
+    }
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            android.util.Log.i("StatusBarGovernor", "ShadeCommanderService bound successfully via Shizuku!")
             commander = IShadeCommander.Stub.asInterface(service)
             _isCommanderConnected.value = true
             if (shouldDisableExpansion) {
@@ -41,6 +52,7 @@ class StatusBarGovernor(
             }
         }
         override fun onServiceDisconnected(name: ComponentName?) {
+            android.util.Log.w("StatusBarGovernor", "ShadeCommanderService disconnected")
             commander = null
             _isCommanderConnected.value = false
         }
@@ -53,10 +65,16 @@ class StatusBarGovernor(
     }
 
     fun bindService() {
-        if (!connector.hasPermission()) return
+        if (!connector.hasPermission()) {
+            android.util.Log.d("StatusBarGovernor", "bindService skipped: Shizuku permission not granted")
+            return
+        }
         try {
+            android.util.Log.i("StatusBarGovernor", "Binding Shizuku UserService...")
             Shizuku.bindUserService(serviceArgs, serviceConnection)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.e("StatusBarGovernor", "bindUserService failed", e)
+        }
     }
 
     fun unbindService() {

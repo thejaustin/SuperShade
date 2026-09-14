@@ -14,6 +14,7 @@ data class StatusBarState(
 
 data class ShadeState(
     val isOpen: Boolean = false,
+    val isQsExpanded: Boolean = false,
     val selectedCategory: ShadeCategory = ShadeCategory.All,
     val allNotifications: List<ShadeNotification> = emptyList(),
     val visibleNotifications: List<ShadeNotification> = emptyList(),

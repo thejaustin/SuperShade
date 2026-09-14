@@ -50,17 +50,31 @@ class SuperShadeAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        windowManager = getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+        android.util.Log.i("SuperShadeA11y", "onServiceConnected: attaching accessibility touch overlay")
         attachAccessibilityTouchCapture()
     }
 
     private fun attachAccessibilityTouchCapture() {
-        if (touchCaptureView != null || windowManager == null) return
+        if (touchCaptureView != null) return
+
+        val contextForWindow = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val disp = display ?: (getSystemService(Context.DISPLAY_SERVICE) as? android.hardware.display.DisplayManager)
+                ?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
+            if (disp != null) {
+                createWindowContext(disp, WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY, null)
+            } else {
+                this
+            }
+        } else {
+            this
+        }
+        val wm = contextForWindow.getSystemService(WindowManager::class.java) ?: return
+        windowManager = wm
 
         val statusBarHeightPx = run {
             val resId = resources.getIdentifier("status_bar_height", "dimen", "android")
             val h = if (resId > 0) resources.getDimensionPixelSize(resId) else 0
-            h.coerceAtLeast((40 * resources.displayMetrics.density).toInt())
+            h.coerceAtLeast((48 * resources.displayMetrics.density).toInt())
         }
 
         val params = WindowManager.LayoutParams(
@@ -84,7 +98,7 @@ class SuperShadeAccessibilityService : AccessibilityService() {
         var startTime = 0L
         var triggered = false
 
-        val view = View(this).apply {
+        val view = View(contextForWindow).apply {
             setOnTouchListener { _, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
@@ -97,9 +111,11 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                     MotionEvent.ACTION_MOVE -> {
                         val deltaX = kotlin.math.abs(event.rawX - startX)
                         val deltaY = event.rawY - startY
-                        if (!triggered && deltaY > 35f && deltaY > deltaX * 1.05f) {
+                        if (!triggered && deltaY > 25f && deltaY > deltaX * 1.05f) {
                             triggered = true
-                            openSuperShade()
+                            val screenWidth = resources.displayMetrics.widthPixels
+                            val expandQs = startX > screenWidth * 0.72f
+                            openSuperShade(expandQs)
                         }
                         true
                     }
@@ -107,9 +123,11 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                         val deltaX = kotlin.math.abs(event.rawX - startX)
                         val deltaY = event.rawY - startY
                         val duration = System.currentTimeMillis() - startTime
-                        if (!triggered && deltaY > 25f && deltaY > deltaX && duration < 600) {
+                        if (!triggered && deltaY > 15f && deltaY > deltaX && duration < 600) {
                             triggered = true
-                            openSuperShade()
+                            val screenWidth = resources.displayMetrics.widthPixels
+                            val expandQs = startX > screenWidth * 0.72f
+                            openSuperShade(expandQs)
                         }
                         true
                     }
@@ -124,15 +142,20 @@ class SuperShadeAccessibilityService : AccessibilityService() {
 
         touchCaptureView = view
         try {
-            windowManager?.addView(view, params)
-        } catch (_: Exception) {}
+            wm.addView(view, params)
+            android.util.Log.i("SuperShadeA11y", "TYPE_ACCESSIBILITY_OVERLAY touch window added successfully at height $statusBarHeightPx px")
+        } catch (e: Exception) {
+            android.util.Log.e("SuperShadeA11y", "Failed to add TYPE_ACCESSIBILITY_OVERLAY window", e)
+        }
     }
 
     private fun detachAccessibilityTouchCapture() {
         touchCaptureView?.let { view ->
             try {
                 windowManager?.removeView(view)
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                android.util.Log.w("SuperShadeA11y", "Error removing touch window", e)
+            }
         }
         touchCaptureView = null
     }
@@ -140,44 +163,62 @@ class SuperShadeAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
         val eventType = event.eventType
-        if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
-            eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
-        ) {
-            val pkg = event.packageName?.toString().orEmpty()
-            if (pkg == "com.android.systemui") {
-                val cls = event.className?.toString().orEmpty()
-                val isShadeTrigger = cls.contains("Notification", ignoreCase = true) ||
-                    cls.contains("Shade", ignoreCase = true) ||
-                    cls.contains("Panel", ignoreCase = true) ||
-                    cls.contains("StatusBar", ignoreCase = true) ||
-                    cls.contains("CentralSurfaces", ignoreCase = true) ||
-                    eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
 
-                if (isShadeTrigger && !shadeViewModel.state.value.isOpen) {
-                    dismissSystemShade()
+        if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            val pkg = event.packageName?.toString().orEmpty()
+            val cls = event.className?.toString().orEmpty()
+
+            val isSystemUi = pkg == "com.android.systemui" || pkg.isEmpty()
+            val isShadeClass = cls.contains("Notification", ignoreCase = true) ||
+                cls.contains("Shade", ignoreCase = true) ||
+                cls.contains("Panel", ignoreCase = true) ||
+                cls.contains("StatusBar", ignoreCase = true) ||
+                cls.contains("CentralSurfaces", ignoreCase = true) ||
+                cls.contains("SecPanel", ignoreCase = true) ||
+                cls.contains("SecQuick", ignoreCase = true)
+
+            if (isSystemUi && isShadeClass) {
+                android.util.Log.d("SuperShadeA11y", "System shade expansion intercepted: pkg=$pkg cls=$cls")
+                if (!shadeViewModel.state.value.isOpen) {
                     openSuperShade()
                 }
             }
+        } else if (eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            try {
+                val hasActiveSystemShade = windows.any { w ->
+                    val title = w.title?.toString().orEmpty()
+                    w.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_SYSTEM &&
+                        (title.contains("NotificationShade", ignoreCase = true) ||
+                         title.contains("StatusBar", ignoreCase = true) ||
+                         title.contains("Panel", ignoreCase = true))
+                }
+                if (hasActiveSystemShade && !shadeViewModel.state.value.isOpen) {
+                    android.util.Log.d("SuperShadeA11y", "System shade window active, suppressing and showing SuperShade")
+                    dismissSystemShade()
+                    openSuperShade()
+                }
+            } catch (_: Exception) {}
         }
     }
 
-    private fun openSuperShade() {
+    private fun openSuperShade(expandQs: Boolean = false) {
         dismissSystemShade()
         scope.launch { governor.collapse() }
 
         val intent = Intent(this, ShadeService::class.java).apply {
             action = ShadeService.ACTION_OPEN_SHADE
+            putExtra(ShadeService.EXTRA_EXPAND_QS, expandQs)
         }
         try {
             startForegroundService(intent)
         } catch (_: Exception) {
             try { startService(intent) } catch (_: Exception) {}
         }
-        shadeViewModel.open()
+        shadeViewModel.open(expandQs)
     }
 
     fun dismissSystemShade(): Boolean {
-        return try {
+        val result = try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
             } else {
@@ -186,6 +227,8 @@ class SuperShadeAccessibilityService : AccessibilityService() {
         } catch (_: Exception) {
             false
         }
+        scope.launch { governor.collapse() }
+        return result
     }
 
     override fun onInterrupt() {}

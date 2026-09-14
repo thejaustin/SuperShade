@@ -66,7 +66,7 @@ fun ShadeRoot(
     onDismiss: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var isQsExpanded by remember { mutableStateOf(false) }
+    val isQsExpanded = state.isQsExpanded
 
     val categoryCounts by remember {
         derivedStateOf {
@@ -101,7 +101,6 @@ fun ShadeRoot(
     LaunchedEffect(state.isOpen) {
         if (state.isOpen) {
             dragOffset.snapTo(0f)
-            isQsExpanded = false
         }
     }
 
@@ -167,7 +166,7 @@ fun ShadeRoot(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(22.dp)
-                            .clickable { isQsExpanded = !isQsExpanded },
+                            .clickable { viewModel.setQsExpanded(!isQsExpanded) },
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(

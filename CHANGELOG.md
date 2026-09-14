@@ -5,6 +5,22 @@ Releases follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.8.2] — 2026-09-14
+
+### Fixed & Enhanced (Samsung One UI 8 & Android 16 Status Bar Override)
+- **Zero-Flicker Android 16 Window Context Architecture**:
+  - Implemented `createWindowContext(display, TYPE_ACCESSIBILITY_OVERLAY, null)` in `SuperShadeAccessibilityService`, resolving Android 12+/16 window token restrictions and ensuring the `TYPE_ACCESSIBILITY_OVERLAY` (Layer ~33) attaches reliably above the system status bar.
+  - Expanded top bezel gesture catchment strip to 48dp+ in both `GestureOverlay` and `SuperShadeAccessibilityService` to match Samsung Galaxy S-series display metrics and prevent touches leaking to SystemUI.
+- **Pure Java Shizuku `ShadeCommanderService` & StatusBar Governor**:
+  - Rewrote `ShadeCommanderService` into clean Java with `@Keep` constructors (`public ShadeCommanderService()` and `public ShadeCommanderService(Context)`) and lifecycle `destroy()`.
+  - Fixed `InstantiationException` in `ShizukuServiceStarter` caused by Kotlin runtime reflection linkage in secondary dex files.
+  - Successfully applies `cmd statusbar send-disable-flag statusbar-expansion` (`mDisabled1=0x10000`) so the native One UI panel is completely blocked from pulling down while SuperShade is enabled.
+- **Samsung One UI Separate Quick Settings Swipe Gesture**:
+  - Swiping down from the **top-right edge** (> 72% screen width) opens SuperShade with the Quick Settings grid pre-expanded, mirroring Samsung One UI 6/7/8's native separate panel gesture.
+  - Swiping down from the **center or left** opens the primary notifications-first view with compact 1-row Quick Settings.
+- **Samsung SystemUI Panel Event Interception**:
+  - Added deep interception for Samsung One UI class events (`SecPanelTouchDispatcher`, `SecQuickStatusBarHeader`, `NotificationShadeWindowView`, `CentralSurfaces`).
+
 ## [1.8.1] — 2026-09-14
 
 ### Added & Overhauled (Heads-Up Popup 2D Gestures, OS Notification Settings & Notification Backend)

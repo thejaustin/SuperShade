@@ -96,8 +96,8 @@ class ShadeViewModel(
         }
     }
 
-    fun open() {
-        _state.update { it.copy(isOpen = true, brightness = brightnessRepo.getCurrent()) }
+    fun open(expandQs: Boolean = false) {
+        _state.update { it.copy(isOpen = true, isQsExpanded = expandQs, brightness = brightnessRepo.getCurrent()) }
         mediaRepo.refresh()
         tileRepo.reload()
         notificationRepo.refresh()
@@ -110,8 +110,12 @@ class ShadeViewModel(
         }
     }
 
+    fun setQsExpanded(expanded: Boolean) {
+        _state.update { it.copy(isQsExpanded = expanded) }
+    }
+
     fun close() {
-        _state.update { it.copy(isOpen = false) }
+        _state.update { it.copy(isOpen = false, isQsExpanded = false) }
         tileRefreshJob?.cancel()
         tileRefreshJob = null
     }

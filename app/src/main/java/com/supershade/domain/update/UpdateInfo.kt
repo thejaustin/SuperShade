@@ -12,8 +12,8 @@ data class UpdateInfo(
 }
 
 private fun parseVersion(v: String): Triple<Int, Int, Int> {
-    val clean = v.trimStart('v')
-    val parts = clean.split(".").map { it.toIntOrNull() ?: 0 }
+    val clean = v.trimStart('v', 'V').substringBefore('-').substringBefore('+').trim()
+    val parts = clean.split(".").map { it.filter { ch -> ch.isDigit() }.toIntOrNull() ?: 0 }
     return Triple(parts.getOrElse(0) { 0 }, parts.getOrElse(1) { 0 }, parts.getOrElse(2) { 0 })
 }
 
@@ -22,3 +22,4 @@ private operator fun Triple<Int, Int, Int>.compareTo(other: Triple<Int, Int, Int
     if (second != other.second) return second.compareTo(other.second)
     return third.compareTo(other.third)
 }
+

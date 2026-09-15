@@ -66,6 +66,7 @@ class MainActivity : ComponentActivity() {
             val blockSystemShade by settings.blockSystemShade.collectAsState(initial = true)
             val qsTileTapAction by settings.qsTileTapAction.collectAsState(initial = QsTileTapAction.TOGGLE_ACTIVE)
             val availableUpdate by updateRepo.availableUpdate.collectAsState()
+            val isCheckingUpdate by updateRepo.isChecking.collectAsState()
             val showWhatsNew by updateRepo.showWhatsNew.collectAsState()
 
             SuperShadeAppTheme(mode = darkThemeMode) {
@@ -188,8 +189,29 @@ class MainActivity : ComponentActivity() {
                             } catch (_: Exception) {}
                         },
                         onCheckUpdate = {
-                            scope.launch { updateRepo.checkForUpdate() }
+                            scope.launch {
+                                when (val result = updateRepo.checkForUpdate()) {
+                                    is com.supershade.domain.update.UpdateCheckResult.UpToDate -> {
+                                        android.widget.Toast.makeText(
+                                            this@MainActivity,
+                                            "SuperShade is up to date (v${result.currentVersion})",
+                                            android.widget.Toast.LENGTH_SHORT,
+                                        ).show()
+                                    }
+                                    is com.supershade.domain.update.UpdateCheckResult.Error -> {
+                                        android.widget.Toast.makeText(
+                                            this@MainActivity,
+                                            "Update check: ${result.message}",
+                                            android.widget.Toast.LENGTH_SHORT,
+                                        ).show()
+                                    }
+                                    is com.supershade.domain.update.UpdateCheckResult.UpdateAvailable -> {
+                                        // UpdateDialog will appear automatically
+                                    }
+                                }
+                            }
                         },
+                        isCheckingUpdate = isCheckingUpdate,
                         onShowWhatsNew = { updateRepo.showWhatsNewManual() },
                         onPreviewShade = {
                             toggleShadeService(true)

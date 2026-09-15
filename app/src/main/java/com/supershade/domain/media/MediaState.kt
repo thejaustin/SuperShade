@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 data class MediaState(
     val title: String,
     val artist: String,
+    val album: String = "",
     val albumArt: Bitmap?,
     val isPlaying: Boolean,
     val packageName: String,

@@ -51,7 +51,10 @@ import java.util.Date
 import java.util.Locale
 
 private fun formatTime(): String =
-    SimpleDateFormat("h:mm", Locale.getDefault()).format(Date())
+    SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())
+
+private fun formatAMPM(): String =
+    SimpleDateFormat("a", Locale.getDefault()).format(Date())
 
 private fun formatDate(): String =
     SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date())
@@ -130,7 +133,8 @@ fun StatusBarRow(
 ) {
     val context = LocalContext.current
 
-    var time by remember { mutableStateOf(formatTime()) }
+    var time by remember { mutableStateOf(SimpleDateFormat("h:mm", Locale.getDefault()).format(Date())) }
+    var ampm by remember { mutableStateOf(SimpleDateFormat("a", Locale.getDefault()).format(Date())) }
     var date by remember { mutableStateOf(formatDate()) }
 
     // Resolve initial battery state from sticky broadcast
@@ -169,8 +173,9 @@ fun StatusBarRow(
 
     LaunchedEffect(Unit) {
         while (true) {
-            delay(30_000L)
-            time = formatTime()
+            delay(60_000L)
+            time = SimpleDateFormat("h:mm", Locale.getDefault()).format(Date())
+            ampm = SimpleDateFormat("a", Locale.getDefault()).format(Date())
             date = formatDate()
             val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
             val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
@@ -205,14 +210,28 @@ fun StatusBarRow(
     ) {
         // OneUI signature: large lightweight clock + date stacked on the left
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                text = time,
-                style = MaterialTheme.typography.displayMedium,
-                color = MaterialTheme.colorScheme.onBackground,
+            // Two-part clock: large digits + smaller AM/PM — One UI style
+            Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .clickable { launchClock(context) },
-            )
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = time,
+                    style = MaterialTheme.typography.displayMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
+                Text(
+                    text = ampm,
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Light,
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(bottom = 10.dp),
+                )
+            }
             Text(
                 text = date,
                 style = MaterialTheme.typography.bodyMedium,

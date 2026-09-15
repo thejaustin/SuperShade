@@ -30,6 +30,7 @@ import com.supershade.R
 import com.supershade.settings.QsTileTapAction
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -73,6 +74,7 @@ fun SettingsScreen(
     onGrantWriteSettings: () -> Unit = {},
     onGrantAccessibility: () -> Unit = {},
     onCheckUpdate: () -> Unit,
+    isCheckingUpdate: Boolean = false,
     onShowWhatsNew: () -> Unit,
     onPreviewShade: () -> Unit = {},
     qsTileTapAction: QsTileTapAction = QsTileTapAction.TOGGLE_ACTIVE,
@@ -418,15 +420,25 @@ fun SettingsScreen(
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = onCheckUpdate,
+                    enabled = !isCheckingUpdate,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Icon(
-                        Icons.Default.Refresh,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Check for updates")
+                    if (isCheckingUpdate) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Checking for updates...")
+                    } else {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Check for updates")
+                    }
                 }
             }
         }

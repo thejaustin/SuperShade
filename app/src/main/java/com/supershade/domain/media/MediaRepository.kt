@@ -117,6 +117,7 @@ class MediaRepository(private val context: Context) {
             title = meta.getString(MediaMetadata.METADATA_KEY_TITLE) ?: "",
             artist = meta.getString(MediaMetadata.METADATA_KEY_ARTIST)
                 ?: meta.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST) ?: "",
+            album = meta.getString(MediaMetadata.METADATA_KEY_ALBUM) ?: "",
             albumArt = finalArt,
             isPlaying = controller.playbackState?.state == PlaybackState.STATE_PLAYING,
             packageName = controller.packageName ?: "",

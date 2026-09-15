@@ -29,6 +29,50 @@ import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
 private fun localReleaseNotes(version: String): String = when (version) {
+    "1.8.6" -> """
+        🚀 GitHub Releases, In-App Auto-Update & Media Player Polish
+        • Fixed GitHub release CI — release APKs and tags now publish automatically without failure
+        • Hardened semver parsing so updates are reliably detected and notified
+        • Check for Updates button features active loading spinner and contextual status feedback
+        • Media Player full-bleed palette backdrop, like/favorite button, and prominent 56dp transport controls
+        • Refined status bar clock with One UI two-part layout and separate AM/PM badge
+    """.trimIndent()
+    "1.8.5" -> """
+        🎛️ Tactile Pill Sliders, Quick Power Menu & 12-Tile Grid
+        • 44dp tactile pill sliders for Brightness and Volume with real-time percentage and spring physics
+        • Clickable Status Bar header: Clock launches alarms, Date launches calendar, Battery opens usage
+        • Quick Power Menu: Power Off, Reboot, Lock Screen, and System Dialog shortcuts
+        • 12-Tile expanded Quick Settings grid (3 rows of 4) with smooth spring transitions
+    """.trimIndent()
+    "1.8.4" -> """
+        🔘 Quick Settings Tile & Control Center
+        • Native system Quick Settings tile to toggle or open SuperShade
+        • Configurable tap action: Toggle, Open Shade, or Quick Menu
+        • Long-press Quick Controls bottom sheet
+    """.trimIndent()
+    "1.8.3" -> """
+        📱 Full-Height Pull-Down & Native Status Bar Restoration
+        • 100% full-screen pull-down height with adaptive navigation bar padding
+        • Clean native status bar restoration when SuperShade is disabled
+    """.trimIndent()
+    "1.8.2" -> """
+        ⚡ One UI 8 & Android 16 Interception
+        • Zero-flicker WindowContext architecture for Android 16
+        • Pure Java Shizuku commander for privileged system status bar disable
+        • Samsung separate Quick Settings gesture (swipe top-right)
+    """.trimIndent()
+    "1.8.0", "1.8.1" -> """
+        🌟 Android 16 Architecture Overhaul
+        • 2D multi-touch heads-up popup gestures (swipe up to hide, swipe sideways to dismiss)
+        • Pure Material 3 Expressive theme with dynamic tonal palettes
+        • Native OS notification settings integration on long-press
+    """.trimIndent()
+    "1.7.0" -> """
+        ✨ Zero-ADB Architecture & Media Controls
+        • Zero-ADB native shade replacement via Accessibility Service
+        • Responsive volume and brightness sliders with drag protection
+        • Non-root quick setting toggles with live system state observers
+    """.trimIndent()
     "1.6.0" -> """
         🔦 Smarter toggles & richer notifications
         • Flashlight tile works without Shizuku — toggles torch directly via CameraManager and tracks state live
@@ -114,10 +158,7 @@ private fun localReleaseNotes(version: String): String = when (version) {
         • Live tile state indicators reflect real system settings
         • Tap any notification to launch the app directly
         • One-tap "Open Shade Preview" in Settings
-    """.trimIndent()
-    "1.2.4" -> """
-        ⚙️ Block system shade setting
-        Toggle whether the system notification panel is suppressed while SuperShade is active. Disable to let both panels coexist.
+        • "Block system shade" setting to suppress system panel while SuperShade is active
     """.trimIndent()
     "1.2.3" -> """
         ✨ UI polish

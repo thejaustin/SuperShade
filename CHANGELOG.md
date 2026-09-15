@@ -5,6 +5,24 @@ Releases follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.8.6] — 2026-09-15
+
+### Fixed & Enhanced (GitHub Releases, In-App Auto-Update & MediaCard Polish)
+- **GitHub Release CI & In-App Auto-Update Overhaul**:
+  - Removed hardcoded local Termux path from repository `gradle.properties` that was causing GitHub Actions `assembleRelease` jobs to fail on Ubuntu runners with `Specified AAPT2 executable does not exist`. Release builds and published APKs now succeed cleanly.
+  - Hardened semantic version comparison in `UpdateInfo` to sanitize pre-release suffixes, build tags, and non-numeric characters so updates are accurately detected.
+  - Added `UpdateCheckResult` (`UpdateAvailable`, `UpToDate`, `Error`) and reactive `isChecking` flow to `UpdateRepository`.
+  - Added visual loading indicator to "Check for updates" button in Settings and contextual Toast notifications confirming up-to-date status or connectivity issues on manual check.
+- **Media Player & MediaCard Visual Polish**:
+  - Full-bleed background color adapted dynamically from track artwork via `Palette` with smooth spring transition.
+  - Layered translucent album art backdrop with dual gradient scrim for improved contrast and readability.
+  - Animated favorite "Like" button with bouncy spring scale effect and haptic confirmation.
+  - Redesigned 56dp elevated primary play/pause transport button with accent color theming.
+  - Added album title display from `MediaMetadata.METADATA_KEY_ALBUM`.
+- **Status Bar Clock Two-Part Hierarchy**:
+  - Refined clock display in `StatusBarRow` with large primary digits and lighter AM/PM suffix matching Samsung One UI 8 typography.
+  - Synchronized status bar refresh ticker to clean 60-second intervals.
+
 ## [1.8.5] — 2026-09-14
 
 ### Added & Enhanced (Tactile Pill Sliders, Interactive Header, Quick Power Menu & 12-Tile Expanded Grid)

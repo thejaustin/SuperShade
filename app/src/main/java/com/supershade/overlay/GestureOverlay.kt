@@ -19,18 +19,19 @@ import android.view.WindowManager
  */
 class GestureOverlay(
     private val context: Context,
+    private val isShadeOpen: () -> Boolean = { false },
     private val onSwipeDown: (expandQs: Boolean) -> Unit,
 ) {
 
     private val windowManager = context.getSystemService(WindowManager::class.java)
     private var overlayView: View? = null
 
-    // Top bezel strip: status bar height + 36dp active gesture catch zone extending below the status bar
+    // Top bezel strip: matches status bar height + small catch margin, without overlapping app content
     private val captureHeight = run {
         val resId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
         val h = if (resId > 0) context.resources.getDimensionPixelSize(resId) else 0
-        val base = h.coerceAtLeast((48 * context.resources.displayMetrics.density).toInt())
-        base + (36 * context.resources.displayMetrics.density).toInt()
+        val base = h.coerceAtLeast((28 * context.resources.displayMetrics.density).toInt())
+        base + (6 * context.resources.displayMetrics.density).toInt()
     }
 
     private val params = WindowManager.LayoutParams(
@@ -57,7 +58,8 @@ class GestureOverlay(
         var triggered = false
 
         val view = View(context).apply {
-            setOnTouchListener { _, event ->
+            setOnTouchListener { v, event ->
+                if (isShadeOpen()) return@setOnTouchListener false
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         startX = event.rawX
@@ -71,6 +73,7 @@ class GestureOverlay(
                         val deltaY = event.rawY - startY
                         if (!triggered && deltaY > 18f && deltaY > deltaX * 0.75f) {
                             triggered = true
+                            v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
                             val screenWidth = context.resources.displayMetrics.widthPixels
                             val expandQs = startX > screenWidth * 0.72f
                             onSwipeDown(expandQs)
@@ -83,6 +86,7 @@ class GestureOverlay(
                         val duration = System.currentTimeMillis() - startTime
                         if (!triggered && deltaY > 12f && deltaY > deltaX * 0.75f && duration < 700) {
                             triggered = true
+                            v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
                             val screenWidth = context.resources.displayMetrics.widthPixels
                             val expandQs = startX > screenWidth * 0.72f
                             onSwipeDown(expandQs)

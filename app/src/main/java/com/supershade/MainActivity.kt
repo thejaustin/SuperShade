@@ -50,6 +50,7 @@ class MainActivity : ComponentActivity() {
     private val settings: ShadeSettings by inject()
     private val updateRepo: UpdateRepository by inject()
     private val shadeViewModel: ShadeViewModel by inject()
+    private val shadeWindowManager: com.supershade.overlay.ShadeWindowManager by inject()
     private val governor: com.supershade.shizuku.StatusBarGovernor by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -221,6 +222,7 @@ class MainActivity : ComponentActivity() {
                         onPreviewShade = {
                             toggleShadeService(true)
                             shadeViewModel.open()
+                            shadeWindowManager.show()
                         },
                         qsTileTapAction = qsTileTapAction,
                         onQsTileTapActionChange = { action ->

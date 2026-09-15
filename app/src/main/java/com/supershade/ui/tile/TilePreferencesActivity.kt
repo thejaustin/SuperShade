@@ -76,6 +76,7 @@ class TilePreferencesActivity : ComponentActivity() {
     private val settings: ShadeSettings by inject()
     private val governor: StatusBarGovernor by inject()
     private val shadeViewModel: ShadeViewModel by inject()
+    private val shadeWindowManager: com.supershade.overlay.ShadeWindowManager by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -175,6 +176,7 @@ class TilePreferencesActivity : ComponentActivity() {
                                             }
                                         } catch (_: Exception) {}
                                         shadeViewModel.open()
+                                        shadeWindowManager.show()
                                         finish()
                                     }
                                 },
@@ -336,14 +338,16 @@ class TilePreferencesActivity : ComponentActivity() {
 
     private fun toggleShadeService(enable: Boolean) {
         val intent = Intent(this, ShadeService::class.java)
-        if (enable) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
+        try {
+            if (enable) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(intent)
+                } else {
+                    startService(intent)
+                }
             } else {
-                startService(intent)
+                stopService(intent)
             }
-        } else {
-            stopService(intent)
-        }
+        } catch (_: Exception) {}
     }
 }

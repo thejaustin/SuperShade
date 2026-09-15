@@ -5,6 +5,27 @@ Releases follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.9.0] — 2026-09-15
+
+### Added & Enhanced (One UI 8 Settings Hub, Precision Gestures & Notification Polish)
+- **Modern Redesigned Settings UI**:
+  - Implemented sleek One UI 8 Hero Header with live status badge ("Active • Swipe down from status bar to open" vs "Setup required"), app emblem, and embedded Master Toggle switch.
+  - Added Quick Action Hub with primary "Open Shade" and tonal "Customize Tiles" buttons.
+  - Unified Permissions & System Integration Hub: Clean 5-service island card grouping Notification Access, Overlay, Accessibility, System Settings, and Shizuku with direct action pills and status badges.
+  - Visual Gestures & Controls Card: Diagram explaining the 72%/28% status bar pull split, tactile haptic feedback indicator, and native system panel suppression toggle.
+  - Appearance & Theming Hub: Single-choice segmented button rows for Shade Style (One UI, Pixel, Pure Material) and Theme Mode (System, Dark, Light, AMOLED), plus interactive accent swatches with active selection rings.
+- **Precision Status Bar Gestures & Haptics**:
+  - Refined status bar touch capture zone in both `GestureOverlay` and `SuperShadeAccessibilityService` to strictly encompass the status bar region (`h + 6dp`) to eliminate touch occlusion on top app navigation bars.
+  - Added immediate mechanical clock-tick haptic feedback (`CLOCK_TICK`) when the user crosses the pull threshold.
+  - Automatic gesture overlay bypass when the shade overlay is already open to avoid consuming touches.
+  - Screen rotation and display resizing listener dynamically re-attaches touch bounds in `SuperShadeAccessibilityService`.
+- **Quick Settings & Notification Polish**:
+  - Dynamic content sizing on `QuickSettingsGrid` using `Modifier.animateContentSize()` with low-bouncy spring spec to eliminate font/display scale clipping.
+  - Added trailing chevron to connectivity wide cards for clearer affordance.
+  - Proportional trash icon scaling and alpha feedback on notification dismiss swipe backgrounds.
+  - Redesigned "Clear all" button as a Samsung One UI pill chip with `ClearAll` icon.
+  - Injected `ShadeWindowManager` into `MainActivity` and `TilePreferencesActivity` for instant guaranteed shade opening.
+
 ## [1.8.9] — 2026-09-15
 
 ### Fixed & Enhanced (Gestures, Quick Settings Toggles, Categorization & Direct Installer)

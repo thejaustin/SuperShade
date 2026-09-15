@@ -2,10 +2,12 @@ package com.supershade.ui.shade
 
 import android.content.Intent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -26,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -74,22 +77,6 @@ fun QuickSettingsGrid(
         else -> tiles.take(4)
     }
 
-    val rowCount = ((displayedTiles.size + 3) / 4).coerceAtLeast(1)
-    val targetHeight = if (hasWideCards) {
-        (62 + 8 + (rowCount * 72 + (rowCount - 1) * 8) + 20).dp
-    } else {
-        (rowCount * 72 + (rowCount - 1) * 8 + 20).dp
-    }
-
-    val gridHeight by animateDpAsState(
-        targetValue = targetHeight,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessMediumLow,
-        ),
-        label = "qsGridHeight",
-    )
-
     Surface(
         shape = RoundedCornerShape(26.dp),
         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
@@ -104,7 +91,12 @@ fun QuickSettingsGrid(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(gridHeight)
+                .animateContentSize(
+                    animationSpec = spring<IntSize>(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    )
+                )
                 .padding(horizontal = 10.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -277,6 +269,13 @@ private fun ConnectivityWideCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = contentColor.copy(alpha = 0.40f),
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }

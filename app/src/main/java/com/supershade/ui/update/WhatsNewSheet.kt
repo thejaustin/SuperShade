@@ -29,6 +29,16 @@ import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
 private fun localReleaseNotes(version: String): String = when (version) {
+    "1.9.0" -> """
+        ✨ One UI 8 Settings Hub, Precision Gestures & Notification Polish
+        • Modern Redesigned Settings UI: One UI 8 Hero header with live active badge, quick preview actions, and unified permissions island
+        • Precision Status Bar Gestures: Refined touch capture zone tightly bounded to status bar with zero overlap onto app toolbars
+        • Mechanical Haptics: Tactile clock-tick haptic feedback immediately on crossing swipe threshold
+        • Right-Side Quick Settings Expansion: Pull down top-right edge for instant expanded Quick Settings grid
+        • Fluid Dynamic Sizing: Quick settings grid adapts smoothly to any screen scale or font size with spring animation
+        • Proportional Dismiss Trash Icon: Dynamic scaling and alpha feedback proportional to swipe distance
+        • Samsung Pill Clear-All: Redesigned clear button with One UI pill chip styling
+    """.trimIndent()
     "1.8.9" -> """
         ✨ Gestures, Tile Fixes, Categorization & Direct Installer
         • Responsive Swipe-to-Dismiss: Lighter 35% swipe threshold and bidirectional dismissal on individual and grouped notifications

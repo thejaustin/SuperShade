@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.graphicsLayer
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.material.icons.Icons
@@ -148,19 +149,27 @@ fun NotificationCard(
             val direction = dismissState.dismissDirection
             val alignment = if (direction == SwipeToDismissBoxValue.StartToEnd)
                 Alignment.CenterStart else Alignment.CenterEnd
+            val progress = kotlin.math.abs(dismissState.progress).coerceIn(0f, 1f)
+            val iconScale = (0.6f + progress * 0.5f).coerceIn(0.6f, 1.15f)
+            val bgAlpha = (progress * 1.4f).coerceIn(0.2f, 1f)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight()
                     .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFFE53935)),
+                    .background(Color(0xFFE53935).copy(alpha = bgAlpha)),
                 contentAlignment = alignment,
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Delete",
                     tint = Color.White,
-                    modifier = Modifier.padding(horizontal = 20.dp),
+                    modifier = Modifier
+                        .padding(horizontal = 22.dp)
+                        .graphicsLayer {
+                            scaleX = iconScale
+                            scaleY = iconScale
+                        },
                 )
             }
         },

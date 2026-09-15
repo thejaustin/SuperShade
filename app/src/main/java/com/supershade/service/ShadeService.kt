@@ -71,9 +71,11 @@ class ShadeService : Service() {
 
         // Attach the gesture capture overlay. When a downward swipe is detected
         // the overlay tells the ShadeWindowManager to show the full shade UI.
-        gestureOverlay = GestureOverlay(this) { expandQs ->
-            shadeViewModel.open(expandQs)
-        }
+        gestureOverlay = GestureOverlay(
+            context = this,
+            isShadeOpen = { shadeViewModel.state.value.isOpen },
+            onSwipeDown = { expandQs -> shadeViewModel.open(expandQs) },
+        )
         gestureOverlay?.attach()
 
         // Show peek cards for new notifications when the shade panel is closed.

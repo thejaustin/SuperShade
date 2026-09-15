@@ -118,8 +118,8 @@ class SuperShadeAccessibilityService : AccessibilityService() {
         val statusBarHeightPx = run {
             val resId = resources.getIdentifier("status_bar_height", "dimen", "android")
             val h = if (resId > 0) resources.getDimensionPixelSize(resId) else 0
-            val base = h.coerceAtLeast((48 * resources.displayMetrics.density).toInt())
-            base + (36 * resources.displayMetrics.density).toInt()
+            val base = h.coerceAtLeast((28 * resources.displayMetrics.density).toInt())
+            base + (6 * resources.displayMetrics.density).toInt()
         }
 
         val params = WindowManager.LayoutParams(
@@ -144,7 +144,8 @@ class SuperShadeAccessibilityService : AccessibilityService() {
         var triggered = false
 
         val view = View(this).apply {
-            setOnTouchListener { _, event ->
+            setOnTouchListener { v, event ->
+                if (shadeViewModel.state.value.isOpen) return@setOnTouchListener false
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         startX = event.rawX
@@ -158,6 +159,7 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                         val deltaY = event.rawY - startY
                         if (!triggered && deltaY > 18f && deltaY > deltaX * 0.75f) {
                             triggered = true
+                            v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
                             val screenWidth = resources.displayMetrics.widthPixels
                             val expandQs = startX > screenWidth * 0.72f
                             openSuperShade(expandQs)
@@ -170,6 +172,7 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                         val duration = System.currentTimeMillis() - startTime
                         if (!triggered && deltaY > 12f && deltaY > deltaX * 0.75f && duration < 700) {
                             triggered = true
+                            v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
                             val screenWidth = resources.displayMetrics.widthPixels
                             val expandQs = startX > screenWidth * 0.72f
                             openSuperShade(expandQs)
@@ -279,6 +282,14 @@ class SuperShadeAccessibilityService : AccessibilityService() {
     }
 
     override fun onInterrupt() {}
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (isSuperShadeActive) {
+            detachAccessibilityTouchCapture()
+            attachAccessibilityTouchCapture()
+        }
+    }
 
     override fun onDestroy() {
         super.onDestroy()

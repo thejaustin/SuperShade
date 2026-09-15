@@ -43,6 +43,7 @@ class SuperShadeTileService : TileService() {
     private val settings: ShadeSettings by inject()
     private val governor: StatusBarGovernor by inject()
     private val shadeViewModel: ShadeViewModel by inject()
+    private val windowManager: com.supershade.overlay.ShadeWindowManager by inject()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onStartListening() {
@@ -57,8 +58,8 @@ class SuperShadeTileService : TileService() {
     override fun onClick() {
         super.onClick()
         scope.launch {
-            val tapAction = settings.qsTileTapAction.first()
             val isActive = settings.isActive.first()
+            val tapAction = settings.qsTileTapAction.first()
 
             when (tapAction) {
                 QsTileTapAction.TOGGLE_ACTIVE -> {
@@ -103,6 +104,7 @@ class SuperShadeTileService : TileService() {
             try { startService(intent) } catch (_: Exception) {}
         }
         shadeViewModel.open()
+        windowManager.show()
     }
 
     private fun openChoicesMenu() {
@@ -146,15 +148,17 @@ class SuperShadeTileService : TileService() {
 
     private fun toggleShadeService(enable: Boolean) {
         val intent = Intent(this, ShadeService::class.java)
-        if (enable) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
+        try {
+            if (enable) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(intent)
+                } else {
+                    startService(intent)
+                }
             } else {
-                startService(intent)
+                stopService(intent)
             }
-        } else {
-            stopService(intent)
-        }
+        } catch (_: Exception) {}
     }
 
     override fun onDestroy() {

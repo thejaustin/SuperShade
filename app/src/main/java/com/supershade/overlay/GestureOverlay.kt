@@ -25,11 +25,12 @@ class GestureOverlay(
     private val windowManager = context.getSystemService(WindowManager::class.java)
     private var overlayView: View? = null
 
-    // Top bezel strip matching the system status bar height positioned at y=0.
+    // Top bezel strip: status bar height + 36dp active gesture catch zone extending below the status bar
     private val captureHeight = run {
         val resId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
         val h = if (resId > 0) context.resources.getDimensionPixelSize(resId) else 0
-        h.coerceAtLeast((48 * context.resources.displayMetrics.density).toInt())
+        val base = h.coerceAtLeast((48 * context.resources.displayMetrics.density).toInt())
+        base + (36 * context.resources.displayMetrics.density).toInt()
     }
 
     private val params = WindowManager.LayoutParams(
@@ -68,7 +69,7 @@ class GestureOverlay(
                     MotionEvent.ACTION_MOVE -> {
                         val deltaX = kotlin.math.abs(event.rawX - startX)
                         val deltaY = event.rawY - startY
-                        if (!triggered && deltaY > 25f && deltaY > deltaX * 1.05f) {
+                        if (!triggered && deltaY > 18f && deltaY > deltaX * 0.75f) {
                             triggered = true
                             val screenWidth = context.resources.displayMetrics.widthPixels
                             val expandQs = startX > screenWidth * 0.72f
@@ -80,7 +81,7 @@ class GestureOverlay(
                         val deltaX = kotlin.math.abs(event.rawX - startX)
                         val deltaY = event.rawY - startY
                         val duration = System.currentTimeMillis() - startTime
-                        if (!triggered && deltaY > 15f && deltaY > deltaX && duration < 600) {
+                        if (!triggered && deltaY > 12f && deltaY > deltaX * 0.75f && duration < 700) {
                             triggered = true
                             val screenWidth = context.resources.displayMetrics.widthPixels
                             val expandQs = startX > screenWidth * 0.72f

@@ -35,8 +35,14 @@ fun CategoryBar(
 ) {
     val scrollState = rememberScrollState()
 
+    val visibleCategories = remember(categories, selected, counts) {
+        categories.filter { category ->
+            category == ShadeCategory.All || category == selected || (counts[category] ?: 0) > 0
+        }
+    }
+
     // Auto-scroll toward the selected chip when selection changes.
-    val selectedIndex = categories.indexOf(selected)
+    val selectedIndex = visibleCategories.indexOf(selected)
     LaunchedEffect(selectedIndex) {
         if (selectedIndex > 0) {
             scrollState.animateScrollTo(
@@ -54,7 +60,7 @@ fun CategoryBar(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        categories.forEach { category ->
+        visibleCategories.forEach { category ->
             CategoryChip(
                 label = category.label,
                 isSelected = category == selected,

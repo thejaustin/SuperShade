@@ -99,6 +99,16 @@ class TileRepository(
         scope.launch { loadTiles() }
     }
 
+    fun setTileActiveOptimistic(id: String, active: Boolean) {
+        _tiles.value = _tiles.value.map { tile ->
+            if (tile.id == id) tile.copy(isActive = active) else tile
+        }
+    }
+
+    fun refreshActiveStates() {
+        scope.launch { updateActiveStates() }
+    }
+
     private fun updateActiveStates() {
         _tiles.value = _tiles.value.map { tile ->
             tile.copy(

@@ -138,28 +138,34 @@ fun NotificationCard(
             if (value != SwipeToDismissBoxValue.Settled && notification.isClearable) {
                 onDismiss(); true
             } else false
-        }
+        },
+        positionalThreshold = { totalDistance -> totalDistance * 0.35f },
     )
 
     SwipeToDismissBox(
         state = dismissState,
         backgroundContent = {
+            val direction = dismissState.dismissDirection
+            val alignment = if (direction == SwipeToDismissBoxValue.StartToEnd)
+                Alignment.CenterStart else Alignment.CenterEnd
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight()
                     .clip(RoundedCornerShape(24.dp))
                     .background(Color(0xFFE53935)),
-                contentAlignment = Alignment.CenterEnd,
+                contentAlignment = alignment,
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Delete",
                     tint = Color.White,
-                    modifier = Modifier.padding(end = 20.dp),
+                    modifier = Modifier.padding(horizontal = 20.dp),
                 )
             }
         },
+        enableDismissFromStartToEnd = notification.isClearable,
+        enableDismissFromEndToStart = notification.isClearable,
         modifier = modifier.fillMaxWidth(),
     ) {
         Card(

@@ -20,6 +20,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
@@ -48,6 +49,9 @@ class SuperShadeAccessibilityService : AccessibilityService() {
     private val governor: StatusBarGovernor by inject()
     private val shadeViewModel: ShadeViewModel by inject()
     private val settings: ShadeSettings by inject()
+    private val shadeWindowManager: com.supershade.overlay.ShadeWindowManager by inject()
+    private val headsUpOverlay: HeadsUpOverlay by inject()
+    private val notificationRepo: com.supershade.domain.notification.NotificationRepository by inject()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private var windowManager: WindowManager? = null
@@ -58,6 +62,25 @@ class SuperShadeAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         android.util.Log.i("SuperShadeA11y", "onServiceConnected: initializing settings observer")
+
+        // Observe isOpen state from ViewModel so opening shade from gesture or system intercept
+        // immediately presents the overlay window.
+        shadeViewModel.state
+            .map { it.isOpen }
+            .distinctUntilChanged()
+            .onEach { isOpen ->
+                if (isOpen) shadeWindowManager.show() else shadeWindowManager.hide()
+            }
+            .launchIn(scope)
+
+        // Show peek cards for incoming notifications when shade is closed.
+        notificationRepo.newNotifications
+            .onEach { notification ->
+                if (!shadeViewModel.state.value.isOpen) {
+                    headsUpOverlay.show(notification)
+                }
+            }
+            .launchIn(scope)
 
         settings.isActive
             .distinctUntilChanged()
@@ -89,24 +112,14 @@ class SuperShadeAccessibilityService : AccessibilityService() {
     private fun attachAccessibilityTouchCapture() {
         if (touchCaptureView != null) return
 
-        val contextForWindow = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val disp = display ?: (getSystemService(Context.DISPLAY_SERVICE) as? android.hardware.display.DisplayManager)
-                ?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
-            if (disp != null) {
-                createWindowContext(disp, WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY, null)
-            } else {
-                this
-            }
-        } else {
-            this
-        }
-        val wm = contextForWindow.getSystemService(WindowManager::class.java) ?: return
+        val wm = getSystemService(WindowManager::class.java) ?: return
         windowManager = wm
 
         val statusBarHeightPx = run {
             val resId = resources.getIdentifier("status_bar_height", "dimen", "android")
             val h = if (resId > 0) resources.getDimensionPixelSize(resId) else 0
-            h.coerceAtLeast((48 * resources.displayMetrics.density).toInt())
+            val base = h.coerceAtLeast((48 * resources.displayMetrics.density).toInt())
+            base + (36 * resources.displayMetrics.density).toInt()
         }
 
         val params = WindowManager.LayoutParams(
@@ -130,7 +143,7 @@ class SuperShadeAccessibilityService : AccessibilityService() {
         var startTime = 0L
         var triggered = false
 
-        val view = View(contextForWindow).apply {
+        val view = View(this).apply {
             setOnTouchListener { _, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
@@ -143,7 +156,7 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                     MotionEvent.ACTION_MOVE -> {
                         val deltaX = kotlin.math.abs(event.rawX - startX)
                         val deltaY = event.rawY - startY
-                        if (!triggered && deltaY > 25f && deltaY > deltaX * 1.05f) {
+                        if (!triggered && deltaY > 18f && deltaY > deltaX * 0.75f) {
                             triggered = true
                             val screenWidth = resources.displayMetrics.widthPixels
                             val expandQs = startX > screenWidth * 0.72f
@@ -155,7 +168,7 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                         val deltaX = kotlin.math.abs(event.rawX - startX)
                         val deltaY = event.rawY - startY
                         val duration = System.currentTimeMillis() - startTime
-                        if (!triggered && deltaY > 15f && deltaY > deltaX && duration < 600) {
+                        if (!triggered && deltaY > 12f && deltaY > deltaX * 0.75f && duration < 700) {
                             triggered = true
                             val screenWidth = resources.displayMetrics.widthPixels
                             val expandQs = startX > screenWidth * 0.72f
@@ -248,6 +261,7 @@ class SuperShadeAccessibilityService : AccessibilityService() {
             try { startService(intent) } catch (_: Exception) {}
         }
         shadeViewModel.open(expandQs)
+        shadeWindowManager.show()
     }
 
     fun dismissSystemShade(): Boolean {
@@ -269,6 +283,7 @@ class SuperShadeAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         super.onDestroy()
         detachAccessibilityTouchCapture()
+        shadeWindowManager.hide()
         governor.enableExpansionBlocking()
         scope.cancel()
         instance = null

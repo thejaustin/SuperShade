@@ -8,6 +8,8 @@ enum class ShadeCategory(val label: String, val androidCategory: String?) {
     Social("Social", Notification.CATEGORY_SOCIAL),
     Email("Email", Notification.CATEGORY_EMAIL),
     Calls("Calls", Notification.CATEGORY_CALL),
+    Productivity("Tasks", null),
+    Media("Media", null),
     Alarms("Alarms", Notification.CATEGORY_ALARM),
     System("System", Notification.CATEGORY_SYSTEM),
     Apps("Apps", null)

@@ -16,14 +16,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -130,22 +128,24 @@ fun QuickSettingsGrid(
                 }
             }
 
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f, fill = false),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                userScrollEnabled = false,
-            ) {
-                items(displayedTiles, key = { it.id }) { tile ->
-                    TileCard(
-                        tile = tile,
-                        theme = theme,
-                        isShizukuConnected = isShizukuConnected,
-                        onClick = { onTileClick(tile) },
-                    )
+            displayedTiles.chunked(4).forEach { rowTiles ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    rowTiles.forEach { tile ->
+                        Box(modifier = Modifier.weight(1f)) {
+                            TileCard(
+                                tile = tile,
+                                theme = theme,
+                                isShizukuConnected = isShizukuConnected,
+                                onClick = { onTileClick(tile) },
+                            )
+                        }
+                    }
+                    repeat(4 - rowTiles.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
         }

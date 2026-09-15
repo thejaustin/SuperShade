@@ -23,6 +23,7 @@ class StatusBarGovernor(
 
     private val _isCommanderConnected = kotlinx.coroutines.flow.MutableStateFlow(false)
     val isCommanderConnected: kotlinx.coroutines.flow.StateFlow<Boolean> = _isCommanderConnected
+    val canRunPrivileged: Boolean get() = _isCommanderConnected.value || connector.hasPermission()
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

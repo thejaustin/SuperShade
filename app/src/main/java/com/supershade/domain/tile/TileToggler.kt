@@ -7,153 +7,164 @@ import android.hardware.camera2.CameraManager
 import android.provider.Settings
 import com.supershade.service.NotificationCollector
 import com.supershade.shizuku.StatusBarGovernor
+import kotlinx.coroutines.delay
 
 class TileToggler(
     private val context: Context,
-    private val governor: StatusBarGovernor
+    private val governor: StatusBarGovernor,
+    private val tileRepo: TileRepository? = null,
 ) {
     suspend fun toggle(tile: TileDefinition) {
         val id = tile.id.lowercase()
         val newState = !tile.isActive
 
-        when {
-            // Flashlight: direct CameraManager
-            id.contains("flashlight") -> toggleFlashlight(newState)
+        // Optimistically update visual state immediately so touch feels instant
+        tileRepo?.setTileActiveOptimistic(tile.id, newState)
 
-            // Auto-Rotate: direct Settings.System if WRITE_SETTINGS granted, else Shizuku or Settings
-            id.contains("rotation") || id.contains("rotationlock") -> {
-                if (governor.isCommanderConnected.value) {
-                    governor.runShell("settings", "put", "system", "accelerometer_rotation", if (newState) "1" else "0")
-                } else if (Settings.System.canWrite(context)) {
-                    try {
-                        Settings.System.putInt(
-                            context.contentResolver,
-                            Settings.System.ACCELEROMETER_ROTATION,
-                            if (newState) 1 else 0
-                        )
-                    } catch (_: Exception) {}
-                } else {
-                    launchWriteSettingsOrSettings(tile)
+        try {
+            when {
+                // Flashlight: direct CameraManager
+                id.contains("flashlight") -> toggleFlashlight(newState)
+
+                // Auto-Rotate: direct Settings.System if WRITE_SETTINGS granted, else Shizuku or Settings
+                id.contains("rotation") || id.contains("rotationlock") -> {
+                    if (governor.canRunPrivileged) {
+                        governor.runShell("settings", "put", "system", "accelerometer_rotation", if (newState) "1" else "0")
+                    } else if (Settings.System.canWrite(context)) {
+                        try {
+                            Settings.System.putInt(
+                                context.contentResolver,
+                                Settings.System.ACCELEROMETER_ROTATION,
+                                if (newState) 1 else 0
+                            )
+                        } catch (_: Exception) {}
+                    } else {
+                        launchWriteSettingsOrSettings(tile)
+                    }
                 }
-            }
 
-            // Do Not Disturb: direct NotificationManager or NotificationCollector listener
-            id.contains("dnd") || id.contains("donotdisturb") -> {
-                if (governor.isCommanderConnected.value) {
-                    governor.runShell("cmd", "notification", "set_dnd", if (newState) "on" else "off")
-                } else {
-                    val filter = if (newState) android.app.NotificationManager.INTERRUPTION_FILTER_PRIORITY
-                                 else android.app.NotificationManager.INTERRUPTION_FILTER_ALL
-                    val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
-                    if (nm?.isNotificationPolicyAccessGranted == true) {
-                        try { nm.setInterruptionFilter(filter) } catch (_: Exception) {}
+                // Do Not Disturb: direct NotificationManager or NotificationCollector listener
+                id.contains("dnd") || id.contains("donotdisturb") -> {
+                    if (governor.canRunPrivileged) {
+                        governor.runShell("cmd", "notification", "set_dnd", if (newState) "on" else "off")
+                    } else {
+                        val filter = if (newState) android.app.NotificationManager.INTERRUPTION_FILTER_PRIORITY
+                                     else android.app.NotificationManager.INTERRUPTION_FILTER_ALL
+                        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+                        if (nm?.isNotificationPolicyAccessGranted == true) {
+                            try { nm.setInterruptionFilter(filter) } catch (_: Exception) {}
+                        } else {
+                            try {
+                                NotificationCollector.instance?.requestInterruptionFilter(filter)
+                            } catch (_: Exception) {
+                                openSettings(tile)
+                            }
+                        }
+                    }
+                }
+
+                // Sound Mode / Mute: direct AudioManager
+                id.contains("mute") || id.contains("sound") -> {
+                    val am = context.getSystemService(android.media.AudioManager::class.java)
+                    try {
+                        when (am.ringerMode) {
+                            android.media.AudioManager.RINGER_MODE_NORMAL -> am.ringerMode = android.media.AudioManager.RINGER_MODE_VIBRATE
+                            android.media.AudioManager.RINGER_MODE_VIBRATE -> {
+                                val nm = context.getSystemService(android.app.NotificationManager::class.java)
+                                if (nm.isNotificationPolicyAccessGranted) {
+                                    am.ringerMode = android.media.AudioManager.RINGER_MODE_SILENT
+                                } else {
+                                    am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL
+                                }
+                            }
+                            else -> am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL
+                        }
+                    } catch (_: Exception) {
+                        openSettings(tile)
+                    }
+                }
+
+                // Master Sync: direct ContentResolver
+                id.contains("sync") -> {
+                    try {
+                        android.content.ContentResolver.setMasterSyncAutomatically(newState)
+                    } catch (_: Exception) {
+                        openSettings(tile)
+                    }
+                }
+
+                // Internet / Wi-Fi / Mobile Data: Shizuku privileged or native Floating Internet Panel
+                id.contains("wifi") || id.contains("internet") || id.contains("cell") || id.contains("data") -> {
+                    if (governor.canRunPrivileged) {
+                        if (id.contains("cell") || id.contains("data")) {
+                            governor.runShell("svc", "data", if (newState) "enable" else "disable")
+                        } else {
+                            governor.runShell("svc", "wifi", if (newState) "enable" else "disable")
+                        }
                     } else {
                         try {
-                            NotificationCollector.instance?.requestInterruptionFilter(filter)
+                            val panelIntent = Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(panelIntent)
                         } catch (_: Exception) {
                             openSettings(tile)
                         }
                     }
                 }
-            }
 
-            // Sound Mode / Mute: direct AudioManager
-            id.contains("mute") || id.contains("sound") -> {
-                val am = context.getSystemService(android.media.AudioManager::class.java)
-                try {
-                    when (am.ringerMode) {
-                        android.media.AudioManager.RINGER_MODE_NORMAL -> am.ringerMode = android.media.AudioManager.RINGER_MODE_VIBRATE
-                        android.media.AudioManager.RINGER_MODE_VIBRATE -> {
-                            val nm = context.getSystemService(android.app.NotificationManager::class.java)
-                            if (nm.isNotificationPolicyAccessGranted) {
-                                am.ringerMode = android.media.AudioManager.RINGER_MODE_SILENT
-                            } else {
-                                am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL
-                            }
-                        }
-                        else -> am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL
-                    }
-                } catch (_: Exception) {
-                    openSettings(tile)
-                }
-            }
-
-            // Master Sync: direct ContentResolver
-            id.contains("sync") -> {
-                try {
-                    android.content.ContentResolver.setMasterSyncAutomatically(newState)
-                } catch (_: Exception) {
-                    openSettings(tile)
-                }
-            }
-
-            // Internet / Wi-Fi / Mobile Data: Shizuku privileged or native Floating Internet Panel
-            id.contains("wifi") || id.contains("internet") || id.contains("cell") || id.contains("data") -> {
-                if (governor.isCommanderConnected.value) {
-                    if (id.contains("cell") || id.contains("data")) {
-                        governor.runShell("svc", "data", if (newState) "enable" else "disable")
+                // NFC: Shizuku privileged or native Floating NFC Panel
+                id.contains("nfc") -> {
+                    if (governor.canRunPrivileged) {
+                        governor.runShell("svc", "nfc", if (newState) "enable" else "disable")
                     } else {
-                        governor.runShell("svc", "wifi", if (newState) "enable" else "disable")
+                        try {
+                            val panelIntent = Intent(Settings.Panel.ACTION_NFC)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(panelIntent)
+                        } catch (_: Exception) {
+                            openSettings(tile)
+                        }
                     }
-                } else {
+                }
+
+                // Volume: native Floating Volume Panel
+                id.contains("volume") -> {
                     try {
-                        val panelIntent = Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY)
+                        val panelIntent = Intent(Settings.Panel.ACTION_VOLUME)
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         context.startActivity(panelIntent)
                     } catch (_: Exception) {
                         openSettings(tile)
                     }
                 }
-            }
 
-            // NFC: Shizuku privileged or native Floating NFC Panel
-            id.contains("nfc") -> {
-                if (governor.isCommanderConnected.value) {
-                    governor.runShell("svc", "nfc", if (newState) "enable" else "disable")
-                } else {
-                    try {
-                        val panelIntent = Intent(Settings.Panel.ACTION_NFC)
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        context.startActivity(panelIntent)
-                    } catch (_: Exception) {
+                // Bluetooth: Shizuku privileged (svc bluetooth) or Intent request enable
+                id.contains("bt") || id.contains("bluetooth") -> {
+                    if (governor.canRunPrivileged) {
+                        governor.runShell("svc", "bluetooth", if (newState) "enable" else "disable")
+                    } else if (newState) {
+                        try {
+                            val intent = Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_ENABLE)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(intent)
+                        } catch (_: Exception) {
+                            openSettings(tile)
+                        }
+                    } else {
                         openSettings(tile)
                     }
                 }
-            }
 
-            // Volume: native Floating Volume Panel
-            id.contains("volume") -> {
-                try {
-                    val panelIntent = Intent(Settings.Panel.ACTION_VOLUME)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(panelIntent)
-                } catch (_: Exception) {
-                    openSettings(tile)
+                tile.capability == TileCapability.FULL_TOGGLE && governor.canRunPrivileged -> {
+                    togglePrivileged(tile)
                 }
-            }
 
-            // Bluetooth: Shizuku privileged or Intent request enable
-            id.contains("bt") || id.contains("bluetooth") -> {
-                if (governor.isCommanderConnected.value) {
-                    governor.runShell("cmd", "bluetooth", if (newState) "enable" else "disable")
-                } else if (newState) {
-                    try {
-                        val intent = Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_ENABLE)
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        context.startActivity(intent)
-                    } catch (_: Exception) {
-                        openSettings(tile)
-                    }
-                } else {
-                    openSettings(tile)
-                }
+                else -> openSettings(tile)
             }
-
-            tile.capability == TileCapability.FULL_TOGGLE && governor.isCommanderConnected.value -> {
-                togglePrivileged(tile)
-            }
-
-            else -> openSettings(tile)
+        } finally {
+            // Confirm actual hardware state after driver applies change
+            delay(250L)
+            tileRepo?.refreshActiveStates()
         }
     }
 
@@ -189,7 +200,7 @@ class TileToggler(
                 governor.runShell("svc", "wifi", if (newState) "enable" else "disable")
             }
             id.contains("bt") || id.contains("bluetooth") -> {
-                governor.runShell("cmd", "bluetooth", if (newState) "enable" else "disable")
+                governor.runShell("svc", "bluetooth", if (newState) "enable" else "disable")
             }
             id.contains("dark") || id.contains("uimodenight") || id.contains("night") -> {
                 governor.runShell("cmd", "uimode", "night", if (newState) "yes" else "no")

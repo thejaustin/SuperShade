@@ -11,6 +11,8 @@ import com.supershade.settings.ShadeSettings
 import com.supershade.shizuku.ShizukuPlusConnector
 import com.supershade.shizuku.StatusBarGovernor
 import com.supershade.viewmodel.ShadeViewModel
+import com.supershade.overlay.ShadeWindowManager
+import com.supershade.service.HeadsUpOverlay
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
@@ -20,7 +22,7 @@ val appModule = module {
     single { StatusBarGovernor(androidContext(), get()) }
     single { NotificationRepository() }
     single { TileRepository(androidContext(), get()) }
-    single { TileToggler(androidContext(), get()) }
+    single { TileToggler(androidContext(), get(), get()) }
     single { MediaRepository(androidContext()) }
     single { BrightnessRepository(androidContext(), get()) }
     single { UpdateChecker() }
@@ -38,4 +40,6 @@ val appModule = module {
             governor = get(),
         )
     }
+    single { ShadeWindowManager(androidContext(), get(), get()) }
+    single { HeadsUpOverlay(androidContext(), get(), get()) }
 }

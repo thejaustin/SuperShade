@@ -5,6 +5,30 @@ Releases follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.8.9] — 2026-09-15
+
+### Fixed & Enhanced (Gestures, Quick Settings Toggles, Categorization & Direct Installer)
+- **Responsive Notification Swipe-to-Dismiss**:
+  - Configured relaxed `positionalThreshold` (35% of total card distance) on `SwipeToDismissBoxState` for both single and grouped notification cards.
+  - Enabled bidirectional swipe dismissal (`enableDismissFromStartToEnd` & `enableDismissFromEndToStart`) with matching directional delete indicator backgrounds.
+- **Enhanced Notification Categorization Engine**:
+  - Added new `Productivity` (Tasks, Calendar, Notes, Reminders) and `Media` categories to `ShadeCategory`.
+  - Overhauled `CategoryEngine` with comprehensive heuristics across popular messaging, social, email, streaming, and productivity apps.
+  - Prevented user-facing Samsung apps (Samsung Pay, Notes, Health, Wearable) from being misclassified into the "System" category.
+  - Cleaned up `CategoryBar`: empty categories with 0 notifications are dynamically hidden to prevent clutter, and the bar is suppressed when no notifications exist.
+- **Direct Shade Presentation & Overlay Lifecycle**:
+  - Registered `ShadeWindowManager` and `HeadsUpOverlay` as shared singletons in `AppModule`.
+  - Injected `ShadeWindowManager` into `SuperShadeAccessibilityService` and `SuperShadeTileService` so the shade overlay presents immediately without failing due to Android 14+ background Foreground Service restrictions.
+  - Extended status bar touch capture zone by +36dp below the bezel in both `GestureOverlay` and `SuperShadeAccessibilityService` with relaxed swipe thresholds (18f move threshold, 0.75 ratio).
+- **Reliable Quick Settings Toggles**:
+  - Restored Bluetooth toggling on Samsung One UI by switching from `cmd bluetooth` to `svc bluetooth`.
+  - Added `canRunPrivileged` check in `StatusBarGovernor` to resolve async Shizuku service binding race conditions.
+  - Added optimistic UI state updates with automatic 250ms driver verification query.
+  - Fixed QuickSettingsGrid layout using chunked rows to prevent constraint overflows.
+- **In-App Direct Update Installer**:
+  - Integrated system `DownloadManager` in `UpdateDialog` with status-bar download progress and tap-to-install completion.
+  - Added `REQUEST_INSTALL_PACKAGES` permission in `AndroidManifest.xml` for direct APK installation.
+
 ## [1.8.8] — 2026-09-15
 
 ### Added & Enhanced (Dynamic Color Palette, One UI 8 Connectivity Cards & Rich Tile Subtitles)

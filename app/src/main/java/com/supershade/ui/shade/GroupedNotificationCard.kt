@@ -126,28 +126,34 @@ fun GroupedNotificationCard(
             if (value != SwipeToDismissBoxValue.Settled) {
                 onDismissGroup(); true
             } else false
-        }
+        },
+        positionalThreshold = { totalDistance -> totalDistance * 0.35f },
     )
 
     SwipeToDismissBox(
         state = dismissState,
         backgroundContent = {
+            val direction = dismissState.dismissDirection
+            val alignment = if (direction == SwipeToDismissBoxValue.StartToEnd)
+                Alignment.CenterStart else Alignment.CenterEnd
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight()
                     .clip(RoundedCornerShape(24.dp))
                     .background(Color(0xFFE53935)),
-                contentAlignment = Alignment.CenterEnd,
+                contentAlignment = alignment,
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Delete group",
                     tint = Color.White,
-                    modifier = Modifier.padding(end = 20.dp),
+                    modifier = Modifier.padding(horizontal = 20.dp),
                 )
             }
         },
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true,
         modifier = modifier.fillMaxWidth(),
     ) {
         // Box so ghost-peek strips can be drawn behind and below the main card.

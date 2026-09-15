@@ -282,14 +282,18 @@ class MainActivity : ComponentActivity() {
 
     private fun toggleShadeService(enable: Boolean) {
         val intent = Intent(this, ShadeService::class.java)
-        if (enable) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
+        try {
+            if (enable) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(intent)
+                } else {
+                    startService(intent)
+                }
             } else {
-                startService(intent)
+                stopService(intent)
             }
-        } else {
-            stopService(intent)
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "toggleShadeService failed: enable=$enable", e)
         }
     }
 }

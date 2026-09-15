@@ -63,11 +63,33 @@ fun UpdateDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                val url = update.apkDownloadUrl ?: update.releasePageUrl
-                context.startActivity(
-                    Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                )
+                val apkUrl = update.apkDownloadUrl
+                if (apkUrl != null) {
+                    try {
+                        val dm = context.getSystemService(android.app.DownloadManager::class.java)
+                        val uri = Uri.parse(apkUrl)
+                        val fileName = "SuperShade-${update.latestVersion}.apk"
+                        val request = android.app.DownloadManager.Request(uri).apply {
+                            setTitle("SuperShade ${update.latestVersion}")
+                            setDescription("Downloading update...")
+                            setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                            setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, fileName)
+                            setMimeType("application/vnd.android.package-archive")
+                        }
+                        dm?.enqueue(request)
+                        android.widget.Toast.makeText(context, "Downloading update to Downloads folder...", android.widget.Toast.LENGTH_SHORT).show()
+                    } catch (_: Exception) {
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse(apkUrl))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }
+                } else {
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW, Uri.parse(update.releasePageUrl))
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                }
                 onDismiss()
             }) {
                 Text("Download")

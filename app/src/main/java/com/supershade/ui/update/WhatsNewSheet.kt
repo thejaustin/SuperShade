@@ -29,6 +29,14 @@ import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
 private fun localReleaseNotes(version: String): String = when (version) {
+    "1.8.9" -> """
+        ✨ Gestures, Tile Fixes, Categorization & Direct Installer
+        • Responsive Swipe-to-Dismiss: Lighter 35% swipe threshold and bidirectional dismissal on individual and grouped notifications
+        • Enhanced Categorization: Added Productivity (Tasks/Calendar/Notes) and Media categories with smart app heuristics; clean dynamic bar that hides empty categories
+        • Direct Shade Presentation: Overlay presentation wired directly to accessibility & tile services for instant, reliable swipe-down response
+        • Quick Settings Tile Fixes: Restored Bluetooth toggling on One UI, optimistic visual state, and robust driver verification
+        • In-App Update Installer: Integrated system DownloadManager with live progress notifications and direct package installation
+    """.trimIndent()
     "1.8.8" -> """
         ✨ Dynamic Color Palette, One UI 8 Connectivity Cards & Live Subtitles
         • Dynamic Color Palette: Choose from Galaxy Blue, Emerald, Violet, Amber, Coral, or Dynamic Monet

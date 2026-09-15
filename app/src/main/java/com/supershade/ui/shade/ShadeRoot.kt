@@ -286,12 +286,14 @@ fun ShadeRoot(
                     }
 
                     // Notification category bar
-                    CategoryBar(
-                        categories = ShadeCategory.entries,
-                        selected = state.selectedCategory,
-                        onSelect = { viewModel.selectCategory(it) },
-                        counts = categoryCounts,
-                    )
+                    if (state.allNotifications.isNotEmpty()) {
+                        CategoryBar(
+                            categories = ShadeCategory.entries,
+                            selected = state.selectedCategory,
+                            onSelect = { viewModel.selectCategory(it) },
+                            counts = categoryCounts,
+                        )
+                    }
 
                     // Notification feed with full remaining space
                     NotificationFeed(

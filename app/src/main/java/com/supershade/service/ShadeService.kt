@@ -49,8 +49,8 @@ class ShadeService : Service() {
     /** Supervisor scope kept alive for the lifetime of the service. */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    private lateinit var windowManager: ShadeWindowManager
-    private lateinit var headsUpOverlay: HeadsUpOverlay
+    private val windowManager: ShadeWindowManager by inject()
+    private val headsUpOverlay: HeadsUpOverlay by inject()
     private var gestureOverlay: GestureOverlay? = null
 
     companion object {
@@ -68,9 +68,6 @@ class ShadeService : Service() {
         super.onCreate()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
-
-        windowManager = ShadeWindowManager(applicationContext, shadeViewModel, governor)
-        headsUpOverlay = HeadsUpOverlay(applicationContext, notificationRepo, settings)
 
         // Attach the gesture capture overlay. When a downward swipe is detected
         // the overlay tells the ShadeWindowManager to show the full shade UI.

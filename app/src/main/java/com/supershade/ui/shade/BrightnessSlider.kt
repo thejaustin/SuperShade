@@ -5,6 +5,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -178,6 +179,11 @@ fun BrightnessSlider(
                 .height(44.dp)
                 .clip(RoundedCornerShape(22.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                    shape = RoundedCornerShape(22.dp),
+                )
                 .onSizeChanged { trackWidthPx = it.width.toFloat().coerceAtLeast(1f) }
                 .pointerInput(isAuto) {
                     detectTapGestures { offset ->

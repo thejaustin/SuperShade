@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
@@ -31,12 +32,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -184,24 +187,36 @@ fun ShadeRoot(
                         onTileClick = { viewModel.toggleTile(it) },
                     )
 
-                    // Compact Dual Sliders Row: Brightness & Volume side-by-side
-                    Row(
+                    // Compact Dual Sliders Island: Brightness & Volume side-by-side
+                    Surface(
+                        shape = RoundedCornerShape(24.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f),
+                        ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                            .padding(horizontal = 14.dp, vertical = 3.dp),
                     ) {
-                        BrightnessSlider(
-                            brightness = state.brightness,
-                            onBrightnessChange = { viewModel.setBrightness(it) },
-                            compact = true,
-                            modifier = Modifier.weight(1f),
-                        )
-                        VolumeSlider(
-                            compact = true,
-                            modifier = Modifier.weight(1f),
-                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            BrightnessSlider(
+                                brightness = state.brightness,
+                                onBrightnessChange = { viewModel.setBrightness(it) },
+                                compact = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                            VolumeSlider(
+                                compact = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
                     }
 
                     // Quick Settings expansion chevron / drag handle

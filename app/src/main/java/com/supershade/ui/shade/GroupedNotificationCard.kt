@@ -164,7 +164,7 @@ fun GroupedNotificationCard(
                         .offset(y = 8.dp)
                         .height(16.dp)
                         .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                        .background(MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.8f)),
                 )
             }
             // Closer ghost — slightly less narrow, offset less
@@ -177,7 +177,7 @@ fun GroupedNotificationCard(
                         .offset(y = 4.dp)
                         .height(12.dp)
                         .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f)),
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.9f)),
                 )
             }
 
@@ -185,7 +185,11 @@ fun GroupedNotificationCard(
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
                 ),
                 modifier = Modifier
                     .fillMaxWidth()

@@ -29,6 +29,14 @@ import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
 private fun localReleaseNotes(version: String): String = when (version) {
+    "1.8.7" -> """
+        🎨 One UI 8 & Android 16 Island Architecture & AMOLED Theming
+        • Unified 26dp rounded island card for Quick Settings toggles with smooth spring height animation
+        • Dual Sliders Island: Brightness & Volume enclosed in matching 24dp rounded container
+        • Floating notification cards with surfaceContainer elevation and soft borders
+        • Deep AMOLED mode: pure black (#000000) backdrop with rich dark graphite cards for Galaxy displays
+        • Tactile haptic feedback on tile taps and category chip filters
+    """.trimIndent()
     "1.8.6" -> """
         🚀 GitHub Releases, In-App Auto-Update & Media Player Polish
         • Fixed GitHub release CI — release APKs and tags now publish automatically without failure

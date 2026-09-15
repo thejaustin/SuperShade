@@ -20,11 +20,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.NotificationsOff
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Snooze
 import androidx.compose.animation.AnimatedVisibility
@@ -165,7 +165,11 @@ fun NotificationCard(
         Card(
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface,
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            ),
+            border = androidx.compose.foundation.BorderStroke(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
             ),
             modifier = Modifier
                 .fillMaxWidth()
@@ -422,7 +426,7 @@ fun NotificationCard(
                                     },
                                     enabled = replyText.isNotBlank(),
                                 ) {
-                                    Icon(Icons.Default.Send, contentDescription = "Send reply")
+                                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send reply")
                                 }
                             }
                         }

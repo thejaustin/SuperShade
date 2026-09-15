@@ -4,6 +4,7 @@ import android.content.Intent
 import android.media.AudioManager
 import android.provider.Settings
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -19,11 +20,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeDown
+import androidx.compose.material.icons.automirrored.filled.VolumeMute
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.VolumeDown
-import androidx.compose.material.icons.filled.VolumeMute
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -83,9 +84,9 @@ fun VolumeSlider(
 
     val fraction = if (maxVol > 0f) (localValue / maxVol).coerceIn(0f, 1f) else 0f
     val volumeIcon = when {
-        localValue == 0f -> Icons.Default.VolumeOff
-        fraction < 0.5f  -> Icons.Default.VolumeDown
-        else             -> Icons.Default.VolumeUp
+        localValue == 0f -> Icons.AutoMirrored.Filled.VolumeOff
+        fraction < 0.5f  -> Icons.AutoMirrored.Filled.VolumeDown
+        else             -> Icons.AutoMirrored.Filled.VolumeUp
     }
 
     fun toggleMute() {
@@ -157,6 +158,11 @@ fun VolumeSlider(
                 .height(44.dp)
                 .clip(RoundedCornerShape(22.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                    shape = RoundedCornerShape(22.dp),
+                )
                 .onSizeChanged { trackWidthPx = it.width.toFloat().coerceAtLeast(1f) }
                 .pointerInput(Unit) {
                     detectTapGestures { offset ->

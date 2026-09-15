@@ -75,9 +75,14 @@ private fun CategoryChip(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // Active chip: Samsung blue pill. Inactive: transparent with dimmed text.
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+
+    // Active chip: Samsung blue pill. Inactive: soft pill with subtle border.
     val containerColor by animateColorAsState(
-        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        targetValue = if (isSelected)
+            MaterialTheme.colorScheme.primary
+        else
+            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.70f),
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMediumLow,
@@ -88,7 +93,7 @@ private fun CategoryChip(
         targetValue = if (isSelected)
             MaterialTheme.colorScheme.onPrimary
         else
-            MaterialTheme.colorScheme.onSurfaceVariant,
+            MaterialTheme.colorScheme.onSurface,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMediumLow,
@@ -106,10 +111,19 @@ private fun CategoryChip(
         label = "chipScale",
     )
 
+    val border = if (isSelected) null else androidx.compose.foundation.BorderStroke(
+        width = 1.dp,
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+    )
+
     Surface(
-        onClick = onClick,
+        onClick = {
+            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+            onClick()
+        },
         shape = RoundedCornerShape(50),
         color = containerColor,
+        border = border,
         interactionSource = interactionSource,
         modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale },
     ) {

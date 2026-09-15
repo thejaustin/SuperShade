@@ -14,14 +14,14 @@ import androidx.compose.ui.unit.sp
 
 // Authentic Google Pixel Material You dark shade palette
 private val PixelColors = darkColorScheme(
-    background = Color(0xF2191C1E),
-    surface = Color(0xFF191C1E),
-    surfaceVariant = Color(0xFF41474D),
-    surfaceContainerLowest = Color(0xFF0C0E10),
-    surfaceContainerLow = Color(0xFF171A1C),
-    surfaceContainer = Color(0xFF1D2024),
-    surfaceContainerHigh = Color(0xFF282A2E),
-    surfaceContainerHighest = Color(0xFF333539),
+    background = Color(0xE6131619),
+    surface = Color(0xEB15181B),
+    surfaceVariant = Color(0xFF383E44),
+    surfaceContainerLowest = Color(0xFF0B0D0F),
+    surfaceContainerLow = Color(0xFF131518),
+    surfaceContainer = Color(0xFF1A1D21),
+    surfaceContainerHigh = Color(0xFF24272D),
+    surfaceContainerHighest = Color(0xFF2F333A),
     primary = Color(0xFF9ECAFF),
     onPrimary = Color(0xFF003258),
     primaryContainer = Color(0xFF004881),
@@ -40,15 +40,16 @@ private val PixelColors = darkColorScheme(
 )
 
 private val PixelAmoledColors = PixelColors.copy(
-    background = Color.Black,
-    surface = Color.Black,
+    background = Color(0xF5000000),
+    surface = Color(0xF8000000),
     surfaceContainerLowest = Color.Black,
-    surfaceContainerLow = Color(0xFF08090A),
-    surfaceContainer = Color(0xFF101214),
-    surfaceContainerHigh = Color(0xFF181A1D),
-    surfaceContainerHighest = Color(0xFF222428),
-    surfaceVariant = Color(0xFF1E2024),
+    surfaceContainerLow = Color(0xFF08090C),
+    surfaceContainer = Color(0xFF111317),
+    surfaceContainerHigh = Color(0xFF191B20),
+    surfaceContainerHighest = Color(0xFF22252C),
+    surfaceVariant = Color(0xFF1B1D22),
     outline = Color(0xFF2E3136),
+    outlineVariant = Color(0xFF222428),
 )
 
 private val PixelTypography = Typography(

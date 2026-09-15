@@ -14,14 +14,14 @@ import androidx.compose.ui.unit.sp
 
 // Samsung OneUI 8 dark shade palette
 private val OneUiColors = darkColorScheme(
-    background        = Color(0xE6121316),   // 90% opaque dark
-    surface           = Color(0xFF1E2024),
-    surfaceVariant    = Color(0xFF2B2E34),
-    surfaceContainerLowest = Color(0xFF101114),
-    surfaceContainerLow = Color(0xFF181A1D),
-    surfaceContainer  = Color(0xFF222429),
-    surfaceContainerHigh = Color(0xFF2C2F35),
-    surfaceContainerHighest = Color(0xFF373A42),
+    background        = Color(0xE6101114),   // 90% opaque dark frosted
+    surface           = Color(0xEB121418),   // Translucent frosted glass surface
+    surfaceVariant    = Color(0xFF252830),
+    surfaceContainerLowest = Color(0xFF0C0D0F),
+    surfaceContainerLow = Color(0xFF15171B),
+    surfaceContainer  = Color(0xFF1D2026),   // Island container cards
+    surfaceContainerHigh = Color(0xFF272A32),
+    surfaceContainerHighest = Color(0xFF323640),
     primary           = Color(0xFF2575FC),   // Samsung Galaxy Blue
     primaryContainer  = Color(0xFF104BBF),
     onPrimary         = Color.White,
@@ -40,15 +40,16 @@ private val OneUiColors = darkColorScheme(
 )
 
 private val OneUiAmoledColors = OneUiColors.copy(
-    background = Color.Black,
-    surface = Color.Black,
+    background = Color(0xF5000000),
+    surface = Color(0xF8000000),
     surfaceContainerLowest = Color.Black,
-    surfaceContainerLow = Color(0xFF0A0B0D),
-    surfaceContainer = Color(0xFF141518),
-    surfaceContainerHigh = Color(0xFF1C1E22),
-    surfaceContainerHighest = Color(0xFF26282E),
-    surfaceVariant = Color(0xFF1A1B20),
-    outline = Color(0xFF2A2C33),
+    surfaceContainerLow = Color(0xFF08090C),
+    surfaceContainer = Color(0xFF111317),   // Deep graphite island cards
+    surfaceContainerHigh = Color(0xFF1A1C22),
+    surfaceContainerHighest = Color(0xFF242730),
+    surfaceVariant = Color(0xFF181A20),
+    outline = Color(0xFF2E313B),
+    outlineVariant = Color(0xFF22242C),
 )
 
 // Typography tuned to Samsung's visual weight hierarchy
@@ -96,11 +97,11 @@ private val OneUiTypography = Typography(
     ),
 )
 
-// Samsung One UI squircle curve standard (22dp rounded cards)
+// Samsung One UI squircle curve standard (24dp rounded cards, 28dp extra large)
 private val OneUiShapes = Shapes(
     small = RoundedCornerShape(12.dp),
     medium = RoundedCornerShape(18.dp),
-    large = RoundedCornerShape(22.dp),
+    large = RoundedCornerShape(24.dp),
     extraLarge = RoundedCornerShape(28.dp),
 )
 

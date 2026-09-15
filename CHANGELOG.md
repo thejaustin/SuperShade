@@ -5,6 +5,21 @@ Releases follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.8.7] — 2026-09-15
+
+### Added & Enhanced (One UI 8 & Android 16 Island Architecture & AMOLED Theming)
+- **One UI 8 Island Card Architecture**:
+  - Enclosed Quick Settings grid in a unified 26dp rounded island card with frosted translucent background and delicate outline border (`surfaceContainer`).
+  - Enclosed dual brightness & volume pill sliders in a matching 24dp rounded island container with consistent padding and alignment.
+  - Notification cards and notification groups upgraded to elevated `surfaceContainer` floating islands with subtle borders, eliminating flat background blending and enhancing readability.
+- **Deep AMOLED & Material You Palette Refinement**:
+  - Redesigned AMOLED mode with true black (`#000000`) canvas paired with rich dark graphite (`#111317`) island containers and crisp edges, saving battery on Galaxy Dynamic AMOLED 2X displays.
+  - Updated standard One UI dark palette to a modern frosted glass aesthetic (`Color(0xEB121418)`).
+- **Haptic & Visual Interaction Polish**:
+  - Added responsive tactile haptic feedback to Quick Settings tiles and category chips on tap.
+  - Category filter chips upgraded with rounded pill backgrounds and subtle inactive border strokes.
+  - Replaced legacy volume and send icons with modern `AutoMirrored` vector drawables.
+
 ## [1.8.6] — 2026-09-15
 
 ### Fixed & Enhanced (GitHub Releases, In-App Auto-Update & MediaCard Polish)

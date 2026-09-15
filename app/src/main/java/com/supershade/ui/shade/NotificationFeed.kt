@@ -54,7 +54,7 @@ fun NotificationFeed(
         val groups = notifications.toGroups()
         LazyColumn(
             modifier = modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {

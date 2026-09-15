@@ -1,10 +1,11 @@
 package com.supershade.ui.shade
 
+import android.content.Intent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import android.content.Intent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -18,8 +19,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.AirplanemodeActive
+import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.Battery5Bar
+import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.DarkMode
@@ -35,14 +40,10 @@ import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.WifiTethering
 import androidx.compose.material.icons.filled.Work
-import androidx.compose.material.icons.filled.BatteryChargingFull
-import androidx.compose.material.icons.filled.Battery5Bar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -51,13 +52,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.supershade.domain.tile.TileCapability
 import com.supershade.domain.tile.TileDefinition
 import com.supershade.ui.theme.ShadeTheme
 
@@ -69,14 +73,16 @@ fun TileCard(
     onClick: () -> Unit,
 ) {
     val context = LocalContext.current
-    // Pixel uses a full pill; OneUI uses a very rounded rect
+    val haptic = LocalHapticFeedback.current
+
+    // Pixel uses full pill (50%); OneUI uses a refined squircle (22dp)
     val cornerRadius = if (theme is ShadeTheme.Pixel) 50 else 22
 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.91f else 1f,
+        targetValue = if (isPressed) 0.92f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioLowBouncy,
             stiffness    = Spring.StiffnessHigh,
@@ -84,13 +90,11 @@ fun TileCard(
         label = "tileScale",
     )
 
-    val tileAlpha = 1f
-
     val containerColor by animateColorAsState(
         targetValue = if (tile.isActive)
             MaterialTheme.colorScheme.primary
         else
-            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.surfaceContainerHigh,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness    = Spring.StiffnessMedium,
@@ -101,7 +105,7 @@ fun TileCard(
         targetValue = if (tile.isActive)
             MaterialTheme.colorScheme.onPrimary
         else
-            MaterialTheme.colorScheme.onSurfaceVariant,
+            MaterialTheme.colorScheme.onSurface,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness    = Spring.StiffnessMedium,
@@ -109,31 +113,43 @@ fun TileCard(
         label = "tileContent",
     )
 
+    val indication = LocalIndication.current
+
+    val borderStroke = if (tile.isActive) null else BorderStroke(
+        width = 1.dp,
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f),
+    )
+
     Surface(
         shape = RoundedCornerShape(cornerRadius),
         color = containerColor,
+        border = borderStroke,
         modifier = Modifier
             .fillMaxWidth()
             .height(72.dp)
-            .graphicsLayer { scaleX = scale; scaleY = scale; alpha = tileAlpha }
-            .combinedClickable(
-                interactionSource = interactionSource,
-                indication = LocalIndication.current,
-                onClick = onClick,
-                onLongClick = tile.settingsAction?.let { action ->
-                    {
-                        try {
-                            context.startActivity(
-                                Intent(action).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
-                            )
-                        } catch (_: Exception) {}
-                    }
-                },
-            ),
+            .graphicsLayer { scaleX = scale; scaleY = scale },
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = indication,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onClick()
+                    },
+                    onLongClick = tile.settingsAction?.let { action ->
+                        {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            try {
+                                context.startActivity(
+                                    Intent(action).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                                )
+                            } catch (_: Exception) {}
+                        }
+                    },
+                )
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -146,7 +162,7 @@ fun TileCard(
             Column {
                 Text(
                     text = tile.label,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                     color = contentColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -181,8 +197,8 @@ private fun tileIcon(id: String): ImageVector = when (id) {
     "screenrecord" -> Icons.Default.RadioButtonChecked
     "dnd"          -> Icons.Default.DoNotDisturb
     "flashlight"   -> Icons.Default.FlashOn
-    "mute"         -> Icons.Default.VolumeOff
-    "volume"       -> Icons.Default.VolumeUp
+    "mute"         -> Icons.AutoMirrored.Filled.VolumeOff
+    "volume"       -> Icons.AutoMirrored.Filled.VolumeUp
     "battery"      -> Icons.Default.Battery5Bar
     "powershare"   -> Icons.Default.BatteryChargingFull
     "location"     -> Icons.Default.LocationOn

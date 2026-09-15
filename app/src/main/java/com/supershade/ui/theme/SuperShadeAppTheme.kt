@@ -69,6 +69,7 @@ private val LightColors = lightColorScheme(
 fun SuperShadeAppTheme(
     mode: DarkThemeMode = DarkThemeMode.SYSTEM,
     dynamicColor: Boolean = true,
+    accentColor: com.supershade.settings.AccentColor = com.supershade.settings.AccentColor.GALAXY_BLUE,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
@@ -80,13 +81,23 @@ fun SuperShadeAppTheme(
         DarkThemeMode.LIGHT -> false
     }
 
-    val colorScheme = when {
+    val baseScheme = when {
         mode == DarkThemeMode.AMOLED -> AmoledColors
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         isDark -> DarkColors
         else -> LightColors
+    }
+
+    val colorScheme = if (accentColor != com.supershade.settings.AccentColor.MONET) {
+        val c = Color(accentColor.hex)
+        baseScheme.copy(
+            primary = c,
+            primaryContainer = c.copy(alpha = 0.35f),
+        )
+    } else {
+        baseScheme
     }
 
     MaterialTheme(

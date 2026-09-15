@@ -18,6 +18,15 @@ enum class QsTileTapAction {
     SHOW_MENU,
 }
 
+enum class AccentColor(val label: String, val hex: Long) {
+    GALAXY_BLUE("Galaxy Blue", 0xFF2575FC),
+    EMERALD("Emerald", 0xFF10B981),
+    VIOLET("Violet", 0xFF8B5CF6),
+    AMBER("Amber", 0xFFF59E0B),
+    CORAL("Coral", 0xFFF43F5E),
+    MONET("Dynamic", 0L);
+}
+
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "supershade_prefs")
 
 class ShadeSettings(private val context: Context) {
@@ -25,6 +34,7 @@ class ShadeSettings(private val context: Context) {
     companion object {
         private val THEME_KEY = stringPreferencesKey("theme")
         private val DARK_MODE_KEY = stringPreferencesKey("dark_mode")
+        private val ACCENT_COLOR_KEY = stringPreferencesKey("accent_color")
         private val IS_ACTIVE_KEY = booleanPreferencesKey("is_active")
         private val ENABLED_TILES_KEY = stringPreferencesKey("enabled_tiles")
         private val LAST_SEEN_VERSION_KEY = stringPreferencesKey("last_seen_version")
@@ -47,6 +57,17 @@ class ShadeSettings(private val context: Context) {
             "light" -> com.supershade.ui.theme.DarkThemeMode.LIGHT
             "amoled" -> com.supershade.ui.theme.DarkThemeMode.AMOLED
             else -> com.supershade.ui.theme.DarkThemeMode.SYSTEM
+        }
+    }
+
+    val accentColor: Flow<AccentColor> = context.dataStore.data.map { prefs ->
+        when (prefs[ACCENT_COLOR_KEY]) {
+            "emerald" -> AccentColor.EMERALD
+            "violet" -> AccentColor.VIOLET
+            "amber" -> AccentColor.AMBER
+            "coral" -> AccentColor.CORAL
+            "monet" -> AccentColor.MONET
+            else -> AccentColor.GALAXY_BLUE
         }
     }
 
@@ -96,6 +117,19 @@ class ShadeSettings(private val context: Context) {
                 com.supershade.ui.theme.DarkThemeMode.LIGHT -> "light"
                 com.supershade.ui.theme.DarkThemeMode.AMOLED -> "amoled"
                 com.supershade.ui.theme.DarkThemeMode.SYSTEM -> "system"
+            }
+        }
+    }
+
+    suspend fun setAccentColor(accent: AccentColor) {
+        context.dataStore.edit { prefs ->
+            prefs[ACCENT_COLOR_KEY] = when (accent) {
+                AccentColor.EMERALD -> "emerald"
+                AccentColor.VIOLET -> "violet"
+                AccentColor.AMBER -> "amber"
+                AccentColor.CORAL -> "coral"
+                AccentColor.MONET -> "monet"
+                AccentColor.GALAXY_BLUE -> "galaxy_blue"
             }
         }
     }

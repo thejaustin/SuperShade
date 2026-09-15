@@ -108,10 +108,23 @@ private val OneUiShapes = Shapes(
 @Composable
 fun OneUiShadeTheme(
     isAmoled: Boolean = false,
+    accentColor: com.supershade.settings.AccentColor = com.supershade.settings.AccentColor.GALAXY_BLUE,
     content: @Composable () -> Unit,
 ) {
+    val base = if (isAmoled) OneUiAmoledColors else OneUiColors
+    val colorScheme = if (accentColor != com.supershade.settings.AccentColor.MONET) {
+        val c = Color(accentColor.hex)
+        base.copy(
+            primary = c,
+            primaryContainer = c.copy(alpha = 0.35f),
+            onPrimary = Color.White,
+            onPrimaryContainer = Color.White,
+        )
+    } else {
+        base
+    }
     MaterialTheme(
-        colorScheme = if (isAmoled) OneUiAmoledColors else OneUiColors,
+        colorScheme = colorScheme,
         typography  = OneUiTypography,
         shapes      = OneUiShapes,
         content     = content,

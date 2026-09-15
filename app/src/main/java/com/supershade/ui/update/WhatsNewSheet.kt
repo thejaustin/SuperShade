@@ -29,6 +29,13 @@ import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
 private fun localReleaseNotes(version: String): String = when (version) {
+    "1.8.8" -> """
+        ✨ Dynamic Color Palette, One UI 8 Connectivity Cards & Live Subtitles
+        • Dynamic Color Palette: Choose from Galaxy Blue, Emerald, Violet, Amber, Coral, or Dynamic Monet
+        • One UI 8 Dual Connectivity Cards: Prominent top-row Wi-Fi & Bluetooth island cards with live SSID/device labels
+        • Real-time rich tile subtitles: Bluetooth connected device name, Sound/Vibrate/Mute mode, Auto-rotate, and Hotspot status
+        • Cohesive theming across active tiles, buttons, swatches, and sliders
+    """.trimIndent()
     "1.8.7" -> """
         🎨 One UI 8 & Android 16 Island Architecture & AMOLED Theming
         • Unified 26dp rounded island card for Quick Settings toggles with smooth spring height animation

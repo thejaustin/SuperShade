@@ -1,29 +1,61 @@
 package com.supershade.ui.shade
 
+import android.content.Intent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.supershade.domain.tile.TileDefinition
 import com.supershade.ui.theme.ShadeTheme
 
 /**
  * Quick settings grid supporting compact mode (1 row, 4 primary quick tiles)
- * and expanded mode (up to 3 rows, 12 quick tiles) enclosed in a modern One UI 8 island container.
+ * and expanded mode enclosed in a modern One UI 8 island container.
+ * In One UI expanded mode, prominent dual connectivity pills (Wi-Fi & Bluetooth)
+ * sit at the top of the island matching Samsung One UI 8.
  */
 @Composable
 fun QuickSettingsGrid(
@@ -33,9 +65,23 @@ fun QuickSettingsGrid(
     isExpanded: Boolean = false,
     onTileClick: (TileDefinition) -> Unit,
 ) {
-    val displayedTiles = if (isExpanded) tiles.take(12) else tiles.take(4)
-    val rowCount = if (isExpanded) ((displayedTiles.size + 3) / 4).coerceAtLeast(1) else 1
-    val targetHeight = (rowCount * 72 + (rowCount - 1) * 8 + 20).dp
+    val showOneUiIslandCards = isExpanded && theme is ShadeTheme.OneUI
+    val wifiTile = if (showOneUiIslandCards) tiles.firstOrNull { it.id == "wifi" || it.id == "internet" } else null
+    val btTile = if (showOneUiIslandCards) tiles.firstOrNull { it.id == "bt" || it.id == "bluetooth" } else null
+    val hasWideCards = wifiTile != null && btTile != null
+
+    val displayedTiles = when {
+        hasWideCards -> tiles.filter { it != wifiTile && it != btTile }.take(8)
+        isExpanded -> tiles.take(12)
+        else -> tiles.take(4)
+    }
+
+    val rowCount = ((displayedTiles.size + 3) / 4).coerceAtLeast(1)
+    val targetHeight = if (hasWideCards) {
+        (62 + 8 + (rowCount * 72 + (rowCount - 1) * 8) + 20).dp
+    } else {
+        (rowCount * 72 + (rowCount - 1) * 8 + 20).dp
+    }
 
     val gridHeight by animateDpAsState(
         targetValue = targetHeight,
@@ -57,22 +103,178 @@ fun QuickSettingsGrid(
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 4.dp),
     ) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(4),
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(gridHeight)
                 .padding(horizontal = 10.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            userScrollEnabled = false,
         ) {
-            items(displayedTiles, key = { it.id }) { tile ->
-                TileCard(
-                    tile = tile,
-                    theme = theme,
-                    isShizukuConnected = isShizukuConnected,
-                    onClick = { onTileClick(tile) },
+            if (wifiTile != null && btTile != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ConnectivityWideCard(
+                        tile = wifiTile,
+                        theme = theme,
+                        onClick = { onTileClick(wifiTile) },
+                        modifier = Modifier.weight(1f),
+                    )
+                    ConnectivityWideCard(
+                        tile = btTile,
+                        theme = theme,
+                        onClick = { onTileClick(btTile) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(4),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                userScrollEnabled = false,
+            ) {
+                items(displayedTiles, key = { it.id }) { tile ->
+                    TileCard(
+                        tile = tile,
+                        theme = theme,
+                        isShizukuConnected = isShizukuConnected,
+                        onClick = { onTileClick(tile) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConnectivityWideCard(
+    tile: TileDefinition,
+    theme: ShadeTheme,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.94f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessHigh,
+        ),
+        label = "connScale",
+    )
+
+    val containerColor by animateColorAsState(
+        targetValue = if (tile.isActive)
+            MaterialTheme.colorScheme.primary
+        else
+            MaterialTheme.colorScheme.surfaceContainerHigh,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "connContainer",
+    )
+
+    val contentColor by animateColorAsState(
+        targetValue = if (tile.isActive)
+            MaterialTheme.colorScheme.onPrimary
+        else
+            MaterialTheme.colorScheme.onSurface,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "connContent",
+    )
+
+    val borderStroke = if (tile.isActive) null else BorderStroke(
+        width = 1.dp,
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f),
+    )
+
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = containerColor,
+        border = borderStroke,
+        modifier = modifier
+            .height(62.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale },
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = LocalIndication.current,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onClick()
+                    },
+                    onLongClick = tile.settingsAction?.let { action ->
+                        {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            try {
+                                context.startActivity(
+                                    Intent(action).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                                )
+                            } catch (_: Exception) {}
+                        }
+                    },
+                )
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (tile.isActive)
+                            Color.White.copy(alpha = 0.22f)
+                        else
+                            MaterialTheme.colorScheme.surfaceContainerHighest
+                    ),
+            ) {
+                Icon(
+                    imageVector = if (tile.id.contains("bt") || tile.id.contains("bluetooth"))
+                        Icons.Default.Bluetooth
+                    else
+                        Icons.Default.Wifi,
+                    contentDescription = tile.label,
+                    tint = contentColor,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = tile.label,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = contentColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = tile.subtitle ?: if (tile.isActive) "Connected" else "Off",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    color = contentColor.copy(alpha = 0.70f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }

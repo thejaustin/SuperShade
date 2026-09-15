@@ -147,6 +147,51 @@ class TileRepository(
                     val raw = wm.connectionInfo?.ssid?.trim('"')
                     if (!raw.isNullOrBlank() && raw != "<unknown ssid>") raw else "Connected"
                 }
+                key.contains("bt") || key.contains("bluetooth") -> {
+                    val bm = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+                    val adapter = bm?.adapter
+                    if (adapter?.isEnabled != true) return null
+                    try {
+                        @Suppress("MissingPermission")
+                        val bonded = adapter.bondedDevices?.filter { dev ->
+                            try {
+                                val isConnectedMethod = dev.javaClass.getMethod("isConnected")
+                                (isConnectedMethod.invoke(dev) as? Boolean) == true
+                            } catch (_: Exception) { false }
+                        }
+                        val name = bonded?.firstOrNull()?.name
+                        if (!name.isNullOrBlank()) name else "On"
+                    } catch (_: Exception) { "On" }
+                }
+                key.contains("mute") || key.contains("volume") || key.contains("sound") -> {
+                    val am = context.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
+                    when (am?.ringerMode) {
+                        android.media.AudioManager.RINGER_MODE_VIBRATE -> "Vibrate"
+                        android.media.AudioManager.RINGER_MODE_SILENT  -> "Mute"
+                        android.media.AudioManager.RINGER_MODE_NORMAL  -> "Sound"
+                        else -> null
+                    }
+                }
+                key.contains("rotation") || key.contains("rotationlock") -> {
+                    val auto = Settings.System.getInt(context.contentResolver, Settings.System.ACCELEROMETER_ROTATION, 0) == 1
+                    if (auto) "Auto rotate" else "Portrait"
+                }
+                key.contains("battery") || key.contains("batterymode") -> {
+                    val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+                    if (pm?.isPowerSaveMode == true) "Power saving" else null
+                }
+                key.contains("flashlight") -> {
+                    if (torchEnabled) "On" else null
+                }
+                key.contains("hotspot") -> {
+                    val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+                    val isAp = try {
+                        val m = wm?.javaClass?.getDeclaredMethod("isWifiApEnabled")
+                        m?.isAccessible = true
+                        (m?.invoke(wm) as? Boolean) == true
+                    } catch (_: Exception) { false }
+                    if (isAp) "Active" else null
+                }
                 key.contains("dnd") -> {
                     val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
                     when (nm?.currentInterruptionFilter) {

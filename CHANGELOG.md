@@ -5,6 +5,22 @@ Releases follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.8.8] — 2026-09-15
+
+### Added & Enhanced (Dynamic Color Palette, One UI 8 Connectivity Cards & Rich Tile Subtitles)
+- **Personalization & Accent Color Palette**:
+  - Added modern Color Palette engine supporting Galaxy Blue (`#2575FC`), Emerald (`#10B981`), Violet (`#8B5CF6`), Amber (`#F59E0B`), Coral (`#F43F5E`), and Dynamic Monet.
+  - Interactive circular color swatches in Settings with active ring indicator and accent preview.
+  - Seamless colorScheme propagation across One UI, Pixel, Pure Material, and in-app settings surfaces.
+- **One UI 8 Dual Connectivity Cards**:
+  - When expanded in One UI mode, two prominent wide connectivity cards (Wi-Fi and Bluetooth) are rendered at the top of the Quick Settings island matching Samsung One UI 8 layout.
+  - Integrated circular icon badges, primary accent activation state, and responsive spring touch animations.
+  - Long-pressing either card directly opens the corresponding system settings screen.
+- **Real-Time Rich Tile Subtitles**:
+  - Added connected Bluetooth device name queries via `BluetoothAdapter.bondedDevices`.
+  - Added sound mode status subtitles ("Sound", "Vibrate", "Mute") via `AudioManager.ringerMode`.
+  - Added Auto-rotate ("Auto rotate" / "Portrait") and Wi-Fi hotspot active indicator.
+
 ## [1.8.7] — 2026-09-15
 
 ### Added & Enhanced (One UI 8 & Android 16 Island Architecture & AMOLED Theming)

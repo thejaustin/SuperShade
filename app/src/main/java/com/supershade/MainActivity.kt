@@ -62,6 +62,7 @@ class MainActivity : ComponentActivity() {
             val shizukuConnected by connector.isConnected.collectAsState()
             val theme by settings.theme.collectAsState(initial = ShadeTheme.OneUI)
             val darkThemeMode by settings.darkThemeMode.collectAsState(initial = com.supershade.ui.theme.DarkThemeMode.SYSTEM)
+            val accentColor by settings.accentColor.collectAsState(initial = com.supershade.settings.AccentColor.GALAXY_BLUE)
             val isActive by settings.isActive.collectAsState(initial = false)
             val blockSystemShade by settings.blockSystemShade.collectAsState(initial = true)
             val qsTileTapAction by settings.qsTileTapAction.collectAsState(initial = QsTileTapAction.TOGGLE_ACTIVE)
@@ -69,7 +70,7 @@ class MainActivity : ComponentActivity() {
             val isCheckingUpdate by updateRepo.isChecking.collectAsState()
             val showWhatsNew by updateRepo.showWhatsNew.collectAsState()
 
-            SuperShadeAppTheme(mode = darkThemeMode) {
+            SuperShadeAppTheme(mode = darkThemeMode, accentColor = accentColor) {
                 // Re-checked on every resume so user sees instant feedback after
                 // granting access in system Settings.
                 var notifAccessGranted by remember { mutableStateOf(isNotificationAccessGranted()) }
@@ -137,6 +138,7 @@ class MainActivity : ComponentActivity() {
                         shadeActive = isActive,
                         blockSystemShade = blockSystemShade,
                         selectedTheme = theme,
+                        selectedAccentColor = accentColor,
                         darkThemeMode = darkThemeMode,
                         appVersion = BuildConfig.VERSION_NAME,
                         onToggleShade = { enabled ->
@@ -161,6 +163,9 @@ class MainActivity : ComponentActivity() {
                         },
                         onThemeChange = { newTheme ->
                             scope.launch { settings.setTheme(newTheme) }
+                        },
+                        onAccentColorChange = { newAccent ->
+                            scope.launch { settings.setAccentColor(newAccent) }
                         },
                         onDarkModeChange = { newMode ->
                             scope.launch { settings.setDarkThemeMode(newMode) }

@@ -70,6 +70,10 @@ class ShadeViewModel(
             .onEach { m -> _state.update { it.copy(darkThemeMode = m) } }
             .launchIn(viewModelScope)
 
+        settings.accentColor
+            .onEach { a -> _state.update { it.copy(accentColor = a) } }
+            .launchIn(viewModelScope)
+
         governor.isCommanderConnected
             .onEach { connected -> _state.update { it.copy(isShizukuConnected = connected) } }
             .launchIn(viewModelScope)

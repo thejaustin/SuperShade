@@ -88,15 +88,28 @@ fun ShadeRoot(
 
     val isAmoled = state.darkThemeMode == com.supershade.ui.theme.DarkThemeMode.AMOLED
     val themeWrapper: @Composable (@Composable () -> Unit) -> Unit = when (state.theme) {
-        ShadeTheme.Pixel -> { content -> PixelShadeTheme(isAmoled = isAmoled, content = content) }
+        ShadeTheme.Pixel -> { content ->
+            PixelShadeTheme(
+                isAmoled = isAmoled,
+                accentColor = state.accentColor,
+                content = content,
+            )
+        }
         ShadeTheme.PureMaterial -> { content ->
             PureMaterialShadeTheme(
                 isAmoled = isAmoled,
                 darkThemeMode = state.darkThemeMode,
+                accentColor = state.accentColor,
                 content = content,
             )
         }
-        else -> { content -> OneUiShadeTheme(isAmoled = isAmoled, content = content) }
+        else -> { content ->
+            OneUiShadeTheme(
+                isAmoled = isAmoled,
+                accentColor = state.accentColor,
+                content = content,
+            )
+        }
     }
 
     val coroutineScope = rememberCoroutineScope()

@@ -27,6 +27,13 @@ import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.ui.res.painterResource
 import com.supershade.R
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.sp
+import com.supershade.settings.AccentColor
 import com.supershade.settings.QsTileTapAction
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -64,11 +71,13 @@ fun SettingsScreen(
     shadeActive: Boolean,
     blockSystemShade: Boolean = true,
     selectedTheme: ShadeTheme,
+    selectedAccentColor: AccentColor = AccentColor.GALAXY_BLUE,
     appVersion: String,
     darkThemeMode: DarkThemeMode = DarkThemeMode.SYSTEM,
     onToggleShade: (Boolean) -> Unit,
     onBlockSystemShadeChange: (Boolean) -> Unit = {},
     onThemeChange: (ShadeTheme) -> Unit,
+    onAccentColorChange: (AccentColor) -> Unit = {},
     onDarkModeChange: (DarkThemeMode) -> Unit = {},
     onGrantOverlay: () -> Unit,
     onGrantWriteSettings: () -> Unit = {},
@@ -283,6 +292,27 @@ fun SettingsScreen(
                         ) {
                             Text(label)
                         }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Text(
+                    "Color Palette",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    AccentColor.entries.forEach { accent ->
+                        ColorPaletteSwatch(
+                            accent = accent,
+                            isSelected = selectedAccentColor == accent,
+                            onClick = { onAccentColorChange(accent) },
+                        )
                     }
                 }
             }
@@ -517,5 +547,72 @@ private fun StatusCard(
                 modifier = Modifier.size(20.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun ColorPaletteSwatch(
+    accent: AccentColor,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    val displayColor = if (accent == AccentColor.MONET) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        androidx.compose.ui.graphics.Color(accent.hex)
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+    ) {
+        androidx.compose.foundation.layout.Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(40.dp)
+                .then(
+                    if (isSelected) {
+                        Modifier.border(
+                            width = 2.dp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            shape = CircleShape,
+                        )
+                    } else Modifier
+                )
+                .padding(3.dp)
+                .clip(CircleShape)
+                .background(displayColor),
+        ) {
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = androidx.compose.ui.graphics.Color.White,
+                    modifier = Modifier.size(18.dp),
+                )
+            } else if (accent == AccentColor.MONET) {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    tint = androidx.compose.ui.graphics.Color.White,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = when (accent) {
+                AccentColor.GALAXY_BLUE -> "Galaxy"
+                AccentColor.EMERALD -> "Emerald"
+                AccentColor.VIOLET -> "Violet"
+                AccentColor.AMBER -> "Amber"
+                AccentColor.CORAL -> "Coral"
+                AccentColor.MONET -> "Monet"
+            },
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

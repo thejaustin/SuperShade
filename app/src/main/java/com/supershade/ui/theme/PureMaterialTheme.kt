@@ -89,6 +89,7 @@ private val PureMaterialShapes = Shapes(
 fun PureMaterialShadeTheme(
     isAmoled: Boolean = false,
     darkThemeMode: DarkThemeMode = DarkThemeMode.SYSTEM,
+    accentColor: com.supershade.settings.AccentColor = com.supershade.settings.AccentColor.MONET,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
@@ -108,7 +109,16 @@ fun PureMaterialShadeTheme(
         else -> FallbackLightColors
     }
 
-    val colorScheme = if (isAmoled && isDark) baseScheme.toAmoled() else baseScheme
+    val rawScheme = if (isAmoled && isDark) baseScheme.toAmoled() else baseScheme
+    val colorScheme = if (accentColor != com.supershade.settings.AccentColor.MONET) {
+        val c = Color(accentColor.hex)
+        rawScheme.copy(
+            primary = c,
+            primaryContainer = c.copy(alpha = 0.35f),
+        )
+    } else {
+        rawScheme
+    }
 
     MaterialTheme(
         colorScheme = colorScheme,

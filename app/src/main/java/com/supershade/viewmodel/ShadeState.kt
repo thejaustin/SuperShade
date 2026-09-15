@@ -25,4 +25,5 @@ data class ShadeState(
     val isShizukuConnected: Boolean = false,
     val brightness: Int = 128,
     val darkThemeMode: com.supershade.ui.theme.DarkThemeMode = com.supershade.ui.theme.DarkThemeMode.SYSTEM,
+    val accentColor: com.supershade.settings.AccentColor = com.supershade.settings.AccentColor.GALAXY_BLUE,
 )

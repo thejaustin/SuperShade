@@ -14,8 +14,8 @@ import androidx.compose.ui.unit.sp
 
 // Samsung OneUI 8 dark shade palette
 private val OneUiColors = darkColorScheme(
-    background        = Color(0xE6101114),   // 90% opaque dark frosted
-    surface           = Color(0xEB121418),   // Translucent frosted glass surface
+    background        = Color(0xF5101114),   // 96% deep frosted
+    surface           = Color(0xFA121418),   // 98% deep crisp frosted surface
     surfaceVariant    = Color(0xFF252830),
     surfaceContainerLowest = Color(0xFF0C0D0F),
     surfaceContainerLow = Color(0xFF15171B),
@@ -40,8 +40,8 @@ private val OneUiColors = darkColorScheme(
 )
 
 private val OneUiAmoledColors = OneUiColors.copy(
-    background = Color(0xF5000000),
-    surface = Color(0xF8000000),
+    background = Color(0xF8000000),
+    surface = Color(0xFC000000),
     surfaceContainerLowest = Color.Black,
     surfaceContainerLow = Color(0xFF08090C),
     surfaceContainer = Color(0xFF111317),   // Deep graphite island cards

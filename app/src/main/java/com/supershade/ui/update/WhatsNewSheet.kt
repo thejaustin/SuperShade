@@ -1,5 +1,9 @@
 package com.supershade.ui.update
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,26 +13,44 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
 private fun localReleaseNotes(version: String): String = when (version) {
+    "1.9.1" -> """
+        ✨ One UI 8 Notification Cards, Edge-to-Edge Settings & Visual Polish
+        • Authentic One UI 8 Notifications: 38dp prominent app icon badge with fallback letter avatar, streamlined app/time header, and bold subject hierarchy
+        • Grouped Stacks Modernization: Matching One UI 8 icon styling with count pill and sub-item separation
+        • Edge-to-Edge Settings UI: Removed redundant top bar header for a clean, immersive status bar transition into the Hero Header
+        • Deep Crisp Backdrop: Increased shade surface opacity to prevent background bleed-through while keeping glass aesthetic
+        • Enhanced Container Contrast: Richer slate and graphite surfaces in dark, AMOLED, and light themes
+        • Formatted Release Highlights: Structured What's New presentation with feature cards and icons
+    """.trimIndent()
     "1.9.0" -> """
         ✨ One UI 8 Settings Hub, Precision Gestures & Notification Polish
         • Modern Redesigned Settings UI: One UI 8 Hero header with live active badge, quick preview actions, and unified permissions island
@@ -221,6 +243,26 @@ private fun localReleaseNotes(version: String): String = when (version) {
     else -> "Thanks for keeping SuperShade up to date!"
 }
 
+private data class ReleaseNoteItem(
+    val title: String,
+    val description: String,
+)
+
+private fun parseReleaseNotes(raw: String): Pair<String, List<ReleaseNoteItem>> {
+    val lines = raw.lines().map { it.trim() }.filter { it.isNotBlank() }
+    val header = lines.firstOrNull { !it.startsWith("•") } ?: "What's new in SuperShade"
+    val items = lines.filter { it.startsWith("•") }.map { line ->
+        val content = line.removePrefix("•").trim()
+        val parts = content.split(":", limit = 2)
+        if (parts.size == 2) {
+            ReleaseNoteItem(parts[0].trim(), parts[1].trim())
+        } else {
+            ReleaseNoteItem(content, "")
+        }
+    }
+    return Pair(header, items)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WhatsNewSheet(
@@ -234,44 +276,143 @@ fun WhatsNewSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {
+        val notes = releaseNotes.ifBlank { localReleaseNotes(BuildConfig.VERSION_NAME) }
+        val (headerSubtitle, items) = remember(notes) { parseReleaseNotes(notes) }
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp)
                 .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.AutoAwesome,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp),
-                )
-                Spacer(Modifier.width(8.dp))
+            // Hero Header Card
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(26.dp),
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = "What's New",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            ) {
+                                Text(
+                                    text = "v${BuildConfig.VERSION_NAME}",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = headerSubtitle.removePrefix("✨").trim(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            // Feature Highlights Cards
+            if (items.isNotEmpty()) {
+                for (item in items) {
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = item.title,
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                if (item.description.isNotBlank()) {
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = item.description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        lineHeight = 18.sp,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
                 Text(
-                    text = "What's new in ${BuildConfig.VERSION_NAME}",
-                    style = MaterialTheme.typography.titleMedium,
+                    text = notes,
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
-            Spacer(Modifier.height(16.dp))
-            HorizontalDivider()
-            Spacer(Modifier.height(16.dp))
 
-            val notes = releaseNotes.ifBlank { localReleaseNotes(BuildConfig.VERSION_NAME) }
-            Text(
-                text = notes,
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            Spacer(Modifier.height(4.dp))
 
-            Spacer(Modifier.height(24.dp))
-            TextButton(
+            Button(
                 onClick = {
                     scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                 },
-                modifier = Modifier.align(Alignment.End),
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
             ) {
-                Text("Got it")
+                Text(
+                    text = "Explore SuperShade",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                )
             }
         }
     }

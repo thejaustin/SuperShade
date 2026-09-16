@@ -7,17 +7,29 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -120,6 +132,12 @@ fun TileCard(
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f),
     )
 
+    val stateDesc = if (tile.isActive) {
+        tile.subtitle ?: "Active"
+    } else {
+        "Off"
+    }
+
     Surface(
         shape = RoundedCornerShape(cornerRadius),
         color = containerColor,
@@ -127,7 +145,21 @@ fun TileCard(
         modifier = Modifier
             .fillMaxWidth()
             .height(72.dp)
-            .graphicsLayer { scaleX = scale; scaleY = scale },
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .semantics {
+                role = Role.Switch
+                stateDescription = stateDesc
+                tile.settingsAction?.let { action ->
+                    customActions = listOf(
+                        CustomAccessibilityAction("Open settings") {
+                            try {
+                                context.startActivity(Intent(action).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
+                                true
+                            } catch (_: Exception) { false }
+                        }
+                    )
+                }
+            },
     ) {
         Column(
             modifier = Modifier
@@ -149,16 +181,31 @@ fun TileCard(
                             } catch (_: Exception) {}
                         }
                     },
+                    role = Role.Switch,
                 )
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            Icon(
-                imageVector = tileIcon(tile.id),
-                contentDescription = tile.label,
-                tint = contentColor,
-                modifier = Modifier.size(22.dp),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = tileIcon(tile.id),
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(22.dp),
+                )
+                if (tile.isActive) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(contentColor.copy(alpha = 0.85f)),
+                    )
+                }
+            }
             Column {
                 Text(
                     text = tile.label,

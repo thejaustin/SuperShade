@@ -41,7 +41,18 @@ import androidx.compose.ui.unit.sp
 import com.supershade.BuildConfig
 import kotlinx.coroutines.launch
 
-private fun localReleaseNotes(version: String): String = when (version) {
+private fun localReleaseNotes(version: String): String {
+    val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
+    return when (cleanVersion) {
+    "1.9.2" -> """
+        ✨ Fluid Status Bar Gestures, One UI 8 Action Pills & Control Center Polish
+        • Enhanced Status Bar Pull Zone: Adaptive capture zone with density-scaled drag thresholds ensures 100% reliable swipe-downs without missed pulls
+        • Split Quick Settings Pull: Pull down from right 30% for instant expanded Quick Settings; pull left 70% for Notifications & compact QS
+        • One UI 8 Action Pills: Notification cards feature filled tonal pill action buttons with smooth click and reply flows
+        • Integrated Quick Reply: Full-width rounded reply pill with enter/send IME action and instant dispatch
+        • Quick Settings Tile Polish: Active indicator status dots, micro-elevation, and refined tactile feedback on tap and long-press
+        • Control Center Pill Handle: Tactile rounded drag handle between quick settings and sliders for effortless collapse and expansion
+    """.trimIndent()
     "1.9.1" -> """
         ✨ One UI 8 Notification Cards, Edge-to-Edge Settings & Visual Polish
         • Authentic One UI 8 Notifications: 38dp prominent app icon badge with fallback letter avatar, streamlined app/time header, and bold subject hierarchy
@@ -241,6 +252,7 @@ private fun localReleaseNotes(version: String): String = when (version) {
         Functional custom shade with notifications, Quick Settings, brightness, and media controls.
     """.trimIndent()
     else -> "Thanks for keeping SuperShade up to date!"
+    }
 }
 
 private data class ReleaseNoteItem(

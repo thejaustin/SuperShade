@@ -44,6 +44,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -155,14 +163,35 @@ fun VolumeSlider(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(44.dp)
-                .clip(RoundedCornerShape(22.dp))
+                .height(50.dp)
+                .clip(RoundedCornerShape(25.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
                 .border(
                     width = 1.dp,
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(25.dp),
                 )
+                .semantics {
+                    contentDescription = "Media volume"
+                    stateDescription = if (localValue == 0f) "Muted" else "${(fraction * 100).roundToInt()}%"
+                    progressBarRangeInfo = ProgressBarRangeInfo(
+                        current = localValue,
+                        range = 0f..maxVol,
+                        steps = 0,
+                    )
+                    setProgress { targetValue ->
+                        val clamped = targetValue.coerceIn(0f, maxVol)
+                        localValue = clamped
+                        try {
+                            audioManager.setStreamVolume(
+                                AudioManager.STREAM_MUSIC,
+                                clamped.toInt(),
+                                0,
+                            )
+                        } catch (_: Exception) {}
+                        true
+                    }
+                }
                 .onSizeChanged { trackWidthPx = it.width.toFloat().coerceAtLeast(1f) }
                 .pointerInput(Unit) {
                     detectTapGestures { offset ->
@@ -216,17 +245,21 @@ fun VolumeSlider(
                 // Speaker icon on the left (tap to mute/unmute, long press for sound settings)
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
                         .combinedClickable(
                             onClick = { toggleMute() },
                             onLongClick = { openVolumePanel() },
-                        ),
+                            role = Role.Button,
+                        )
+                        .semantics {
+                            contentDescription = if (localValue == 0f) "Unmute volume" else "Mute volume"
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = volumeIcon,
-                        contentDescription = "Volume Icon",
+                        contentDescription = null,
                         tint = if (fraction > 0.18f) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp),
                     )
@@ -248,15 +281,19 @@ fun VolumeSlider(
         IconButton(
             onClick = { openVolumePanel() },
             modifier = Modifier
-                .size(36.dp)
+                .size(44.dp)
                 .clip(CircleShape)
-                .background(Color.Transparent),
+                .background(Color.Transparent)
+                .semantics {
+                    role = Role.Button
+                    contentDescription = "Volume mixer panel"
+                },
         ) {
             Icon(
                 imageVector = Icons.Default.GraphicEq,
                 contentDescription = "Volume Mixer Panel",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(20.dp),
             )
         }
     }

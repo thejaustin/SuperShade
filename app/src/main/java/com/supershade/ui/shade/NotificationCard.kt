@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -41,6 +42,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Surface
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SwipeToDismissBox
@@ -304,13 +310,13 @@ fun NotificationCard(
                             if (canExpand) {
                                 IconButton(
                                     onClick = { expanded = !expanded },
-                                    modifier = Modifier.size(24.dp),
+                                    modifier = Modifier.size(36.dp),
                                 ) {
                                     Icon(
                                         imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                        contentDescription = if (expanded) "Collapse" else "Expand",
+                                        contentDescription = if (expanded) "Collapse notification details" else "Expand notification details",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(18.dp),
+                                        modifier = Modifier.size(20.dp),
                                     )
                                 }
                             }
@@ -444,7 +450,7 @@ fun NotificationCard(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         notification.actions.take(3).forEach { action ->
-                            OutlinedButton(
+                            Surface(
                                 onClick = {
                                     if (action.replyInput != null) {
                                         replyingAction = action
@@ -452,23 +458,52 @@ fun NotificationCard(
                                         try { action.pendingIntent?.send() } catch (_: Exception) {}
                                     }
                                 },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(50),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(36.dp),
                             ) {
-                                Text(
-                                    text = action.label,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 10.dp),
+                                ) {
+                                    Text(
+                                        text = action.label,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                             }
                         }
                     }
                     AnimatedVisibility(visible = replyingAction != null) {
                         replyingAction?.let { action ->
                             var replyText by remember(action) { mutableStateOf("") }
+                            fun sendReply() {
+                                val ri = action.replyInput ?: return
+                                if (replyText.isBlank()) return
+                                val intent = android.content.Intent().addFlags(android.content.Intent.FLAG_RECEIVER_FOREGROUND)
+                                android.app.RemoteInput.addResultsToIntent(
+                                    arrayOf(ri), intent,
+                                    android.os.Bundle().apply { putCharSequence(ri.resultKey, replyText) }
+                                )
+                                try { action.pendingIntent?.send(context, 0, intent) } catch (_: Exception) {}
+                                replyingAction = null
+                            }
+
                             Row(
-                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
@@ -478,22 +513,24 @@ fun NotificationCard(
                                     placeholder = { Text("Reply…", style = MaterialTheme.typography.bodySmall) },
                                     modifier = Modifier.weight(1f),
                                     singleLine = true,
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = RoundedCornerShape(24.dp),
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                                    keyboardActions = KeyboardActions(onSend = { sendReply() }),
                                 )
-                                IconButton(
-                                    onClick = {
-                                        val ri = action.replyInput ?: return@IconButton
-                                        val intent = android.content.Intent().addFlags(android.content.Intent.FLAG_RECEIVER_FOREGROUND)
-                                        android.app.RemoteInput.addResultsToIntent(
-                                            arrayOf(ri), intent,
-                                            android.os.Bundle().apply { putCharSequence(ri.resultKey, replyText) }
-                                        )
-                                        try { action.pendingIntent?.send(context, 0, intent) } catch (_: Exception) {}
-                                        replyingAction = null
-                                    },
-                                    enabled = replyText.isNotBlank(),
+                                Surface(
+                                    onClick = { sendReply() },
+                                    shape = CircleShape,
+                                    color = if (replyText.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    modifier = Modifier.size(42.dp),
                                 ) {
-                                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send reply")
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            Icons.AutoMirrored.Filled.Send,
+                                            contentDescription = "Send reply",
+                                            tint = if (replyText.isNotBlank()) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
                                 }
                             }
                         }

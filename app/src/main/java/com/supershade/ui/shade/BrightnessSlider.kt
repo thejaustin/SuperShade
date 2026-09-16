@@ -43,6 +43,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -176,14 +184,29 @@ fun BrightnessSlider(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(44.dp)
-                .clip(RoundedCornerShape(22.dp))
+                .height(50.dp)
+                .clip(RoundedCornerShape(25.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
                 .border(
                     width = 1.dp,
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(25.dp),
                 )
+                .semantics {
+                    contentDescription = "Screen brightness"
+                    stateDescription = if (isAuto) "Auto ${(fraction * 100).roundToInt()}%" else "${(fraction * 100).roundToInt()}%"
+                    progressBarRangeInfo = ProgressBarRangeInfo(
+                        current = localValue,
+                        range = 1f..255f,
+                        steps = 0,
+                    )
+                    setProgress { targetValue ->
+                        val clamped = targetValue.coerceIn(1f, 255f)
+                        localValue = clamped
+                        onBrightnessChange(clamped.roundToInt())
+                        true
+                    }
+                }
                 .onSizeChanged { trackWidthPx = it.width.toFloat().coerceAtLeast(1f) }
                 .pointerInput(isAuto) {
                     detectTapGestures { offset ->
@@ -224,14 +247,14 @@ fun BrightnessSlider(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 12.dp),
+                    .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 // Sun icon on the left
                 Icon(
                     imageVector = sunIcon,
-                    contentDescription = "Brightness",
+                    contentDescription = null,
                     tint = if (fraction > 0.18f) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp),
                 )
@@ -257,15 +280,19 @@ fun BrightnessSlider(
         IconButton(
             onClick = { toggleAuto() },
             modifier = Modifier
-                .size(36.dp)
+                .size(44.dp)
                 .clip(CircleShape)
-                .background(autoBg),
+                .background(autoBg)
+                .semantics {
+                    role = Role.Switch
+                    stateDescription = if (isAuto) "Auto brightness on" else "Auto brightness off"
+                },
         ) {
             Icon(
                 imageVector = Icons.Default.BrightnessAuto,
                 contentDescription = if (isAuto) "Disable auto brightness" else "Enable auto brightness",
                 tint = autoIconTint,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(20.dp),
             )
         }
     }

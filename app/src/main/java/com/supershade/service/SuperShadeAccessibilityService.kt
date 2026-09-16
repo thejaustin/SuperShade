@@ -116,10 +116,16 @@ class SuperShadeAccessibilityService : AccessibilityService() {
         windowManager = wm
 
         val statusBarHeightPx = run {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val insets = wm.currentWindowMetrics.windowInsets.getInsetsIgnoringVisibility(
+                    android.view.WindowInsets.Type.statusBars()
+                )
+                val top = insets?.top ?: 0
+                if (top > 0) return@run top
+            }
             val resId = resources.getIdentifier("status_bar_height", "dimen", "android")
             val h = if (resId > 0) resources.getDimensionPixelSize(resId) else 0
-            val base = h.coerceAtLeast((28 * resources.displayMetrics.density).toInt())
-            base + (6 * resources.displayMetrics.density).toInt()
+            h.coerceAtLeast((28 * resources.displayMetrics.density).toInt())
         }
 
         val params = WindowManager.LayoutParams(
@@ -142,6 +148,7 @@ class SuperShadeAccessibilityService : AccessibilityService() {
         var startY = 0f
         var startTime = 0L
         var triggered = false
+        val dragThreshold = (16f * resources.displayMetrics.density).coerceAtLeast(22f)
 
         val view = View(this).apply {
             setOnTouchListener { v, event ->
@@ -157,11 +164,11 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                     MotionEvent.ACTION_MOVE -> {
                         val deltaX = kotlin.math.abs(event.rawX - startX)
                         val deltaY = event.rawY - startY
-                        if (!triggered && deltaY > 18f && deltaY > deltaX * 0.75f) {
+                        if (!triggered && deltaY > dragThreshold && deltaY > deltaX * 0.70f) {
                             triggered = true
                             v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
                             val screenWidth = resources.displayMetrics.widthPixels
-                            val expandQs = startX > screenWidth * 0.72f
+                            val expandQs = startX > screenWidth * 0.70f
                             openSuperShade(expandQs)
                         }
                         true
@@ -170,11 +177,11 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                         val deltaX = kotlin.math.abs(event.rawX - startX)
                         val deltaY = event.rawY - startY
                         val duration = System.currentTimeMillis() - startTime
-                        if (!triggered && deltaY > 12f && deltaY > deltaX * 0.75f && duration < 700) {
+                        if (!triggered && deltaY > (dragThreshold * 0.65f) && deltaY > deltaX * 0.70f && duration < 750) {
                             triggered = true
                             v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
                             val screenWidth = resources.displayMetrics.widthPixels
-                            val expandQs = startX > screenWidth * 0.72f
+                            val expandQs = startX > screenWidth * 0.70f
                             openSuperShade(expandQs)
                         }
                         true

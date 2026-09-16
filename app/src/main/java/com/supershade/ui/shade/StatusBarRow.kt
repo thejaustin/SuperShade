@@ -7,17 +7,25 @@ import android.net.TrafficStats
 import android.os.BatteryManager
 import android.provider.AlarmClock
 import android.provider.Settings
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Battery2Bar
 import androidx.compose.material.icons.filled.Battery3Bar
@@ -43,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.supershade.viewmodel.StatusBarState
 import kotlinx.coroutines.delay
@@ -209,12 +218,18 @@ fun StatusBarRow(
         verticalAlignment = Alignment.Top,
     ) {
         // OneUI signature: large lightweight clock + date stacked on the left
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
             // Two-part clock: large digits + smaller AM/PM — One UI style
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { launchClock(context) },
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(
+                        onClick = { launchClock(context) },
+                        role = Role.Button,
+                    )
+                    .semantics {
+                        contentDescription = "Clock: $time $ampm"
+                    },
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
@@ -237,8 +252,15 @@ fun StatusBarRow(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .clickable { launchCalendar(context) },
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(
+                        onClick = { launchCalendar(context) },
+                        role = Role.Button,
+                    )
+                    .semantics {
+                        contentDescription = "Date: $date"
+                    }
+                    .padding(vertical = 2.dp),
             )
             val netLabel = buildList {
                 if (netDown.isNotEmpty()) add("↓ $netDown")
@@ -256,66 +278,91 @@ fun StatusBarRow(
         // Right side: Header actions (Power & Settings) + Battery Status
         Column(
             horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            // Top action buttons: Power menu & Settings gear
+            // Top action buttons: Power menu & Settings gear with 44dp minimum touch targets
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 IconButton(
                     onClick = onOpenPowerMenu,
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape),
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .semantics {
+                            role = Role.Button
+                            contentDescription = "Power options"
+                        },
                 ) {
                     Icon(
                         imageVector = Icons.Default.PowerSettingsNew,
                         contentDescription = "Power options",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(22.dp),
                     )
                 }
 
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
                         .combinedClickable(
                             onClick = onOpenSettings,
                             onLongClick = { launchSystemSettings(context) },
-                        ),
+                            role = Role.Button,
+                        )
+                        .semantics {
+                            contentDescription = "Settings"
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
                         contentDescription = "Settings",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(22.dp),
                     )
                 }
             }
 
-            // Battery percentage + icon (clickable -> battery settings)
-            Row(
+            // Battery percentage + icon with comfortable capsule pill & full accessibility description
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f),
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f),
+                ),
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { launchBatterySettings(context) }
-                    .padding(horizontal = 6.dp, vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable(
+                        onClick = { launchBatterySettings(context) },
+                        role = Role.Button,
+                    )
+                    .semantics {
+                        contentDescription = "$batteryPct percent battery" + if (isCharging) ", charging" else ""
+                    },
             ) {
-                Text(
-                    text = "$batteryPct%",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = batteryTint,
-                )
-                Icon(
-                    imageVector = batteryIcon,
-                    contentDescription = "Battery",
-                    tint = batteryTint,
-                    modifier = Modifier.size(18.dp),
-                )
+                Row(
+                    modifier = Modifier
+                        .defaultMinSize(minHeight = 36.dp)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = "$batteryPct%",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = batteryTint,
+                    )
+                    Icon(
+                        imageVector = batteryIcon,
+                        contentDescription = null,
+                        tint = batteryTint,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
         }
     }

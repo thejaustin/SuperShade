@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,6 +34,11 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -200,7 +206,7 @@ fun ShadeRoot(
                         onTileClick = { viewModel.toggleTile(it) },
                     )
 
-                    // Compact Dual Sliders Island: Brightness & Volume side-by-side
+                    // Full-Width Tactile Sliders Island
                     Surface(
                         shape = RoundedCornerShape(24.dp),
                         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
@@ -212,66 +218,92 @@ fun ShadeRoot(
                             .fillMaxWidth()
                             .padding(horizontal = 14.dp, vertical = 3.dp),
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 8.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             BrightnessSlider(
                                 brightness = state.brightness,
                                 onBrightnessChange = { viewModel.setBrightness(it) },
-                                compact = true,
-                                modifier = Modifier.weight(1f),
+                                compact = false,
+                                modifier = Modifier.fillMaxWidth(),
                             )
-                            VolumeSlider(
-                                compact = true,
-                                modifier = Modifier.weight(1f),
-                            )
+                            if (isQsExpanded) {
+                                VolumeSlider(
+                                    compact = false,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
                         }
                     }
 
-                    // Quick Settings expansion chevron / drag handle
+                    // Quick Settings expansion pill handle
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(26.dp)
-                            .draggable(
-                                orientation = Orientation.Vertical,
-                                state = rememberDraggableState { delta ->
-                                    if (delta > 8f && !isQsExpanded) {
-                                        viewModel.setQsExpanded(true)
-                                    } else if (delta < -8f && isQsExpanded) {
-                                        viewModel.setQsExpanded(false)
-                                    } else if (delta < -4f && !isQsExpanded) {
-                                        coroutineScope.launch {
-                                            dragOffset.snapTo((dragOffset.value + delta).coerceAtMost(0f))
-                                        }
-                                    }
-                                },
-                                onDragStopped = { velocity ->
-                                    if (!isQsExpanded && (velocity < -velocityThresholdPxPerSec || dragOffset.value < -dismissThresholdPx)) {
-                                        coroutineScope.launch {
-                                            dragOffset.animateTo(-3000f, tween(200))
-                                            onDismiss()
-                                        }
-                                    } else {
-                                        coroutineScope.launch {
-                                            dragOffset.animateTo(0f, spring(0.55f, 450f))
-                                        }
-                                    }
-                                },
-                            )
-                            .clickable { viewModel.setQsExpanded(!isQsExpanded) },
+                            .padding(vertical = 2.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(
-                            imageVector = if (isQsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                            contentDescription = if (isQsExpanded) "Collapse Quick Settings" else "Expand Quick Settings",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.size(20.dp),
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.50f),
+                            modifier = Modifier
+                                .semantics(mergeDescendants = true) {
+                                    role = Role.Button
+                                    contentDescription = if (isQsExpanded) "Collapse Quick Settings" else "Expand Quick Settings"
+                                    stateDescription = if (isQsExpanded) "Expanded" else "Collapsed"
+                                }
+                                .defaultMinSize(minWidth = 72.dp, minHeight = 36.dp)
+                                .draggable(
+                                    orientation = Orientation.Vertical,
+                                    state = rememberDraggableState { delta ->
+                                        if (delta > 8f && !isQsExpanded) {
+                                            viewModel.setQsExpanded(true)
+                                        } else if (delta < -8f && isQsExpanded) {
+                                            viewModel.setQsExpanded(false)
+                                        } else if (delta < -4f && !isQsExpanded) {
+                                            coroutineScope.launch {
+                                                dragOffset.snapTo((dragOffset.value + delta).coerceAtMost(0f))
+                                            }
+                                        }
+                                    },
+                                    onDragStopped = { velocity ->
+                                        if (!isQsExpanded && (velocity < -velocityThresholdPxPerSec || dragOffset.value < -dismissThresholdPx)) {
+                                            coroutineScope.launch {
+                                                dragOffset.animateTo(-3000f, tween(200))
+                                                onDismiss()
+                                            }
+                                        } else {
+                                            coroutineScope.launch {
+                                                dragOffset.animateTo(0f, spring(0.55f, 450f))
+                                            }
+                                        }
+                                    },
+                                )
+                                .clickable { viewModel.setQsExpanded(!isQsExpanded) },
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(32.dp)
+                                        .height(4.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.40f)),
+                                )
+                                Icon(
+                                    imageVector = if (isQsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.60f),
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        }
                     }
 
                     // Media playback card (if active)

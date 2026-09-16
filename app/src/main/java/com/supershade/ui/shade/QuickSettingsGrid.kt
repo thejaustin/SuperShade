@@ -49,6 +49,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import com.supershade.domain.tile.TileDefinition
 import com.supershade.ui.theme.ShadeTheme
 
@@ -202,9 +209,29 @@ private fun ConnectivityWideCard(
             .height(62.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale },
     ) {
+        val stateDesc = tile.subtitle ?: if (tile.isActive) "Connected" else "Off"
         Row(
             modifier = Modifier
                 .fillMaxSize()
+                .semantics(mergeDescendants = true) {
+                    role = Role.Switch
+                    contentDescription = tile.label
+                    stateDescription = stateDesc
+                    tile.settingsAction?.let { action ->
+                        customActions = listOf(
+                            CustomAccessibilityAction("Open settings") {
+                                try {
+                                    context.startActivity(
+                                        Intent(action).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                                    )
+                                    true
+                                } catch (_: Exception) {
+                                    false
+                                }
+                            }
+                        )
+                    }
+                }
                 .combinedClickable(
                     interactionSource = interactionSource,
                     indication = LocalIndication.current,
@@ -244,7 +271,7 @@ private fun ConnectivityWideCard(
                         Icons.Default.Bluetooth
                     else
                         Icons.Default.Wifi,
-                    contentDescription = tile.label,
+                    contentDescription = null,
                     tint = contentColor,
                     modifier = Modifier.size(20.dp),
                 )

@@ -454,10 +454,10 @@ fun SettingsScreen(
                         .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                 ) {
-                    // Left 72% segment: Notifications + Quick Settings
+                    // Left 70% segment: Notifications + Quick Settings
                     Box(
                         modifier = Modifier
-                            .weight(0.72f)
+                            .weight(0.70f)
                             .height(44.dp)
                             .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
                             .padding(horizontal = 10.dp),
@@ -474,7 +474,7 @@ fun SettingsScreen(
                                 modifier = Modifier.size(16.dp),
                             )
                             Text(
-                                text = "Notifications + QS (Left 72%)",
+                                text = "Notifications + QS (Left 70%)",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 11.sp,
@@ -491,17 +491,17 @@ fun SettingsScreen(
                             .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                     )
 
-                    // Right 28% segment: Quick Settings
+                    // Right 30% segment: Quick Settings
                     Box(
                         modifier = Modifier
-                            .weight(0.28f)
+                            .weight(0.30f)
                             .height(44.dp)
                             .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f))
                             .padding(horizontal = 6.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = "QS Only (Right)",
+                            text = "QS Only (Right 30%)",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 10.sp,

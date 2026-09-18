@@ -184,7 +184,9 @@ fun StatusBarRow(
 
     LaunchedEffect(Unit) {
         while (true) {
-            delay(60_000L)
+            val now = System.currentTimeMillis()
+            val delayMs = (60_000L - (now % 60_000L)).coerceIn(100L, 60_000L)
+            delay(delayMs)
             time = SimpleDateFormat("h:mm", Locale.getDefault()).format(Date())
             ampm = SimpleDateFormat("a", Locale.getDefault()).format(Date())
             date = formatDate()

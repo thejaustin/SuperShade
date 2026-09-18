@@ -35,7 +35,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.CompositionLocalProvider
+import com.supershade.haptics.LocalSuperHaptics
+import com.supershade.haptics.SuperHaptics
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
@@ -145,6 +149,12 @@ class HeadsUpOverlay(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            @Suppress("DEPRECATION")
+            flags = flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+            val density = context.resources.displayMetrics.density
+            blurBehindRadius = (22 * density).toInt().coerceIn(50, 90)
+        }
     }
 
     /**
@@ -181,29 +191,33 @@ class HeadsUpOverlay(
                         else -> { content -> OneUiShadeTheme(isAmoled = isAmoled, content = content) }
                     }
 
-                    themeWrapper {
-                        HeadsUpCard(
-                            notification = notification,
-                            onTap = {
-                                try { notification.contentIntent?.send() } catch (_: Exception) {}
-                                handler.post { dismissCurrent() }
-                            },
-                            onHide = {
-                                handler.post { dismissCurrent() }
-                            },
-                            onDismiss = {
-                                notificationRepo?.cancelAndRemove(notification.key)
-                                handler.post { dismissCurrent() }
-                            },
-                            onSnooze = { durationMs ->
-                                notificationRepo?.snooze(notification.key, durationMs)
-                                handler.post { dismissCurrent() }
-                            },
-                            onPauseAutoDismiss = {
-                                currentDismissToken = null
-                                handler.removeCallbacksAndMessages(null)
-                            },
-                        )
+                    val superHaptics = remember { SuperHaptics(context) }
+                    CompositionLocalProvider(LocalSuperHaptics provides superHaptics) {
+                        themeWrapper {
+                            HeadsUpCard(
+                                notification = notification,
+                                isAmoled = isAmoled,
+                                onTap = {
+                                    try { notification.contentIntent?.send() } catch (_: Exception) {}
+                                    handler.post { dismissCurrent() }
+                                },
+                                onHide = {
+                                    handler.post { dismissCurrent() }
+                                },
+                                onDismiss = {
+                                    notificationRepo?.cancelAndRemove(notification.key)
+                                    handler.post { dismissCurrent() }
+                                },
+                                onSnooze = { durationMs ->
+                                    notificationRepo?.snooze(notification.key, durationMs)
+                                    handler.post { dismissCurrent() }
+                                },
+                                onPauseAutoDismiss = {
+                                    currentDismissToken = null
+                                    handler.removeCallbacksAndMessages(null)
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -248,6 +262,7 @@ class HeadsUpOverlay(
     @Composable
     private fun HeadsUpCard(
         notification: ShadeNotification,
+        isAmoled: Boolean = false,
         onTap: () -> Unit,
         onHide: () -> Unit,
         onDismiss: () -> Unit,
@@ -256,6 +271,7 @@ class HeadsUpOverlay(
     ) {
         val ctx = LocalContext.current
         val haptic = LocalHapticFeedback.current
+        val haptics = LocalSuperHaptics.current ?: remember(ctx) { SuperHaptics(ctx) }
         val viewConfig = LocalViewConfiguration.current
         val scope = rememberCoroutineScope()
 
@@ -308,12 +324,17 @@ class HeadsUpOverlay(
             visible = visible,
             enter = slideInVertically(tween(260)) { -it } + fadeIn(tween(200)),
         ) {
+            val cardBg = if (isAmoled) Color(0xF005070A) else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.84f)
             Card(
-                shape = MaterialTheme.shapes.large,
+                shape = RoundedCornerShape(26.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
+                    containerColor = cardBg,
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
@@ -334,7 +355,7 @@ class HeadsUpOverlay(
                                 delay(viewConfig.longPressTimeoutMillis)
                                 if (!isDragging && !isSettingsMode && replyingAction == null) {
                                     isLongPressed = true
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    haptics.sheetDetent()
                                     onPauseAutoDismiss()
                                     isSettingsMode = true
                                 }
@@ -348,6 +369,7 @@ class HeadsUpOverlay(
                                     longPressJob.cancel()
                                     if (!isDragging && !isLongPressed) {
                                         if (!isSettingsMode && replyingAction == null) {
+                                            haptics.lightTap()
                                             onTap()
                                         }
                                     } else if (isDragging) {
@@ -355,22 +377,24 @@ class HeadsUpOverlay(
                                         val dx = offsetX.value
                                         if (dy < -hideThresholdPx) {
                                             // Swipe UP to hide
+                                            haptics.sheetDetent()
                                             scope.launch {
                                                 offsetY.animateTo(-600f, tween(180))
                                                 onHide()
                                             }
                                         } else if (abs(dx) >= dismissThresholdPx) {
                                             // Swipe LEFT/RIGHT to dismiss
+                                            haptics.tileToggleOff()
                                             scope.launch {
                                                 val targetX = if (dx > 0) 1400f else -1400f
                                                 offsetX.animateTo(targetX, tween(180))
                                                 onDismiss()
                                             }
                                         } else {
-                                            // Snap back
+                                            // Snap back with fluid spring physics
                                             scope.launch {
-                                                launch { offsetX.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow)) }
-                                                launch { offsetY.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow)) }
+                                                launch { offsetX.animateTo(0f, spring(dampingRatio = 0.72f, stiffness = 400f)) }
+                                                launch { offsetY.animateTo(0f, spring(dampingRatio = 0.72f, stiffness = 400f)) }
                                             }
                                         }
                                     }
@@ -526,7 +550,10 @@ class HeadsUpOverlay(
                                 "4h" to 4 * 60 * 60 * 1000L,
                             ).forEach { (label, duration) ->
                                 OutlinedButton(
-                                    onClick = { onSnooze(duration) },
+                                    onClick = {
+                                        haptics.lightTap()
+                                        onSnooze(duration)
+                                    },
                                     modifier = Modifier.height(28.dp),
                                     shape = RoundedCornerShape(14.dp),
                                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
@@ -611,6 +638,7 @@ class HeadsUpOverlay(
                                 notification.actions.take(3).forEach { action ->
                                     OutlinedButton(
                                         onClick = {
+                                            haptics.tileToggleOn()
                                             onPauseAutoDismiss()
                                             if (action.replyInput != null) {
                                                 replyingAction = action
@@ -652,6 +680,7 @@ class HeadsUpOverlay(
                                 )
                                 IconButton(
                                     onClick = {
+                                        haptics.tileToggleOn()
                                         val ri = action.replyInput ?: return@IconButton
                                         val intent = Intent().addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
                                         RemoteInput.addResultsToIntent(

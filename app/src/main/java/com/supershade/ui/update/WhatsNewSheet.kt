@@ -44,6 +44,15 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.4" -> """
+        ✨ Frosted Peek Notifications, Dynamic Music Visualizer & Zero-Drift Clock
+        • Frosted Acrylic Heads-Up Notifications: Peek notification cards now feature real-time 50–90px window background blur, 26dp One UI 8 rounded contours, and translucent frosted glass styling
+        • Tactile Peek Haptics: Detent haptic ticks on swipe-up hide, swipe-to-dismiss, long-press settings, and action button interactions
+        • Dynamic Audio Equalizer: Animated 4-bar rhythmic music visualizer beside active track titles reflecting live playback status
+        • Live Streaming Broadcast Indicator: Dedicated pulsating status badge for endless radio streams and podcasts without static durations
+        • Audio Output Switcher Haptics: Tactile physical feedback when switching audio endpoints between phone speakers and Bluetooth accessories
+        • Zero-Drift Minute Synchronization: Status bar header clock now perfectly syncs to the exact zero-second boundary of each minute
+    """.trimIndent()
     "1.9.3" -> """
         ✨ Frosted Acrylic Backdrop, Tactile Haptics Engine & Audio Output Switcher
         • Frosted Acrylic Glassmorphism: Deep 75–115px real-time backdrop blur paired with a translucent acrylic surface for authentic glassmorphism

@@ -3,8 +3,13 @@ package com.supershade.ui.shade
 import android.media.session.PlaybackState
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -67,7 +72,7 @@ import android.media.AudioManager
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Surface
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
@@ -84,11 +89,81 @@ private fun formatMs(ms: Long): String {
 }
 
 @Composable
+private fun AudioEqualizerVisualizer(
+    isPlaying: Boolean,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "equalizer")
+
+    val bar1 by infiniteTransition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.95f,
+        animationSpec = infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(420, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "bar1",
+    )
+    val bar2 by infiniteTransition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 0.30f,
+        animationSpec = infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(530, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "bar2",
+    )
+    val bar3 by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(380, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "bar3",
+    )
+    val bar4 by infiniteTransition.animateFloat(
+        initialValue = 0.90f,
+        targetValue = 0.20f,
+        animationSpec = infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(470, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "bar4",
+    )
+
+    val currentHeights = if (isPlaying) listOf(bar1, bar2, bar3, bar4) else listOf(0.25f, 0.25f, 0.25f, 0.25f)
+
+    Row(
+        modifier = modifier.height(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        currentHeights.forEach { fraction ->
+            val animatedFraction by animateFloatAsState(
+                targetValue = fraction,
+                animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                label = "barHeight",
+            )
+            Box(
+                modifier = Modifier
+                    .width(2.5.dp)
+                    .height((14 * animatedFraction).dp.coerceAtLeast(2.5.dp))
+                    .clip(RoundedCornerShape(1.dp))
+                    .background(color),
+            )
+        }
+    }
+}
+
+@Composable
 private fun AudioOutputChip(
     packageName: String,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
     val audioManager = remember { context.getSystemService(AudioManager::class.java) }
     val currentOutput = remember(audioManager, packageName) {
         try {
@@ -112,6 +187,7 @@ private fun AudioOutputChip(
 
     Surface(
         onClick = {
+            haptics.sheetDetent()
             try {
                 val intent = Intent("com.android.settings.panel.action.MEDIA_OUTPUT").apply {
                     putExtra("com.android.settings.panel.extra.PACKAGE_NAME", packageName)
@@ -137,7 +213,7 @@ private fun AudioOutputChip(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Icon(
-                imageVector = Icons.Default.VolumeUp,
+                imageVector = Icons.AutoMirrored.Filled.VolumeUp,
                 contentDescription = null,
                 tint = Color.White,
                 modifier = Modifier.size(13.dp),
@@ -269,13 +345,23 @@ fun MediaCard(
 
                 // Track info
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = media.title,
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = media.title,
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        AudioEqualizerVisualizer(
+                            isPlaying = media.isPlaying,
+                            color = animatedAccent.let { if (it == fallbackColor) Color.White else it },
+                        )
+                    }
                     if (media.artist.isNotBlank()) {
                         Text(
                             text = media.artist,
@@ -448,6 +534,42 @@ fun MediaCard(
                     Text(
                         text = formatMs(media.duration),
                         style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.65f),
+                    )
+                }
+            } else if (media.isPlaying) {
+                // Live stream / continuous broadcast indicator
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFFF5252)),
+                        )
+                        Text(
+                            text = "LIVE STREAM",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp,
+                            ),
+                            color = Color.White.copy(alpha = 0.90f),
+                        )
+                    }
+                    Text(
+                        text = "Continuous Playback",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         color = Color.White.copy(alpha = 0.65f),
                     )
                 }

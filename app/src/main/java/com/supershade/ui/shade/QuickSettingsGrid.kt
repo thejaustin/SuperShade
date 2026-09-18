@@ -56,6 +56,8 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import com.supershade.haptics.LocalSuperHaptics
+import com.supershade.haptics.SuperHaptics
 import com.supershade.domain.tile.TileDefinition
 import com.supershade.ui.theme.ShadeTheme
 
@@ -160,6 +162,7 @@ private fun ConnectivityWideCard(
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
@@ -236,7 +239,7 @@ private fun ConnectivityWideCard(
                     interactionSource = interactionSource,
                     indication = LocalIndication.current,
                     onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        if (!tile.isActive) haptics.tileToggleOn() else haptics.tileToggleOff()
                         onClick()
                     },
                     onLongClick = tile.settingsAction?.let { action ->

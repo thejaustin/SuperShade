@@ -54,6 +54,8 @@ import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import com.supershade.haptics.LocalSuperHaptics
+import com.supershade.haptics.SuperHaptics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -67,6 +69,7 @@ fun VolumeSlider(
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
     val audioManager = remember { context.getSystemService(AudioManager::class.java) }
     val maxVol = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat() }
 
@@ -103,19 +106,20 @@ fun VolumeSlider(
             try {
                 audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
                 localValue = 0f
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                haptics.tileToggleOff()
             } catch (_: Exception) {}
         } else {
             val restore = lastNonZeroVolume.coerceIn(1f, maxVol)
             try {
                 audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, restore.toInt(), 0)
                 localValue = restore
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                haptics.tileToggleOn()
             } catch (_: Exception) {}
         }
     }
 
     fun openVolumePanel() {
+        haptics.sheetDetent()
         try {
             val panelIntent = Intent(Settings.Panel.ACTION_VOLUME)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -135,6 +139,9 @@ fun VolumeSlider(
     fun updateValueFromFraction(newFraction: Float) {
         val clamped = newFraction.coerceIn(0f, 1f)
         val newVol = (clamped * maxVol).roundToInt().coerceIn(0, maxVol.toInt())
+        if (newVol.toFloat() != localValue) {
+            haptics.sliderTick()
+        }
         localValue = newVol.toFloat()
         if (newVol > 0) lastNonZeroVolume = localValue
         try {
@@ -195,7 +202,7 @@ fun VolumeSlider(
                 .onSizeChanged { trackWidthPx = it.width.toFloat().coerceAtLeast(1f) }
                 .pointerInput(Unit) {
                     detectTapGestures { offset ->
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        haptics.sliderTick()
                         updateValueFromFraction(offset.x / trackWidthPx)
                     }
                 }
@@ -203,11 +210,12 @@ fun VolumeSlider(
                     detectHorizontalDragGestures(
                         onDragStart = { offset ->
                             isDragging = true
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            haptics.sliderTick()
                             updateValueFromFraction(offset.x / trackWidthPx)
                         },
                         onDragEnd = {
                             isDragging = false
+                            haptics.sliderTick()
                             try {
                                 audioManager.setStreamVolume(
                                     AudioManager.STREAM_MUSIC,

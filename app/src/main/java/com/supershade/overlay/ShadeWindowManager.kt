@@ -45,6 +45,7 @@ class ShadeWindowManager(
     private val context: Context,
     private val viewModel: ShadeViewModel,
     private val governor: com.supershade.shizuku.StatusBarGovernor? = null,
+    private val haptics: com.supershade.haptics.SuperHaptics? = null,
 ) {
 
     private val windowManager: WindowManager = context.getSystemService()!!
@@ -69,11 +70,12 @@ class ShadeWindowManager(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
         }
-        // Android 12+ window compositor blur — blurs everything behind the overlay.
+        // Android 12+ window compositor blur — rich frosted glass blur behind the overlay.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             @Suppress("DEPRECATION")
             flags = flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-            blurBehindRadius = 22
+            val density = context.resources.displayMetrics.density
+            blurBehindRadius = (28 * density).toInt().coerceIn(75, 115)
         }
     }
 
@@ -93,10 +95,14 @@ class ShadeWindowManager(
             setViewTreeViewModelStoreOwner(owner)
             setViewTreeSavedStateRegistryOwner(owner)
             setContent {
-                ShadeRoot(
-                    viewModel = viewModel,
-                    onDismiss = { hide() },
-                )
+                androidx.compose.runtime.CompositionLocalProvider(
+                    com.supershade.haptics.LocalSuperHaptics provides (haptics ?: com.supershade.haptics.SuperHaptics(context))
+                ) {
+                    ShadeRoot(
+                        viewModel = viewModel,
+                        onDismiss = { hide() },
+                    )
+                }
             }
         }
         overlayView = view

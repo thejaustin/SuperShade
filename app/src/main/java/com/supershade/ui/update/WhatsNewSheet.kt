@@ -44,6 +44,15 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+    "1.9.3" -> """
+        ✨ Frosted Acrylic Backdrop, Tactile Haptics Engine & Audio Output Switcher
+        • Frosted Acrylic Glassmorphism: Deep 75–115px real-time backdrop blur paired with a translucent acrylic surface for authentic glassmorphism
+        • Enterprise Tactile Haptics: Full physical feedback engine using native Android vibration primitives across tiles, sliders, notifications, and gestures
+        • Dynamic Audio Output Switcher: Live media output chip identifying connected Bluetooth earbuds or speakers with one-tap routing panel
+        • Multi-Level Flashlight Control: Android 13+ hardware torch strength integration with level scaling
+        • Tactile Slider Notches: Physical detent ticks when scrubbing brightness and volume sliders
+        • Spring Damping Physics: Fluid iOS/One UI 8 spring physics for shade entrance and Quick Settings expansion
+    """.trimIndent()
     "1.9.2" -> """
         ✨ Fluid Status Bar Gestures, One UI 8 Action Pills & Control Center Polish
         • Enhanced Status Bar Pull Zone: Adaptive capture zone with density-scaled drag thresholds ensures 100% reliable swipe-downs without missed pulls

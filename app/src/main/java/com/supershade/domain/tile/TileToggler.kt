@@ -187,7 +187,38 @@ class TileToggler(
                 cm.getCameraCharacteristics(id)
                     .get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
             } ?: return
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                val chars = cm.getCameraCharacteristics(cameraId)
+                val maxStrength = chars.get(CameraCharacteristics.FLASH_INFO_STRENGTH_MAXIMUM_LEVEL) ?: 1
+                if (maxStrength > 1) {
+                    if (on) {
+                        val defaultLevel = chars.get(CameraCharacteristics.FLASH_INFO_STRENGTH_DEFAULT_LEVEL) ?: maxStrength
+                        cm.turnOnTorchWithStrengthLevel(cameraId, defaultLevel)
+                    } else {
+                        cm.setTorchMode(cameraId, false)
+                    }
+                    return
+                }
+            }
             cm.setTorchMode(cameraId, on)
+        } catch (_: Exception) {}
+    }
+
+    fun setTorchStrength(level: Int) {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return
+        try {
+            val cm = context.getSystemService(CameraManager::class.java)
+            val cameraId = cm.cameraIdList.firstOrNull { id ->
+                cm.getCameraCharacteristics(id)
+                    .get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+            } ?: return
+            val chars = cm.getCameraCharacteristics(cameraId)
+            val maxStrength = chars.get(CameraCharacteristics.FLASH_INFO_STRENGTH_MAXIMUM_LEVEL) ?: 1
+            if (maxStrength > 1) {
+                val clamped = level.coerceIn(1, maxStrength)
+                cm.turnOnTorchWithStrengthLevel(cameraId, clamped)
+            }
         } catch (_: Exception) {}
     }
 

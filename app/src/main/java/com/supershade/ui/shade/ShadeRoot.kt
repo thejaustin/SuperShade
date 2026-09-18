@@ -3,6 +3,8 @@ package com.supershade.ui.shade
 import android.content.Intent
 import android.os.Build
 import androidx.compose.ui.platform.LocalContext
+import com.supershade.haptics.LocalSuperHaptics
+import com.supershade.haptics.SuperHaptics
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
@@ -131,15 +133,20 @@ fun ShadeRoot(
         }
     }
 
+    val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
+
     themeWrapper {
         Box(modifier = Modifier.fillMaxSize()) {
             // Dimmer scrim — tapping it dismisses the shade.
-            val scrimAlpha = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.35f else 0.60f
+            val scrimAlpha = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.22f else 0.55f
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = scrimAlpha))
-                    .clickable(onClick = onDismiss),
+                    .clickable(onClick = {
+                        haptics.lightTap()
+                        onDismiss()
+                    }),
             )
 
             // Quick Power Menu Dialog
@@ -169,17 +176,22 @@ fun ShadeRoot(
                 )
             }
 
-            // Shade panel: expands down from the top, rounded bottom corners
+            // Shade panel: expands down from the top, rounded bottom corners, frosted glass backdrop
             AnimatedVisibility(
                 visible = state.isOpen,
-                enter = slideInVertically(tween(300)) { -it } + fadeIn(tween(200)),
-                exit  = slideOutVertically(tween(250)) { -it } + fadeOut(tween(200)),
+                enter = slideInVertically(spring(dampingRatio = 0.78f, stiffness = 420f)) { -it } + fadeIn(tween(180)),
+                exit  = slideOutVertically(tween(220)) { -it } + fadeOut(tween(180)),
             ) {
+                val glassBackdrop = when {
+                    isAmoled -> Color(0xF005070A)
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
+                    else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)
+                }
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .offset { IntOffset(0, dragOffset.value.roundToInt()) }
-                        .background(MaterialTheme.colorScheme.surface)
+                        .background(glassBackdrop)
                         .statusBarsPadding()
                         .navigationBarsPadding(),
                 ) {
@@ -260,8 +272,10 @@ fun ShadeRoot(
                                     orientation = Orientation.Vertical,
                                     state = rememberDraggableState { delta ->
                                         if (delta > 8f && !isQsExpanded) {
+                                            haptics.sheetDetent()
                                             viewModel.setQsExpanded(true)
                                         } else if (delta < -8f && isQsExpanded) {
+                                            haptics.sheetDetent()
                                             viewModel.setQsExpanded(false)
                                         } else if (delta < -4f && !isQsExpanded) {
                                             coroutineScope.launch {
@@ -282,7 +296,10 @@ fun ShadeRoot(
                                         }
                                     },
                                 )
-                                .clickable { viewModel.setQsExpanded(!isQsExpanded) },
+                                .clickable {
+                                    haptics.sheetDetent()
+                                    viewModel.setQsExpanded(!isQsExpanded)
+                                },
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),

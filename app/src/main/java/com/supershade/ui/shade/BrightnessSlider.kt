@@ -53,6 +53,8 @@ import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import com.supershade.haptics.LocalSuperHaptics
+import com.supershade.haptics.SuperHaptics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -67,6 +69,7 @@ fun BrightnessSlider(
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
 
     // Auto-brightness state: read once from Settings.System, then track locally.
     var isAuto by remember {
@@ -93,7 +96,7 @@ fun BrightnessSlider(
                     newMode,
                 )
                 isAuto = !isAuto
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (isAuto) haptics.tileToggleOn() else haptics.tileToggleOff()
             } catch (_: SecurityException) {}
         } else {
             try {
@@ -152,6 +155,9 @@ fun BrightnessSlider(
     fun updateValueFromFraction(newFraction: Float) {
         val clamped = newFraction.coerceIn(0f, 1f)
         val newInt = (1f + clamped * 254f).roundToInt().coerceIn(1, 255)
+        if (newInt / 16 != localValue.roundToInt() / 16) {
+            haptics.sliderTick()
+        }
         localValue = newInt.toFloat()
         onBrightnessChange(newInt)
     }
@@ -210,7 +216,7 @@ fun BrightnessSlider(
                 .onSizeChanged { trackWidthPx = it.width.toFloat().coerceAtLeast(1f) }
                 .pointerInput(isAuto) {
                     detectTapGestures { offset ->
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        haptics.sliderTick()
                         updateValueFromFraction(offset.x / trackWidthPx)
                     }
                 }
@@ -218,11 +224,12 @@ fun BrightnessSlider(
                     detectHorizontalDragGestures(
                         onDragStart = { offset ->
                             isDragging = true
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            haptics.sliderTick()
                             updateValueFromFraction(offset.x / trackWidthPx)
                         },
                         onDragEnd = {
                             isDragging = false
+                            haptics.sliderTick()
                             onBrightnessChange(localValue.roundToInt().coerceIn(1, 255))
                         },
                         onDragCancel = {

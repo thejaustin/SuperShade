@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.viewmodel.StatusBarState
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -141,6 +142,7 @@ fun StatusBarRow(
     onOpenSettings: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val haptics = LocalSuperHaptics.current ?: remember(context) { com.supershade.haptics.SuperHaptics(context) }
 
     var time by remember { mutableStateOf(SimpleDateFormat("h:mm", Locale.getDefault()).format(Date())) }
     var ampm by remember { mutableStateOf(SimpleDateFormat("a", Locale.getDefault()).format(Date())) }
@@ -224,7 +226,10 @@ fun StatusBarRow(
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
                     .clickable(
-                        onClick = { launchClock(context) },
+                        onClick = {
+                            haptics.lightTap()
+                            launchClock(context)
+                        },
                         role = Role.Button,
                     )
                     .semantics {
@@ -254,7 +259,10 @@ fun StatusBarRow(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .clickable(
-                        onClick = { launchCalendar(context) },
+                        onClick = {
+                            haptics.lightTap()
+                            launchCalendar(context)
+                        },
                         role = Role.Button,
                     )
                     .semantics {
@@ -286,7 +294,10 @@ fun StatusBarRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 IconButton(
-                    onClick = onOpenPowerMenu,
+                    onClick = {
+                        haptics.sheetDetent()
+                        onOpenPowerMenu()
+                    },
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
@@ -308,8 +319,14 @@ fun StatusBarRow(
                         .size(44.dp)
                         .clip(CircleShape)
                         .combinedClickable(
-                            onClick = onOpenSettings,
-                            onLongClick = { launchSystemSettings(context) },
+                            onClick = {
+                                haptics.sheetDetent()
+                                onOpenSettings()
+                            },
+                            onLongClick = {
+                                haptics.sheetDetent()
+                                launchSystemSettings(context)
+                            },
                             role = Role.Button,
                         )
                         .semantics {
@@ -337,7 +354,10 @@ fun StatusBarRow(
                 modifier = Modifier
                     .clip(RoundedCornerShape(14.dp))
                     .clickable(
-                        onClick = { launchBatterySettings(context) },
+                        onClick = {
+                            haptics.lightTap()
+                            launchBatterySettings(context)
+                        },
                         role = Role.Button,
                     )
                     .semantics {

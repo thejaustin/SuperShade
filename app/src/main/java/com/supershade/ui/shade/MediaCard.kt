@@ -60,6 +60,19 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import android.content.Intent
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.os.Build
+import android.provider.Settings
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.Surface
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.sp
+import com.supershade.haptics.LocalSuperHaptics
+import com.supershade.haptics.SuperHaptics
 import androidx.palette.graphics.Palette
 import com.supershade.domain.media.MediaState
 import kotlinx.coroutines.Dispatchers
@@ -71,6 +84,76 @@ private fun formatMs(ms: Long): String {
 }
 
 @Composable
+private fun AudioOutputChip(
+    packageName: String,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val audioManager = remember { context.getSystemService(AudioManager::class.java) }
+    val currentOutput = remember(audioManager, packageName) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val devices = audioManager?.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+                val btDevice = devices?.firstOrNull { 
+                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || 
+                    it.type == AudioDeviceInfo.TYPE_BLE_HEADSET ||
+                    it.type == AudioDeviceInfo.TYPE_BLE_SPEAKER ||
+                    it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                    it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES
+                }
+                btDevice?.productName?.toString() ?: "Phone Speaker"
+            } else {
+                "Phone Speaker"
+            }
+        } catch (_: Exception) {
+            "Phone Speaker"
+        }
+    }
+
+    Surface(
+        onClick = {
+            try {
+                val intent = Intent("com.android.settings.panel.action.MEDIA_OUTPUT").apply {
+                    putExtra("com.android.settings.panel.extra.PACKAGE_NAME", packageName)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            } catch (_: Exception) {
+                try {
+                    context.startActivity(Intent(Settings.ACTION_SOUND_SETTINGS).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    })
+                } catch (_: Exception) {}
+            }
+        },
+        shape = RoundedCornerShape(50),
+        color = Color.White.copy(alpha = 0.15f),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
+        modifier = modifier.height(28.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Default.VolumeUp,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(13.dp),
+            )
+            Text(
+                text = currentOutput,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
 fun MediaCard(
     media: MediaState,
     onPlayPause: () -> Unit,
@@ -78,7 +161,9 @@ fun MediaCard(
     onSkipPrevious: () -> Unit,
     onSeek: (Long) -> Unit = {},
 ) {
+    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
 
     val fallbackColor = MaterialTheme.colorScheme.surfaceVariant
     val fallbackDark = MaterialTheme.colorScheme.surfaceContainerHighest
@@ -213,34 +298,41 @@ fun MediaCard(
 
                 Spacer(Modifier.width(8.dp))
 
-                // Like button
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = if (isLiked) 0.25f else 0.08f))
-                        .clickable {
-                            isLiked = !isLiked
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        },
-                    contentAlignment = Alignment.Center,
+                // Audio Output Switcher + Like button
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    val likeScale by animateFloatAsState(
-                        targetValue = if (isLiked) 1.2f else 1f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessHigh,
-                        ),
-                        label = "likeScale",
-                    )
-                    Icon(
-                        imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = if (isLiked) "Unlike" else "Like",
-                        tint = if (isLiked) Color(0xFFFF5C8D) else Color.White.copy(alpha = 0.7f),
+                    AudioOutputChip(packageName = media.packageName)
+
+                    Box(
                         modifier = Modifier
-                            .size(18.dp)
-                            .graphicsLayer { scaleX = likeScale; scaleY = likeScale },
-                    )
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = if (isLiked) 0.25f else 0.08f))
+                            .clickable {
+                                isLiked = !isLiked
+                                if (isLiked) haptics.tileToggleOn() else haptics.tileToggleOff()
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        val likeScale by animateFloatAsState(
+                            targetValue = if (isLiked) 1.2f else 1f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessHigh,
+                            ),
+                            label = "likeScale",
+                        )
+                        Icon(
+                            imageVector = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = if (isLiked) "Unlike" else "Like",
+                            tint = if (isLiked) Color(0xFFFF5C8D) else Color.White.copy(alpha = 0.7f),
+                            modifier = Modifier
+                                .size(18.dp)
+                                .graphicsLayer { scaleX = likeScale; scaleY = likeScale },
+                        )
+                    }
                 }
             }
 
@@ -256,7 +348,7 @@ fun MediaCard(
                 IconButton(
                     onClick = {
                         onSkipPrevious()
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        haptics.sliderTick()
                     },
                     modifier = Modifier.size(44.dp),
                 ) {
@@ -280,7 +372,7 @@ fun MediaCard(
                         })
                         .clickable {
                             onPlayPause()
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            if (!media.isPlaying) haptics.tileToggleOn() else haptics.tileToggleOff()
                         },
                     contentAlignment = Alignment.Center,
                 ) {
@@ -296,7 +388,7 @@ fun MediaCard(
                 IconButton(
                     onClick = {
                         onSkipNext()
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        haptics.sliderTick()
                     },
                     modifier = Modifier.size(44.dp),
                 ) {
@@ -327,6 +419,7 @@ fun MediaCard(
                     value = if (isSeeking) seekPreview else media.position.toFloat().coerceIn(0f, media.duration.toFloat()),
                     onValueChange = { seekPreview = it; isSeeking = true },
                     onValueChangeFinished = {
+                        haptics.sliderTick()
                         onSeek(seekPreview.toLong())
                         isSeeking = false
                     },

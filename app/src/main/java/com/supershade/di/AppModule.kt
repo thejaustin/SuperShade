@@ -7,6 +7,7 @@ import com.supershade.domain.tile.TileRepository
 import com.supershade.domain.tile.TileToggler
 import com.supershade.domain.update.UpdateChecker
 import com.supershade.domain.update.UpdateRepository
+import com.supershade.haptics.SuperHaptics
 import com.supershade.settings.ShadeSettings
 import com.supershade.shizuku.ShizukuPlusConnector
 import com.supershade.shizuku.StatusBarGovernor
@@ -17,6 +18,7 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
 val appModule = module {
+    single { SuperHaptics(androidContext()) }
     single { ShadeSettings(androidContext()) }
     single { ShizukuPlusConnector(androidContext()) }
     single { StatusBarGovernor(androidContext(), get()) }
@@ -40,6 +42,6 @@ val appModule = module {
             governor = get(),
         )
     }
-    single { ShadeWindowManager(androidContext(), get(), get()) }
+    single { ShadeWindowManager(androidContext(), get(), get(), get()) }
     single { HeadsUpOverlay(androidContext(), get(), get()) }
 }

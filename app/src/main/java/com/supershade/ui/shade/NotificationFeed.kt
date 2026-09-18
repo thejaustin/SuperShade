@@ -16,9 +16,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.domain.notification.model.ShadeNotification
 
 import androidx.compose.foundation.BorderStroke
@@ -40,6 +42,8 @@ fun NotificationFeed(
     onNotificationClick: (ShadeNotification) -> Unit = {},
     onSnooze: (String, Long) -> Unit = { _, _ -> },
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val haptics = LocalSuperHaptics.current ?: remember(context) { com.supershade.haptics.SuperHaptics(context) }
     if (notifications.isEmpty()) {
         Column(
             modifier = modifier
@@ -91,7 +95,10 @@ fun NotificationFeed(
                     )
                     if (hasClearable) {
                         Surface(
-                            onClick = onClearAll,
+                            onClick = {
+                                haptics.sheetDetent()
+                                onClearAll()
+                            },
                             shape = RoundedCornerShape(50),
                             color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.75f),
                             border = BorderStroke(

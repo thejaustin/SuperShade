@@ -30,6 +30,8 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import com.supershade.haptics.LocalSuperHaptics
+import com.supershade.haptics.SuperHaptics
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -86,6 +88,7 @@ fun TileCard(
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
 
     // Pixel uses full pill (50%); OneUI uses a refined squircle (22dp)
     val cornerRadius = if (theme is ShadeTheme.Pixel) 50 else 22
@@ -168,7 +171,7 @@ fun TileCard(
                     interactionSource = interactionSource,
                     indication = indication,
                     onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        if (!tile.isActive) haptics.tileToggleOn() else haptics.tileToggleOff()
                         onClick()
                     },
                     onLongClick = tile.settingsAction?.let { action ->

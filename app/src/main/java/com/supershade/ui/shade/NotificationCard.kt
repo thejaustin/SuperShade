@@ -67,6 +67,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.domain.notification.model.NotificationAction
 import com.supershade.domain.notification.model.ShadeNotification
 
@@ -87,10 +88,11 @@ fun NotificationCard(
     onClick: () -> Unit = {},
     onSnooze: ((Long) -> Unit)? = null,
 ) {
+    val context = LocalContext.current
+    val haptics = LocalSuperHaptics.current ?: remember(context) { com.supershade.haptics.SuperHaptics(context) }
     var expanded by remember { mutableStateOf(false) }
     var replyingAction by remember { mutableStateOf<NotificationAction?>(null) }
     var showSettingsMenu by remember { mutableStateOf(false) }
-    val context = LocalContext.current
 
     // Resolve readable app name from the package
     val appName = remember(notification.packageName) {
@@ -145,6 +147,7 @@ fun NotificationCard(
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             if (value != SwipeToDismissBoxValue.Settled && notification.isClearable) {
+                haptics.sheetDetent()
                 onDismiss(); true
             } else false
         },
@@ -200,8 +203,14 @@ fun NotificationCard(
                 .combinedClickable(
                     interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                     indication = LocalIndication.current,
-                    onClick = onClick,
-                    onLongClick = { showSettingsMenu = true },
+                    onClick = {
+                        haptics.lightTap()
+                        onClick()
+                    },
+                    onLongClick = {
+                        haptics.sheetDetent()
+                        showSettingsMenu = true
+                    },
                 ),
         ) {
             Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
@@ -309,7 +318,10 @@ fun NotificationCard(
                             val canExpand = notification.actions.isNotEmpty() || notification.picture != null
                             if (canExpand) {
                                 IconButton(
-                                    onClick = { expanded = !expanded },
+                                    onClick = {
+                                        haptics.lightTap()
+                                        expanded = !expanded
+                                    },
                                     modifier = Modifier.size(36.dp),
                                 ) {
                                     Icon(
@@ -452,6 +464,7 @@ fun NotificationCard(
                         notification.actions.take(3).forEach { action ->
                             Surface(
                                 onClick = {
+                                    haptics.lightTap()
                                     if (action.replyInput != null) {
                                         replyingAction = action
                                     } else {
@@ -491,6 +504,7 @@ fun NotificationCard(
                             fun sendReply() {
                                 val ri = action.replyInput ?: return
                                 if (replyText.isBlank()) return
+                                haptics.tileToggleOn()
                                 val intent = android.content.Intent().addFlags(android.content.Intent.FLAG_RECEIVER_FOREGROUND)
                                 android.app.RemoteInput.addResultsToIntent(
                                     arrayOf(ri), intent,

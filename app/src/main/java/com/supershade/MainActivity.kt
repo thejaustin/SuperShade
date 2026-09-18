@@ -26,6 +26,9 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.runtime.CompositionLocalProvider
+import com.supershade.haptics.LocalSuperHaptics
+import com.supershade.haptics.SuperHaptics
 import com.supershade.domain.update.UpdateRepository
 import com.supershade.service.NotificationCollector
 import com.supershade.service.ShadeService
@@ -53,12 +56,14 @@ class MainActivity : ComponentActivity() {
     private val shadeViewModel: ShadeViewModel by inject()
     private val shadeWindowManager: com.supershade.overlay.ShadeWindowManager by inject()
     private val governor: com.supershade.shizuku.StatusBarGovernor by inject()
+    private val superHaptics: SuperHaptics by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setContent {
-            val scope = rememberCoroutineScope()
+            CompositionLocalProvider(LocalSuperHaptics provides superHaptics) {
+                val scope = rememberCoroutineScope()
             val lifecycleOwner = LocalLifecycleOwner.current
 
             val shizukuConnected by connector.isConnected.collectAsState()
@@ -144,6 +149,7 @@ class MainActivity : ComponentActivity() {
                         darkThemeMode = darkThemeMode,
                         appVersion = BuildConfig.VERSION_NAME,
                         onToggleShade = { enabled ->
+                            if (enabled) superHaptics.tileToggleOn() else superHaptics.tileToggleOff()
                             toggleShadeService(enabled)
                             scope.launch {
                                 settings.setActive(enabled)
@@ -156,6 +162,7 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                         onBlockSystemShadeChange = { block ->
+                            if (block) superHaptics.tileToggleOn() else superHaptics.tileToggleOff()
                             scope.launch {
                                 settings.setBlockSystemShade(block)
                                 if (isActive) {
@@ -164,15 +171,19 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                         onThemeChange = { newTheme ->
+                            superHaptics.sliderTick()
                             scope.launch { settings.setTheme(newTheme) }
                         },
                         onAccentColorChange = { newAccent ->
+                            superHaptics.sliderTick()
                             scope.launch { settings.setAccentColor(newAccent) }
                         },
                         onDarkModeChange = { newMode ->
+                            superHaptics.sliderTick()
                             scope.launch { settings.setDarkThemeMode(newMode) }
                         },
                         onGrantOverlay = {
+                            superHaptics.lightTap()
                             startActivity(
                                 Intent(
                                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -181,6 +192,7 @@ class MainActivity : ComponentActivity() {
                             )
                         },
                         onGrantWriteSettings = {
+                            superHaptics.lightTap()
                             try {
                                 startActivity(
                                     Intent(
@@ -191,11 +203,13 @@ class MainActivity : ComponentActivity() {
                             } catch (_: Exception) {}
                         },
                         onGrantAccessibility = {
+                            superHaptics.lightTap()
                             try {
                                 startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                             } catch (_: Exception) {}
                         },
                         onCheckUpdate = {
+                            superHaptics.lightTap()
                             scope.launch {
                                 when (val result = updateRepo.checkForUpdate()) {
                                     is com.supershade.domain.update.UpdateCheckResult.UpToDate -> {
@@ -219,20 +233,26 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                         isCheckingUpdate = isCheckingUpdate,
-                        onShowWhatsNew = { updateRepo.showWhatsNewManual() },
+                        onShowWhatsNew = {
+                            superHaptics.lightTap()
+                            updateRepo.showWhatsNewManual()
+                        },
                         onPreviewShade = {
+                            superHaptics.sheetDetent()
                             toggleShadeService(true)
                             shadeViewModel.open()
                             shadeWindowManager.show()
                         },
                         qsTileTapAction = qsTileTapAction,
                         onQsTileTapActionChange = { action ->
+                            superHaptics.sliderTick()
                             scope.launch {
                                 settings.setQsTileTapAction(action)
                                 SuperShadeTileService.requestUpdate(this@MainActivity)
                             }
                         },
                         onOpenTilePreferences = {
+                            superHaptics.sheetDetent()
                             startActivity(Intent(this@MainActivity, TilePreferencesActivity::class.java))
                         },
                         modifier = Modifier.padding(padding),
@@ -254,6 +274,7 @@ class MainActivity : ComponentActivity() {
                         onDismiss = { updateRepo.dismissWhatsNew() },
                     )
                 }
+            }
             }
         }
     }

@@ -88,6 +88,7 @@ fun TileCard(
     tileShape: TileShape = TileShape.SQUIRCLE,
     columns: Int = 4,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -183,16 +184,22 @@ fun TileCard(
                         if (!tile.isActive) haptics.tileToggleOn() else haptics.tileToggleOff()
                         onClick()
                     },
-                    onLongClick = tile.settingsAction?.let { action ->
+                    onLongClick = if (onLongClick != null || tile.settingsAction != null) {
                         {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            try {
-                                context.startActivity(
-                                    Intent(action).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
-                                )
-                            } catch (_: Exception) {}
+                            if (onLongClick != null) {
+                                onLongClick()
+                            } else {
+                                tile.settingsAction?.let { action ->
+                                    try {
+                                        context.startActivity(
+                                            Intent(action).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                                        )
+                                    } catch (_: Exception) {}
+                                }
+                            }
                         }
-                    },
+                    } else null,
                     role = Role.Switch,
                 )
                 .padding(horizontal = if (columns >= 5) 6.dp else 8.dp, vertical = 8.dp),

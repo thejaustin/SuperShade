@@ -45,6 +45,14 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.6" -> """
+        ✨ Split Shade Pull Presets, In-Shade Tile Sub-Panels & Hardware Torch Slider
+        • Split Status Bar Pull Presets: Choose between 5 split modes including One UI 8 / iOS 50/50 Half & Half, Standard 70/30, Left-Handed 30/70, Notifications Only, or Quick Settings Only with a live interactive visualizer
+        • In-Shade Tile Sub-Panels: Long-press Wi-Fi, Bluetooth, or Flashlight tiles to open sleek, in-shade detail sheets without getting thrown into Android system settings
+        • Multi-Level Hardware Torch Slider: Direct in-shade flashlight panel with live on/off toggle, 5-level hardware brightness slider (Android 13+ CameraManager), quick level chips, and discrete haptic detents
+        • Live Wi-Fi & Bluetooth Info: In-shade sub-panels display active Wi-Fi SSID, frequency band (2.4/5/6 GHz), link speed, IP address, and Bluetooth accessory details
+        • Notification Snooze Enhancements: Added quick header snooze trigger and expanded snooze presets (15m, 30m, 1h, 2h, 4h, 8h) with tactile confirmations
+    """.trimIndent()
         "1.9.5" -> """
         ✨ Custom Tile Shapes, Multi-Density Grid & Anti-Clipping Polish
         • Custom Tile Shapes: Choose between Squircle (22dp One UI 8), Rounded (16dp), Circle / Stadium (50%), Stadium Pill (28dp), or Soft Minimal (12dp) with real-time interactive previews

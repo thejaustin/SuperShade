@@ -1,5 +1,13 @@
 package com.supershade.viewmodel
 
+import android.content.Context
+import android.content.Intent
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.net.ConnectivityManager
+import android.net.wifi.WifiManager
+import android.os.Build
+import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.supershade.domain.brightness.BrightnessRepository
@@ -24,6 +32,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class ShadeViewModel(
+    private val context: Context,
     private val notificationRepo: NotificationRepository,
     private val tileRepo: TileRepository,
     private val tileToggler: TileToggler,
@@ -147,6 +156,150 @@ class ShadeViewModel(
 
     fun toggleTile(tile: TileDefinition) {
         viewModelScope.launch { tileToggler.toggle(tile) }
+    }
+
+    fun openTileDetail(tile: TileDefinition) {
+        val id = tile.id.lowercase()
+        when {
+            id.contains("flashlight") -> {
+                val max = tileToggler.getTorchMaxStrength()
+                val current = if (_state.value.activeTileDetail?.type == TileDetailType.FLASHLIGHT) {
+                    _state.value.activeTileDetail?.torchLevel ?: (if (tile.isActive) max else 1)
+                } else {
+                    if (tile.isActive) max else 1
+                }
+                _state.update {
+                    it.copy(
+                        activeTileDetail = TileDetailState(
+                            type = TileDetailType.FLASHLIGHT,
+                            title = "Flashlight",
+                            subtitle = if (tile.isActive) "On • Level $current" else "Off",
+                            isActive = tile.isActive,
+                            torchLevel = current,
+                            maxTorchLevel = max,
+                            settingsAction = tile.settingsAction,
+                        )
+                    )
+                }
+            }
+            id.contains("wifi") || id.contains("internet") -> {
+                val wm = context.getSystemService(WifiManager::class.java)
+                val cm = context.getSystemService(ConnectivityManager::class.java)
+                val info = try { wm?.connectionInfo } catch (_: Exception) { null }
+                val rawSsid = info?.ssid?.trim('"')
+                val ssid = if (rawSsid == "<unknown ssid>" || rawSsid.isNullOrBlank()) {
+                    if (tile.isActive) "Connected Wi-Fi" else "Wi-Fi Disconnected"
+                } else rawSsid
+
+                val freq = info?.frequency ?: 0
+                val band = when {
+                    freq > 5925 -> "6 GHz (Wi-Fi 6E/7)"
+                    freq > 4900 -> "5 GHz"
+                    freq > 2400 -> "2.4 GHz"
+                    else -> if (tile.isActive) "Wi-Fi" else "Disconnected"
+                }
+                val speed = if (info != null && info.linkSpeed > 0) "${info.linkSpeed} Mbps" else null
+                val rssi = info?.rssi ?: -100
+                val ip = try {
+                    val activeNet = cm?.activeNetwork
+                    val linkProps = cm?.getLinkProperties(activeNet)
+                    linkProps?.linkAddresses?.firstOrNull { it.address is java.net.Inet4Address }?.address?.hostAddress
+                } catch (_: Exception) { null }
+
+                _state.update {
+                    it.copy(
+                        activeTileDetail = TileDetailState(
+                            type = TileDetailType.WIFI,
+                            title = "Wi-Fi",
+                            subtitle = if (tile.isActive) ssid else "Off",
+                            isActive = tile.isActive,
+                            wifiSsid = ssid,
+                            wifiBand = band,
+                            wifiIp = ip,
+                            wifiLinkSpeed = speed,
+                            wifiRssi = rssi,
+                            settingsAction = tile.settingsAction ?: Settings.ACTION_WIFI_SETTINGS,
+                        )
+                    )
+                }
+            }
+            id.contains("bt") || id.contains("bluetooth") -> {
+                val am = context.getSystemService(AudioManager::class.java)
+                val audioDevice = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    try {
+                        am?.getDevices(AudioManager.GET_DEVICES_OUTPUTS)?.firstOrNull {
+                            it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                            it.type == AudioDeviceInfo.TYPE_BLE_HEADSET ||
+                            it.type == AudioDeviceInfo.TYPE_BLE_SPEAKER
+                        }
+                    } catch (_: Exception) { null }
+                } else null
+
+                val deviceName = audioDevice?.productName?.toString()
+                    ?: if (tile.isActive) "Bluetooth Active" else "Bluetooth Off"
+
+                _state.update {
+                    it.copy(
+                        activeTileDetail = TileDetailState(
+                            type = TileDetailType.BLUETOOTH,
+                            title = "Bluetooth",
+                            subtitle = if (tile.isActive) deviceName else "Off",
+                            isActive = tile.isActive,
+                            btDeviceName = deviceName,
+                            btAudioConnected = audioDevice != null,
+                            settingsAction = tile.settingsAction ?: Settings.ACTION_BLUETOOTH_SETTINGS,
+                        )
+                    )
+                }
+            }
+            else -> {
+                tile.settingsAction?.let { action ->
+                    try {
+                        context.startActivity(Intent(action).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
+                    } catch (_: Exception) {}
+                }
+            }
+        }
+    }
+
+    fun closeTileDetail() {
+        _state.update { it.copy(activeTileDetail = null) }
+    }
+
+    fun setTorchStrength(level: Int) {
+        tileToggler.setTorchStrength(level)
+        _state.update { current ->
+            val detail = current.activeTileDetail ?: return@update current
+            if (detail.type == TileDetailType.FLASHLIGHT) {
+                current.copy(
+                    activeTileDetail = detail.copy(
+                        torchLevel = level,
+                        subtitle = if (detail.isActive) "On • Level $level" else "Off"
+                    )
+                )
+            } else current
+        }
+    }
+
+    fun toggleTorchInDetail() {
+        val currentDetail = _state.value.activeTileDetail ?: return
+        val newActive = !currentDetail.isActive
+        val flashlightTile = _state.value.tiles.firstOrNull { it.id.lowercase().contains("flashlight") }
+        if (flashlightTile != null) {
+            toggleTile(flashlightTile)
+        }
+        if (newActive) {
+            tileToggler.setTorchStrength(currentDetail.torchLevel)
+        }
+        _state.update { current ->
+            val detail = current.activeTileDetail ?: return@update current
+            current.copy(
+                activeTileDetail = detail.copy(
+                    isActive = newActive,
+                    subtitle = if (newActive) "On • Level ${detail.torchLevel}" else "Off"
+                )
+            )
+        }
     }
 
     fun dismissNotification(key: String) {

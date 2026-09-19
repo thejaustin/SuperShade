@@ -57,6 +57,7 @@ class SuperShadeAccessibilityService : AccessibilityService() {
     private var windowManager: WindowManager? = null
     private var touchCaptureView: View? = null
     @Volatile private var isSuperShadeActive = false
+    @Volatile private var currentSplitGestureMode = com.supershade.settings.SplitGestureMode.SEPARATE_70_30
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -104,6 +105,13 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                 if (isSuperShadeActive) {
                     if (block) governor.disableExpansion() else governor.enableExpansion()
                 }
+            }
+            .launchIn(scope)
+
+        settings.splitGestureMode
+            .distinctUntilChanged()
+            .onEach { mode ->
+                currentSplitGestureMode = mode
             }
             .launchIn(scope)
     }
@@ -167,8 +175,16 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                         if (!triggered && deltaY > dragThreshold && deltaY > deltaX * 0.70f) {
                             triggered = true
                             v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
-                            val screenWidth = resources.displayMetrics.widthPixels
-                            val expandQs = startX > screenWidth * 0.70f
+                            val screenWidth = resources.displayMetrics.widthPixels.coerceAtLeast(1)
+                            val ratio = startX / screenWidth.toFloat()
+                            val mode = currentSplitGestureMode
+                            val expandQs = when (mode) {
+                                com.supershade.settings.SplitGestureMode.ALWAYS_NOTIFICATIONS -> false
+                                com.supershade.settings.SplitGestureMode.ALWAYS_QUICK_SETTINGS -> true
+                                com.supershade.settings.SplitGestureMode.SEPARATE_30_70 -> ratio < 0.30f
+                                com.supershade.settings.SplitGestureMode.SEPARATE_50_50 -> ratio > 0.50f
+                                com.supershade.settings.SplitGestureMode.SEPARATE_70_30 -> ratio > 0.70f
+                            }
                             openSuperShade(expandQs)
                         }
                         true
@@ -180,8 +196,16 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                         if (!triggered && deltaY > (dragThreshold * 0.65f) && deltaY > deltaX * 0.70f && duration < 750) {
                             triggered = true
                             v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
-                            val screenWidth = resources.displayMetrics.widthPixels
-                            val expandQs = startX > screenWidth * 0.70f
+                            val screenWidth = resources.displayMetrics.widthPixels.coerceAtLeast(1)
+                            val ratio = startX / screenWidth.toFloat()
+                            val mode = currentSplitGestureMode
+                            val expandQs = when (mode) {
+                                com.supershade.settings.SplitGestureMode.ALWAYS_NOTIFICATIONS -> false
+                                com.supershade.settings.SplitGestureMode.ALWAYS_QUICK_SETTINGS -> true
+                                com.supershade.settings.SplitGestureMode.SEPARATE_30_70 -> ratio < 0.30f
+                                com.supershade.settings.SplitGestureMode.SEPARATE_50_50 -> ratio > 0.50f
+                                com.supershade.settings.SplitGestureMode.SEPARATE_70_30 -> ratio > 0.70f
+                            }
                             openSuperShade(expandQs)
                         }
                         true

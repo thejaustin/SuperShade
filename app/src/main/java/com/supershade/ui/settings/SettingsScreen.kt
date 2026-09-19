@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -82,6 +83,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.style.TextOverflow
 import com.supershade.domain.tile.DEFAULT_TILES
 import com.supershade.domain.tile.KNOWN_TILES
+import com.supershade.settings.SplitGestureMode
 import com.supershade.settings.TileGridColumns
 import com.supershade.settings.TileShape
 import androidx.compose.ui.Alignment
@@ -138,6 +140,8 @@ fun SettingsScreen(
     onShowWideCardsChange: (Boolean) -> Unit = {},
     enabledTiles: List<String> = emptyList(),
     onEnabledTilesChange: (List<String>) -> Unit = {},
+    splitGestureMode: SplitGestureMode = SplitGestureMode.SEPARATE_70_30,
+    onSplitGestureModeChange: (SplitGestureMode) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -459,7 +463,10 @@ fun SettingsScreen(
         // =======================================================================
         // 4. GESTURES & CONTROLS
         // =======================================================================
-        SectionHeader(title = "Gestures & Controls")
+        SectionHeader(
+            title = "Gestures & Controls",
+            badge = splitGestureMode.label,
+        )
 
         Surface(
             shape = RoundedCornerShape(24.dp),
@@ -472,11 +479,29 @@ fun SettingsScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 // Split status bar visual guide
-                Text(
-                    text = "Status Bar Pull Split",
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Status Bar Pull Split",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    ) {
+                        Text(
+                            text = splitGestureMode.label,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        )
+                    }
+                }
 
+                // Dynamic visual split diagram
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -484,68 +509,248 @@ fun SettingsScreen(
                         .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                 ) {
-                    // Left 70% segment: Notifications + Quick Settings
-                    Box(
-                        modifier = Modifier
-                            .weight(0.70f)
-                            .height(44.dp)
-                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
-                            .padding(horizontal = 10.dp),
-                        contentAlignment = Alignment.CenterStart,
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.SwipeDown,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Text(
-                                text = "Notifications + QS (Left 70%)",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 11.sp,
-                                ),
-                                color = MaterialTheme.colorScheme.primary,
-                            )
+                    when (splitGestureMode) {
+                        SplitGestureMode.ALWAYS_NOTIFICATIONS -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.70f))
+                                    .padding(horizontal = 12.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.SwipeDown,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                    Text(
+                                        text = "Entire Status Bar: Notifications & Full Shade",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            }
                         }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .width(2.dp)
-                            .height(44.dp)
-                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                    )
-
-                    // Right 30% segment: Quick Settings
-                    Box(
-                        modifier = Modifier
-                            .weight(0.30f)
-                            .height(44.dp)
-                            .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f))
-                            .padding(horizontal = 6.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = "QS Only (Right 30%)",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 10.sp,
-                            ),
-                            color = MaterialTheme.colorScheme.tertiary,
-                        )
+                        SplitGestureMode.ALWAYS_QUICK_SETTINGS -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.70f))
+                                    .padding(horizontal = 12.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.SwipeDown,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.tertiary,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                    Text(
+                                        text = "Entire Status Bar: Quick Settings Expanded",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.tertiary,
+                                    )
+                                }
+                            }
+                        }
+                        SplitGestureMode.SEPARATE_30_70 -> {
+                            Box(
+                                modifier = Modifier
+                                    .weight(0.30f)
+                                    .fillMaxHeight()
+                                    .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.65f))
+                                    .padding(horizontal = 6.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "QS (30%)",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp,
+                                    ),
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .width(2.dp)
+                                    .fillMaxHeight()
+                                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .weight(0.70f)
+                                    .fillMaxHeight()
+                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f))
+                                    .padding(horizontal = 10.dp),
+                                contentAlignment = Alignment.CenterStart,
+                            ) {
+                                Text(
+                                    text = "Notifications (Right 70%)",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                    ),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                        SplitGestureMode.SEPARATE_50_50 -> {
+                            Box(
+                                modifier = Modifier
+                                    .weight(0.50f)
+                                    .fillMaxHeight()
+                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f))
+                                    .padding(horizontal = 8.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "Notifications (50%)",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                    ),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .width(2.dp)
+                                    .fillMaxHeight()
+                                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .weight(0.50f)
+                                    .fillMaxHeight()
+                                    .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.65f))
+                                    .padding(horizontal = 8.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "Quick Settings (50%)",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                    ),
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                )
+                            }
+                        }
+                        SplitGestureMode.SEPARATE_70_30 -> {
+                            Box(
+                                modifier = Modifier
+                                    .weight(0.70f)
+                                    .fillMaxHeight()
+                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f))
+                                    .padding(horizontal = 10.dp),
+                                contentAlignment = Alignment.CenterStart,
+                            ) {
+                                Text(
+                                    text = "Notifications (Left 70%)",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                    ),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .width(2.dp)
+                                    .fillMaxHeight()
+                                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .weight(0.30f)
+                                    .fillMaxHeight()
+                                    .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.65f))
+                                    .padding(horizontal = 6.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "QS (30%)",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp,
+                                    ),
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                )
+                            }
+                        }
                     }
                 }
 
                 Text(
-                    text = "Swipe down from the left or center of your status bar to open the standard shade with notifications. Swipe down from the top right edge to directly expand full Quick Settings.",
+                    text = splitGestureMode.subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+
+                // Selectable Split Presets
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SplitGestureMode.entries.forEach { mode ->
+                        val isSelected = splitGestureMode == mode
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSplitGestureModeChange(mode) },
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = mode.label,
+                                        style = MaterialTheme.typography.titleSmall.copy(
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            fontSize = 13.sp,
+                                        ),
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    )
+                                    Text(
+                                        text = mode.subtitle,
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                if (isSelected) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Text(
+                                            text = "✓",
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
 

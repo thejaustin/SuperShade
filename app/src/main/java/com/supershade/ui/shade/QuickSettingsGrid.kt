@@ -79,6 +79,7 @@ fun QuickSettingsGrid(
     tileColumns: TileGridColumns = TileGridColumns.STANDARD,
     showWideCards: Boolean = true,
     onTileClick: (TileDefinition) -> Unit,
+    onTileLongClick: ((TileDefinition) -> Unit)? = null,
 ) {
     val colCount = tileColumns.count
     val showOneUiIslandCards = isExpanded && showWideCards
@@ -125,6 +126,7 @@ fun QuickSettingsGrid(
                         theme = theme,
                         tileShape = tileShape,
                         onClick = { onTileClick(wifiTile) },
+                        onLongClick = onTileLongClick?.let { cb -> { cb(wifiTile) } },
                         modifier = Modifier.weight(1f),
                     )
                     ConnectivityWideCard(
@@ -132,6 +134,7 @@ fun QuickSettingsGrid(
                         theme = theme,
                         tileShape = tileShape,
                         onClick = { onTileClick(btTile) },
+                        onLongClick = onTileLongClick?.let { cb -> { cb(btTile) } },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -151,6 +154,7 @@ fun QuickSettingsGrid(
                                 tileShape = tileShape,
                                 columns = colCount,
                                 onClick = { onTileClick(tile) },
+                                onLongClick = onTileLongClick?.let { cb -> { cb(tile) } },
                             )
                         }
                     }
@@ -169,6 +173,7 @@ private fun ConnectivityWideCard(
     theme: ShadeTheme,
     tileShape: TileShape = TileShape.SQUIRCLE,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -261,16 +266,22 @@ private fun ConnectivityWideCard(
                         if (!tile.isActive) haptics.tileToggleOn() else haptics.tileToggleOff()
                         onClick()
                     },
-                    onLongClick = tile.settingsAction?.let { action ->
+                    onLongClick = if (onLongClick != null || tile.settingsAction != null) {
                         {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            try {
-                                context.startActivity(
-                                    Intent(action).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
-                                )
-                            } catch (_: Exception) {}
+                            if (onLongClick != null) {
+                                onLongClick()
+                            } else {
+                                tile.settingsAction?.let { action ->
+                                    try {
+                                        context.startActivity(
+                                            Intent(action).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                                        )
+                                    } catch (_: Exception) {}
+                                }
+                            }
                         }
-                    },
+                    } else null,
                 )
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,

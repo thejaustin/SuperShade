@@ -12,6 +12,29 @@ data class StatusBarState(
     val isCharging: Boolean = false
 )
 
+enum class TileDetailType {
+    FLASHLIGHT,
+    WIFI,
+    BLUETOOTH,
+}
+
+data class TileDetailState(
+    val type: TileDetailType,
+    val title: String,
+    val subtitle: String? = null,
+    val isActive: Boolean = false,
+    val torchLevel: Int = 1,
+    val maxTorchLevel: Int = 1,
+    val wifiSsid: String? = null,
+    val wifiBand: String? = null,
+    val wifiIp: String? = null,
+    val wifiLinkSpeed: String? = null,
+    val wifiRssi: Int = 0,
+    val btDeviceName: String? = null,
+    val btAudioConnected: Boolean = false,
+    val settingsAction: String? = null,
+)
+
 data class ShadeState(
     val isOpen: Boolean = false,
     val isQsExpanded: Boolean = false,
@@ -29,4 +52,5 @@ data class ShadeState(
     val tileShape: com.supershade.settings.TileShape = com.supershade.settings.TileShape.SQUIRCLE,
     val tileColumns: com.supershade.settings.TileGridColumns = com.supershade.settings.TileGridColumns.STANDARD,
     val showWideCards: Boolean = true,
+    val activeTileDetail: TileDetailState? = null,
 )

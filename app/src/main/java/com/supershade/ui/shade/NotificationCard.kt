@@ -316,20 +316,41 @@ fun NotificationCard(
                             }
 
                             val canExpand = notification.actions.isNotEmpty() || notification.picture != null
-                            if (canExpand) {
-                                IconButton(
-                                    onClick = {
-                                        haptics.lightTap()
-                                        expanded = !expanded
-                                    },
-                                    modifier = Modifier.size(36.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                        contentDescription = if (expanded) "Collapse notification details" else "Expand notification details",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(20.dp),
-                                    )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                if (onSnooze != null) {
+                                    IconButton(
+                                        onClick = {
+                                            haptics.lightTap()
+                                            showSettingsMenu = true
+                                        },
+                                        modifier = Modifier.size(32.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Snooze,
+                                            contentDescription = "Snooze notification",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f),
+                                            modifier = Modifier.size(17.dp),
+                                        )
+                                    }
+                                }
+                                if (canExpand) {
+                                    IconButton(
+                                        onClick = {
+                                            haptics.lightTap()
+                                            expanded = !expanded
+                                        },
+                                        modifier = Modifier.size(36.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                            contentDescription = if (expanded) "Collapse notification details" else "Expand notification details",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -424,8 +445,11 @@ fun NotificationCard(
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                         listOf(
                             "Snooze 15 minutes" to 15 * 60 * 1_000L,
+                            "Snooze 30 minutes" to 30 * 60 * 1_000L,
                             "Snooze 1 hour"     to 60 * 60 * 1_000L,
+                            "Snooze 2 hours"    to 2 * 60 * 60 * 1_000L,
                             "Snooze 4 hours"    to 4 * 60 * 60 * 1_000L,
+                            "Snooze 8 hours"    to 8 * 60 * 60 * 1_000L,
                         ).forEach { (label, delayMs) ->
                             DropdownMenuItem(
                                 text = { Text(label, style = MaterialTheme.typography.bodyMedium) },
@@ -433,6 +457,7 @@ fun NotificationCard(
                                     Icon(Icons.Default.Snooze, contentDescription = null, modifier = Modifier.size(20.dp))
                                 },
                                 onClick = {
+                                    haptics.sheetDetent()
                                     onSnooze.invoke(delayMs)
                                     showSettingsMenu = false
                                 },

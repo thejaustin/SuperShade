@@ -33,6 +33,7 @@ val appModule = module {
     // viewModelScope still works; it's only cancelled if onCleared() is called.
     single {
         ShadeViewModel(
+            context = androidContext(),
             notificationRepo = get(),
             tileRepo = get(),
             tileToggler = get(),

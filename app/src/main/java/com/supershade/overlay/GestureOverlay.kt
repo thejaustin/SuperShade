@@ -7,6 +7,8 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 
+import com.supershade.settings.SplitGestureMode
+
 /**
  * An invisible touch-capture strip positioned just below the status bar.
  *
@@ -20,6 +22,7 @@ import android.view.WindowManager
 class GestureOverlay(
     private val context: Context,
     private val isShadeOpen: () -> Boolean = { false },
+    private val splitGestureMode: () -> SplitGestureMode = { SplitGestureMode.SEPARATE_70_30 },
     private val onSwipeDown: (expandQs: Boolean) -> Unit,
 ) {
 
@@ -81,8 +84,16 @@ class GestureOverlay(
                         if (!triggered && deltaY > dragThreshold && deltaY > deltaX * 0.70f) {
                             triggered = true
                             v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
-                            val screenWidth = context.resources.displayMetrics.widthPixels
-                            val expandQs = startX > screenWidth * 0.70f
+                            val screenWidth = context.resources.displayMetrics.widthPixels.coerceAtLeast(1)
+                            val ratio = startX / screenWidth.toFloat()
+                            val mode = splitGestureMode()
+                            val expandQs = when (mode) {
+                                SplitGestureMode.ALWAYS_NOTIFICATIONS -> false
+                                SplitGestureMode.ALWAYS_QUICK_SETTINGS -> true
+                                SplitGestureMode.SEPARATE_30_70 -> ratio < 0.30f
+                                SplitGestureMode.SEPARATE_50_50 -> ratio > 0.50f
+                                SplitGestureMode.SEPARATE_70_30 -> ratio > 0.70f
+                            }
                             onSwipeDown(expandQs)
                         }
                         true
@@ -94,8 +105,16 @@ class GestureOverlay(
                         if (!triggered && deltaY > (dragThreshold * 0.65f) && deltaY > deltaX * 0.70f && duration < 750) {
                             triggered = true
                             v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
-                            val screenWidth = context.resources.displayMetrics.widthPixels
-                            val expandQs = startX > screenWidth * 0.70f
+                            val screenWidth = context.resources.displayMetrics.widthPixels.coerceAtLeast(1)
+                            val ratio = startX / screenWidth.toFloat()
+                            val mode = splitGestureMode()
+                            val expandQs = when (mode) {
+                                SplitGestureMode.ALWAYS_NOTIFICATIONS -> false
+                                SplitGestureMode.ALWAYS_QUICK_SETTINGS -> true
+                                SplitGestureMode.SEPARATE_30_70 -> ratio < 0.30f
+                                SplitGestureMode.SEPARATE_50_50 -> ratio > 0.50f
+                                SplitGestureMode.SEPARATE_70_30 -> ratio > 0.70f
+                            }
                             onSwipeDown(expandQs)
                         }
                         true

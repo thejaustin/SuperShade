@@ -222,6 +222,21 @@ class TileToggler(
         } catch (_: Exception) {}
     }
 
+    fun getTorchMaxStrength(): Int {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return 1
+        return try {
+            val cm = context.getSystemService(CameraManager::class.java)
+            val cameraId = cm.cameraIdList.firstOrNull { id ->
+                cm.getCameraCharacteristics(id)
+                    .get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+            } ?: return 1
+            cm.getCameraCharacteristics(cameraId)
+                .get(CameraCharacteristics.FLASH_INFO_STRENGTH_MAXIMUM_LEVEL) ?: 1
+        } catch (_: Exception) {
+            1
+        }
+    }
+
     private suspend fun togglePrivileged(tile: TileDefinition) {
         val id = tile.id.lowercase()
         val newState = !tile.isActive

@@ -221,6 +221,7 @@ fun ShadeRoot(
                         tileColumns = state.tileColumns,
                         showWideCards = state.showWideCards,
                         onTileClick = { viewModel.toggleTile(it) },
+                        onTileLongClick = { viewModel.openTileDetail(it) },
                     )
 
                     // Full-Width Tactile Sliders Island
@@ -410,6 +411,16 @@ fun ShadeRoot(
                     }
                 }
             }
+        }
+
+        // In-shade Tile Detail Sheet (Flashlight multi-level control, Wi-Fi details, Bluetooth devices)
+        state.activeTileDetail?.let { detail ->
+            QuickTileDetailSheet(
+                detailState = detail,
+                onDismiss = { viewModel.closeTileDetail() },
+                onSetTorchStrength = { viewModel.setTorchStrength(it) },
+                onToggleTorch = { viewModel.toggleTorchInDetail() },
+            )
         }
     }
 }

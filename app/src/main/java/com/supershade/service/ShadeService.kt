@@ -69,11 +69,17 @@ class ShadeService : Service() {
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
 
+        var currentSplitMode = com.supershade.settings.SplitGestureMode.SEPARATE_70_30
+        settings.splitGestureMode
+            .onEach { currentSplitMode = it }
+            .launchIn(scope)
+
         // Attach the gesture capture overlay. When a downward swipe is detected
         // the overlay tells the ShadeWindowManager to show the full shade UI.
         gestureOverlay = GestureOverlay(
             context = this,
             isShadeOpen = { shadeViewModel.state.value.isOpen },
+            splitGestureMode = { currentSplitMode },
             onSwipeDown = { expandQs -> shadeViewModel.open(expandQs) },
         )
         gestureOverlay?.attach()

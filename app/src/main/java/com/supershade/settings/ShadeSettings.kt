@@ -41,6 +41,46 @@ enum class AccentColor(val label: String, val hex: Long) {
     MONET("Dynamic", 0L);
 }
 
+enum class SplitGestureMode(
+    val id: String,
+    val label: String,
+    val subtitle: String,
+    val qsThreshold: Float,
+    val isLeftQs: Boolean = false,
+) {
+    SEPARATE_70_30(
+        "split_70_30",
+        "Right 30% (Standard)",
+        "Pull right 30% for Quick Settings, left 70% for Notifications",
+        0.70f,
+    ),
+    SEPARATE_50_50(
+        "split_50_50",
+        "Half & Half (50/50)",
+        "One UI 8 / iOS style: pull right half for Quick Settings, left half for Notifications",
+        0.50f,
+    ),
+    SEPARATE_30_70(
+        "split_30_70",
+        "Left-Handed (30/70)",
+        "Pull left 30% for Quick Settings, right 70% for Notifications",
+        0.30f,
+        isLeftQs = true,
+    ),
+    ALWAYS_NOTIFICATIONS(
+        "always_notifs",
+        "Notifications Only",
+        "Pulling anywhere along the status bar always opens Notifications first",
+        1.01f,
+    ),
+    ALWAYS_QUICK_SETTINGS(
+        "always_qs",
+        "Quick Settings Only",
+        "Pulling anywhere along the status bar directly expands Quick Settings",
+        -0.01f,
+    );
+}
+
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "supershade_prefs")
 
 class ShadeSettings(private val context: Context) {
@@ -58,6 +98,7 @@ class ShadeSettings(private val context: Context) {
         private val TILE_SHAPE_KEY = stringPreferencesKey("tile_shape")
         private val TILE_COLUMNS_KEY = stringPreferencesKey("tile_columns")
         private val SHOW_WIDE_CARDS_KEY = booleanPreferencesKey("show_wide_cards")
+        private val SPLIT_GESTURE_MODE_KEY = stringPreferencesKey("split_gesture_mode")
     }
 
     val theme: Flow<ShadeTheme> = context.dataStore.data.map { prefs ->
@@ -137,6 +178,16 @@ class ShadeSettings(private val context: Context) {
 
     val showWideCards: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[SHOW_WIDE_CARDS_KEY] ?: true
+    }
+
+    val splitGestureMode: Flow<SplitGestureMode> = context.dataStore.data.map { prefs ->
+        when (prefs[SPLIT_GESTURE_MODE_KEY]) {
+            "split_50_50" -> SplitGestureMode.SEPARATE_50_50
+            "split_30_70" -> SplitGestureMode.SEPARATE_30_70
+            "always_notifs" -> SplitGestureMode.ALWAYS_NOTIFICATIONS
+            "always_qs" -> SplitGestureMode.ALWAYS_QUICK_SETTINGS
+            else -> SplitGestureMode.SEPARATE_70_30
+        }
     }
 
     suspend fun setTheme(theme: ShadeTheme) {
@@ -228,6 +279,12 @@ class ShadeSettings(private val context: Context) {
     suspend fun setBlockSystemShade(block: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[BLOCK_SYSTEM_SHADE_KEY] = block
+        }
+    }
+
+    suspend fun setSplitGestureMode(mode: SplitGestureMode) {
+        context.dataStore.edit { prefs ->
+            prefs[SPLIT_GESTURE_MODE_KEY] = mode.id
         }
     }
 }

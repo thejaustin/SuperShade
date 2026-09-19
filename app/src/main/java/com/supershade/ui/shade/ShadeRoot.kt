@@ -209,6 +209,7 @@ fun ShadeRoot(
                                 onDismiss()
                             } catch (_: Exception) {}
                         },
+                        onLockScreen = { viewModel.lockScreen() },
                     )
 
                     // Quick Settings grid (compact 1-row or expanded 2-row)
@@ -218,6 +219,7 @@ fun ShadeRoot(
                         isShizukuConnected = state.isShizukuConnected,
                         isExpanded = isQsExpanded,
                         tileShape = state.tileShape,
+                        tileSize = state.tileSize,
                         tileColumns = state.tileColumns,
                         showWideCards = state.showWideCards,
                         onTileClick = { viewModel.toggleTile(it) },

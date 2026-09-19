@@ -24,7 +24,7 @@ val appModule = module {
     single { StatusBarGovernor(androidContext(), get()) }
     single { NotificationRepository() }
     single { TileRepository(androidContext(), get(), get()) }
-    single { TileToggler(androidContext(), get(), get()) }
+    single { TileToggler(androidContext(), get(), get(), get()) }
     single { MediaRepository(androidContext()) }
     single { BrightnessRepository(androidContext(), get()) }
     single { UpdateChecker() }

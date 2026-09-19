@@ -78,6 +78,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.supershade.domain.tile.TileDefinition
 import com.supershade.settings.TileShape
+import com.supershade.settings.TileSize
 import com.supershade.ui.theme.ShadeTheme
 
 @Composable
@@ -86,6 +87,7 @@ fun TileCard(
     theme: ShadeTheme,
     isShizukuConnected: Boolean,
     tileShape: TileShape = TileShape.SQUIRCLE,
+    tileSize: TileSize = TileSize.STANDARD,
     columns: Int = 4,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
@@ -100,6 +102,8 @@ fun TileCard(
         tileShape == TileShape.ROUNDED -> RoundedCornerShape(16.dp)
         tileShape == TileShape.PILL -> RoundedCornerShape(28.dp)
         tileShape == TileShape.SOFT -> RoundedCornerShape(12.dp)
+        tileShape == TileShape.LEAF -> RoundedCornerShape(topStart = 24.dp, bottomEnd = 24.dp, topEnd = 8.dp, bottomStart = 8.dp)
+        tileShape == TileShape.SHARP -> RoundedCornerShape(6.dp)
         else -> RoundedCornerShape(22.dp)
     }
 
@@ -151,13 +155,22 @@ fun TileCard(
         "Off"
     }
 
+    val cardHeight = tileSize.heightDp.dp
+    val rawIconSize = if (columns >= 5) (tileSize.iconSizeDp - 2).coerceAtLeast(18) else tileSize.iconSizeDp
+    val iconSize = rawIconSize.dp
+    val vertPadding = when (tileSize) {
+        TileSize.COMPACT -> 5.dp
+        TileSize.COMFORTABLE -> 10.dp
+        TileSize.STANDARD -> 8.dp
+    }
+
     Surface(
         shape = cardShape,
         color = containerColor,
         border = borderStroke,
         modifier = Modifier
             .fillMaxWidth()
-            .height(72.dp)
+            .height(cardHeight)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .semantics {
                 role = Role.Switch
@@ -202,7 +215,7 @@ fun TileCard(
                     } else null,
                     role = Role.Switch,
                 )
-                .padding(horizontal = if (columns >= 5) 6.dp else 8.dp, vertical = 8.dp),
+                .padding(horizontal = if (columns >= 5) 6.dp else 8.dp, vertical = vertPadding),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(
@@ -214,7 +227,7 @@ fun TileCard(
                     imageVector = tileIcon(tile.id),
                     contentDescription = null,
                     tint = contentColor,
-                    modifier = Modifier.size(if (columns >= 5) 20.dp else 22.dp),
+                    modifier = Modifier.size(iconSize),
                 )
                 if (tile.isActive) {
                     Box(
@@ -225,12 +238,15 @@ fun TileCard(
                     )
                 }
             }
+            val baseSize = when (tileSize) {
+                TileSize.COMPACT -> if (columns >= 5) 8.5.sp else 9.5.sp
+                TileSize.COMFORTABLE -> if (columns >= 5) 9.5.sp else 12.sp
+                TileSize.STANDARD -> if (columns >= 5) 8.5.sp else 10.5.sp
+            }
             val titleFontSize = when {
-                columns >= 5 && tile.label.length > 8 -> 8.5.sp
-                columns >= 5 -> 9.5.sp
-                tile.label.length > 13 -> 9.5.sp
-                tile.label.length > 10 -> 10.5.sp
-                else -> 11.5.sp
+                columns >= 5 && tile.label.length > 8 -> (baseSize.value - 1f).sp
+                tile.label.length > 13 -> (baseSize.value - 0.75f).sp
+                else -> baseSize
             }
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
@@ -241,10 +257,11 @@ fun TileCard(
                         lineHeight = (titleFontSize.value + 2).sp,
                     ),
                     color = contentColor,
-                    maxLines = if (tile.subtitle != null) 1 else 2,
+                    maxLines = if (tileSize == TileSize.COMPACT || tile.subtitle != null) 1 else 2,
                     overflow = TextOverflow.Ellipsis,
+                    softWrap = true,
                 )
-                if (tile.subtitle != null) {
+                if (tile.subtitle != null && tileSize != TileSize.COMPACT) {
                     Text(
                         text = tile.subtitle,
                         style = MaterialTheme.typography.labelSmall.copy(
@@ -261,7 +278,7 @@ fun TileCard(
     }
 }
 
-private fun tileIcon(id: String): ImageVector = when (id) {
+internal fun tileIcon(id: String): ImageVector = when (id) {
     "internet"     -> Icons.Default.Wifi
     "wifi"         -> Icons.Default.Wifi
     "bt"           -> Icons.Default.Bluetooth

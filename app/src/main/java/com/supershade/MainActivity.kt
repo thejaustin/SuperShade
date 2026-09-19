@@ -74,6 +74,7 @@ class MainActivity : ComponentActivity() {
             val blockSystemShade by settings.blockSystemShade.collectAsState(initial = true)
             val qsTileTapAction by settings.qsTileTapAction.collectAsState(initial = QsTileTapAction.TOGGLE_ACTIVE)
             val tileShape by settings.tileShape.collectAsState(initial = com.supershade.settings.TileShape.SQUIRCLE)
+            val tileSize by settings.tileSize.collectAsState(initial = com.supershade.settings.TileSize.STANDARD)
             val tileColumns by settings.tileColumns.collectAsState(initial = com.supershade.settings.TileGridColumns.STANDARD)
             val showWideCards by settings.showWideCards.collectAsState(initial = true)
             val splitGestureMode by settings.splitGestureMode.collectAsState(initial = com.supershade.settings.SplitGestureMode.SEPARATE_70_30)
@@ -264,6 +265,11 @@ class MainActivity : ComponentActivity() {
                         onTileShapeChange = { shape ->
                             superHaptics.sliderTick()
                             scope.launch { settings.setTileShape(shape) }
+                        },
+                        tileSize = tileSize,
+                        onTileSizeChange = { size ->
+                            superHaptics.sliderTick()
+                            scope.launch { settings.setTileSize(size) }
                         },
                         tileColumns = tileColumns,
                         onTileColumnsChange = { cols ->

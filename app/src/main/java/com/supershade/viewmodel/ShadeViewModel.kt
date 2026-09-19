@@ -87,6 +87,10 @@ class ShadeViewModel(
             .onEach { shape -> _state.update { it.copy(tileShape = shape) } }
             .launchIn(viewModelScope)
 
+        settings.tileSize
+            .onEach { size -> _state.update { it.copy(tileSize = size) } }
+            .launchIn(viewModelScope)
+
         settings.tileColumns
             .onEach { cols -> _state.update { it.copy(tileColumns = cols) } }
             .launchIn(viewModelScope)

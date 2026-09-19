@@ -11,6 +11,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -140,6 +141,7 @@ fun StatusBarRow(
     statusBar: StatusBarState,
     onOpenPowerMenu: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onLockScreen: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { com.supershade.haptics.SuperHaptics(context) }
@@ -217,6 +219,15 @@ fun StatusBarRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {},
+                onDoubleClick = {
+                    haptics.heavyClick()
+                    onLockScreen()
+                },
+            )
             .padding(start = 22.dp, end = 16.dp, top = 16.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top,
@@ -227,15 +238,19 @@ fun StatusBarRow(
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable(
+                    .combinedClickable(
                         onClick = {
                             haptics.lightTap()
                             launchClock(context)
                         },
+                        onDoubleClick = {
+                            haptics.heavyClick()
+                            onLockScreen()
+                        },
                         role = Role.Button,
                     )
                     .semantics {
-                        contentDescription = "Clock: $time $ampm"
+                        contentDescription = "Clock: $time $ampm. Double tap anywhere on header to sleep"
                     },
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),

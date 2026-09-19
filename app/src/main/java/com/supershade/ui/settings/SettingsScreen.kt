@@ -76,6 +76,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -86,6 +87,8 @@ import com.supershade.domain.tile.KNOWN_TILES
 import com.supershade.settings.SplitGestureMode
 import com.supershade.settings.TileGridColumns
 import com.supershade.settings.TileShape
+import com.supershade.settings.TileSize
+import com.supershade.ui.shade.tileIcon
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -134,6 +137,8 @@ fun SettingsScreen(
     onOpenTilePreferences: () -> Unit = {},
     tileShape: TileShape = TileShape.SQUIRCLE,
     onTileShapeChange: (TileShape) -> Unit = {},
+    tileSize: TileSize = TileSize.STANDARD,
+    onTileSizeChange: (TileSize) -> Unit = {},
     tileColumns: TileGridColumns = TileGridColumns.STANDARD,
     onTileColumnsChange: (TileGridColumns) -> Unit = {},
     showWideCards: Boolean = true,
@@ -971,6 +976,8 @@ fun SettingsScreen(
                                 TileShape.CIRCLE -> CircleShape
                                 TileShape.PILL -> RoundedCornerShape(28.dp)
                                 TileShape.SOFT -> RoundedCornerShape(12.dp)
+                                TileShape.LEAF -> RoundedCornerShape(topStart = 24.dp, bottomEnd = 24.dp, topEnd = 8.dp, bottomStart = 8.dp)
+                                TileShape.SHARP -> RoundedCornerShape(6.dp)
                             }
                             Surface(
                                 shape = previewCorner,
@@ -980,7 +987,7 @@ fun SettingsScreen(
                                     color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f),
                                 ),
                                 modifier = Modifier
-                                    .width(108.dp)
+                                    .width(112.dp)
                                     .height(68.dp)
                                     .clickable { onTileShapeChange(shape) },
                             ) {
@@ -1014,13 +1021,52 @@ fun SettingsScreen(
                                         text = shape.label,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            fontSize = 11.sp,
+                                            fontSize = 10.5.sp,
                                         ),
                                         color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                 }
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
+                // Tile Size & Touch Ergonomics
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Tile Size & Height",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    )
+                    Text(
+                        text = when (tileSize) {
+                            TileSize.COMPACT -> "Compact (58dp): Streamlined profile leaving extra space for notifications and media"
+                            TileSize.COMFORTABLE -> "Tall & Spacious (84dp): Large touch targets and enhanced thumb readability"
+                            else -> "Standard (72dp): Balanced One UI 8 height with clear icon, label & status"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    val sizeOptions = listOf(
+                        TileSize.COMPACT to "Compact 58dp",
+                        TileSize.STANDARD to "Standard 72dp",
+                        TileSize.COMFORTABLE to "Tall 84dp",
+                    )
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        sizeOptions.forEachIndexed { index, (sizeOption, label) ->
+                            SegmentedButton(
+                                selected = tileSize == sizeOption,
+                                onClick = { onTileSizeChange(sizeOption) },
+                                shape = SegmentedButtonDefaults.itemShape(index, sizeOptions.size),
+                                icon = {},
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                )
                             }
                         }
                     }
@@ -1115,6 +1161,9 @@ fun SettingsScreen(
         if (showTileEditor) {
             TileEditorSheet(
                 currentTiles = if (enabledTiles.isNotEmpty()) enabledTiles else DEFAULT_TILES,
+                tileShape = tileShape,
+                tileSize = tileSize,
+                tileColumns = tileColumns,
                 onDismiss = { showTileEditor = false },
                 onSave = { updated ->
                     onEnabledTilesChange(updated)
@@ -1557,14 +1606,19 @@ private fun ColorPaletteSwatch(
 @Composable
 private fun TileEditorSheet(
     currentTiles: List<String>,
+    tileShape: TileShape = TileShape.SQUIRCLE,
+    tileSize: TileSize = TileSize.STANDARD,
+    tileColumns: TileGridColumns = TileGridColumns.STANDARD,
     onDismiss: () -> Unit,
     onSave: (List<String>) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val haptics = remember(context) { com.supershade.haptics.SuperHaptics(context) }
     var selectedTiles by remember(currentTiles) { mutableStateOf(currentTiles.toList()) }
+    var activeTab by remember { mutableIntStateOf(0) }
 
-    // All available tile IDs from KNOWN_TILES
     val allTileIds = remember {
         val list = mutableListOf<String>()
         DEFAULT_TILES.forEach { if (!list.contains(it)) list.add(it) }
@@ -1573,6 +1627,20 @@ private fun TileEditorSheet(
             if (!list.contains(id) && !list.contains(cleanId)) list.add(id)
         }
         list.distinct()
+    }
+
+    val availableTiles = remember(selectedTiles) {
+        allTileIds.filter { !selectedTiles.contains(it) }
+    }
+
+    val previewCorner = when (tileShape) {
+        TileShape.SQUIRCLE -> RoundedCornerShape(16.dp)
+        TileShape.ROUNDED -> RoundedCornerShape(12.dp)
+        TileShape.CIRCLE -> CircleShape
+        TileShape.PILL -> RoundedCornerShape(20.dp)
+        TileShape.SOFT -> RoundedCornerShape(10.dp)
+        TileShape.LEAF -> RoundedCornerShape(topStart = 18.dp, bottomEnd = 18.dp, topEnd = 6.dp, bottomStart = 6.dp)
+        TileShape.SHARP -> RoundedCornerShape(4.dp)
     }
 
     ModalBottomSheet(
@@ -1585,7 +1653,7 @@ private fun TileEditorSheet(
                 .padding(horizontal = 20.dp)
                 .navigationBarsPadding()
                 .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             // Header
             Row(
@@ -1593,19 +1661,26 @@ private fun TileEditorSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                     Text(
                         text = "Customize Quick Tiles",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = "${selectedTiles.size} active tiles in Quick Settings",
+                        text = "${selectedTiles.size} active in shade • ${tileColumns.count} columns (${tileSize.label})",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
                 TextButton(
-                    onClick = { selectedTiles = DEFAULT_TILES.toList() },
+                    onClick = {
+                        haptics.sliderTick()
+                        selectedTiles = DEFAULT_TILES.toList()
+                    },
                 ) {
                     Icon(Icons.Default.RestartAlt, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
@@ -1613,108 +1688,306 @@ private fun TileEditorSheet(
                 }
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+            // Live Mini-Preview of Quick Grid Top Row
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = "LIVE SHADE PREVIEW",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp,
+                            fontSize = 9.sp,
+                        ),
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        selectedTiles.forEachIndexed { index, tileId ->
+                            val label = KNOWN_TILES[tileId]?.first ?: tileId.replaceFirstChar { it.uppercase() }
+                            Surface(
+                                shape = previewCorner,
+                                color = if (index < tileColumns.count) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    color = if (index < tileColumns.count) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                ),
+                                modifier = Modifier
+                                    .width(76.dp)
+                                    .height(52.dp),
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(6.dp),
+                                    verticalArrangement = Arrangement.SpaceBetween,
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    Icon(
+                                        imageVector = tileIcon(tileId),
+                                        contentDescription = null,
+                                        tint = if (index < tileColumns.count) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 8.5.sp,
+                                            lineHeight = 10.sp,
+                                            fontWeight = FontWeight.Medium,
+                                        ),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        color = if (index < tileColumns.count) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
-            // Scrollable list of tiles
+            // Tab Switcher: Active (Reorder) vs Add Available
+            val editorTabs = listOf("Active Tiles (${selectedTiles.size})", "Add Available (${availableTiles.size})")
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                editorTabs.forEachIndexed { index, title ->
+                    SegmentedButton(
+                        selected = activeTab == index,
+                        onClick = {
+                            haptics.lightTap()
+                            activeTab = index
+                        },
+                        shape = SegmentedButtonDefaults.itemShape(index, editorTabs.size),
+                        icon = {},
+                    ) {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+
+            // Scrollable Content
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(340.dp)
+                    .height(310.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                allTileIds.forEach { tileId ->
-                    val isEnabled = selectedTiles.contains(tileId)
-                    val label = KNOWN_TILES[tileId]?.first ?: tileId.replaceFirstChar { it.uppercase() }
-                    val currentIndex = selectedTiles.indexOf(tileId)
-
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = if (isEnabled) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerLow,
-                        border = BorderStroke(
-                            width = 1.dp,
-                            color = if (isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
-                        ),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Row(
+                if (activeTab == 0) {
+                    if (selectedTiles.isEmpty()) {
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                                .height(160.dp),
+                            contentAlignment = Alignment.Center,
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                modifier = Modifier.weight(1f),
+                            Text(
+                                text = "No active tiles. Switch to 'Add Available' to add tiles.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    } else {
+                        selectedTiles.forEachIndexed { index, tileId ->
+                            val label = KNOWN_TILES[tileId]?.first ?: tileId.replaceFirstChar { it.uppercase() }
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                ),
+                                modifier = Modifier.fillMaxWidth(),
                             ) {
-                                Checkbox(
-                                    checked = isEnabled,
-                                    onCheckedChange = { checked ->
-                                        selectedTiles = if (checked) {
-                                            selectedTiles + tileId
-                                        } else {
-                                            selectedTiles - tileId
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        modifier = Modifier.weight(1f).padding(end = 6.dp),
+                                    ) {
+                                        Surface(
+                                            shape = CircleShape,
+                                            color = MaterialTheme.colorScheme.primaryContainer,
+                                            modifier = Modifier.size(26.dp),
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Text(
+                                                    text = "${index + 1}",
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 10.sp,
+                                                    ),
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                )
+                                            }
                                         }
-                                    },
-                                )
-                                Column {
-                                    Text(
-                                        text = label,
-                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                    )
-                                    if (isEnabled) {
-                                        Text(
-                                            text = "Position #${currentIndex + 1}",
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                            color = MaterialTheme.colorScheme.primary,
+
+                                        Icon(
+                                            imageVector = tileIcon(tileId),
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp),
                                         )
+
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                    ) {
+                                        IconButton(
+                                            onClick = {
+                                                if (index > 0) {
+                                                    haptics.sliderTick()
+                                                    val mutable = selectedTiles.toMutableList()
+                                                    val item = mutable.removeAt(index)
+                                                    mutable.add(index - 1, item)
+                                                    selectedTiles = mutable
+                                                }
+                                            },
+                                            enabled = index > 0,
+                                            modifier = Modifier.size(32.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.ArrowUpward,
+                                                contentDescription = "Move up",
+                                                modifier = Modifier.size(16.dp),
+                                            )
+                                        }
+
+                                        IconButton(
+                                            onClick = {
+                                                if (index < selectedTiles.size - 1) {
+                                                    haptics.sliderTick()
+                                                    val mutable = selectedTiles.toMutableList()
+                                                    val item = mutable.removeAt(index)
+                                                    mutable.add(index + 1, item)
+                                                    selectedTiles = mutable
+                                                }
+                                            },
+                                            enabled = index < selectedTiles.size - 1,
+                                            modifier = Modifier.size(32.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.ArrowDownward,
+                                                contentDescription = "Move down",
+                                                modifier = Modifier.size(16.dp),
+                                            )
+                                        }
+
+                                        IconButton(
+                                            onClick = {
+                                                haptics.tileToggleOff()
+                                                selectedTiles = selectedTiles - tileId
+                                            },
+                                            modifier = Modifier.size(32.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Remove",
+                                                tint = MaterialTheme.colorScheme.error,
+                                                modifier = Modifier.size(16.dp),
+                                            )
+                                        }
                                     }
                                 }
                             }
-
-                            if (isEnabled) {
+                        }
+                    }
+                } else {
+                    if (availableTiles.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "All available tiles are active in the shade!",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    } else {
+                        availableTiles.forEach { tileId ->
+                            val label = KNOWN_TILES[tileId]?.first ?: tileId.replaceFirstChar { it.uppercase() }
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                                ),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
                                 Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 6.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
                                 ) {
-                                    IconButton(
-                                        onClick = {
-                                            if (currentIndex > 0) {
-                                                val mutable = selectedTiles.toMutableList()
-                                                val item = mutable.removeAt(currentIndex)
-                                                mutable.add(currentIndex - 1, item)
-                                                selectedTiles = mutable
-                                            }
-                                        },
-                                        enabled = currentIndex > 0,
-                                        modifier = Modifier.size(32.dp),
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        modifier = Modifier.weight(1f).padding(end = 6.dp),
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.ArrowUpward,
-                                            contentDescription = "Move up",
-                                            modifier = Modifier.size(16.dp),
+                                            imageVector = tileIcon(tileId),
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
                                         )
                                     }
-                                    IconButton(
+
+                                    FilledTonalButton(
                                         onClick = {
-                                            if (currentIndex < selectedTiles.size - 1) {
-                                                val mutable = selectedTiles.toMutableList()
-                                                val item = mutable.removeAt(currentIndex)
-                                                mutable.add(currentIndex + 1, item)
-                                                selectedTiles = mutable
-                                            }
+                                            haptics.tileToggleOn()
+                                            selectedTiles = selectedTiles + tileId
                                         },
-                                        enabled = currentIndex < selectedTiles.size - 1,
-                                        modifier = Modifier.size(32.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.height(34.dp),
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.ArrowDownward,
-                                            contentDescription = "Move down",
-                                            modifier = Modifier.size(16.dp),
-                                        )
+                                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("Add", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold))
                                     }
                                 }
                             }
@@ -1732,6 +2005,7 @@ private fun TileEditorSheet(
             ) {
                 OutlinedButton(
                     onClick = {
+                        haptics.lightTap()
                         scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                     },
                     shape = RoundedCornerShape(14.dp),
@@ -1742,12 +2016,13 @@ private fun TileEditorSheet(
 
                 Button(
                     onClick = {
+                        haptics.sheetDetent()
                         scope.launch { sheetState.hide() }.invokeOnCompletion { onSave(selectedTiles) }
                     },
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.weight(1f).height(48.dp),
                 ) {
-                    Text("Save Tiles")
+                    Text("Apply (${selectedTiles.size} Tiles)")
                 }
             }
         }

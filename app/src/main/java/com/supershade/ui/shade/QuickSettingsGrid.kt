@@ -61,6 +61,7 @@ import com.supershade.haptics.SuperHaptics
 import com.supershade.domain.tile.TileDefinition
 import com.supershade.settings.TileGridColumns
 import com.supershade.settings.TileShape
+import com.supershade.settings.TileSize
 import com.supershade.ui.theme.ShadeTheme
 
 /**
@@ -76,6 +77,7 @@ fun QuickSettingsGrid(
     isShizukuConnected: Boolean,
     isExpanded: Boolean = false,
     tileShape: TileShape = TileShape.SQUIRCLE,
+    tileSize: TileSize = TileSize.STANDARD,
     tileColumns: TileGridColumns = TileGridColumns.STANDARD,
     showWideCards: Boolean = true,
     onTileClick: (TileDefinition) -> Unit,
@@ -152,6 +154,7 @@ fun QuickSettingsGrid(
                                 theme = theme,
                                 isShizukuConnected = isShizukuConnected,
                                 tileShape = tileShape,
+                                tileSize = tileSize,
                                 columns = colCount,
                                 onClick = { onTileClick(tile) },
                                 onLongClick = onTileLongClick?.let { cb -> { cb(tile) } },
@@ -225,6 +228,8 @@ private fun ConnectivityWideCard(
         tileShape == TileShape.CIRCLE || tileShape == TileShape.PILL -> CircleShape
         tileShape == TileShape.SOFT -> RoundedCornerShape(14.dp)
         tileShape == TileShape.ROUNDED -> RoundedCornerShape(16.dp)
+        tileShape == TileShape.LEAF -> RoundedCornerShape(topStart = 24.dp, bottomEnd = 24.dp, topEnd = 10.dp, bottomStart = 10.dp)
+        tileShape == TileShape.SHARP -> RoundedCornerShape(8.dp)
         else -> RoundedCornerShape(22.dp)
     }
 

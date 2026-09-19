@@ -6,14 +6,29 @@ import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.provider.Settings
 import com.supershade.service.NotificationCollector
+import com.supershade.settings.ShadeSettings
 import com.supershade.shizuku.StatusBarGovernor
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class TileToggler(
     private val context: Context,
     private val governor: StatusBarGovernor,
     private val tileRepo: TileRepository? = null,
+    private val settings: ShadeSettings? = null,
 ) {
+    private val coroutineScope = CoroutineScope(Dispatchers.IO)
+    @Volatile private var preferredTorchLevel: Int = 3
+
+    init {
+        settings?.let { s ->
+            coroutineScope.launch {
+                s.torchStrengthLevel.collect { preferredTorchLevel = it }
+            }
+        }
+    }
     suspend fun toggle(tile: TileDefinition) {
         val id = tile.id.lowercase()
         val newState = !tile.isActive
@@ -193,8 +208,8 @@ class TileToggler(
                 val maxStrength = chars.get(CameraCharacteristics.FLASH_INFO_STRENGTH_MAXIMUM_LEVEL) ?: 1
                 if (maxStrength > 1) {
                     if (on) {
-                        val defaultLevel = chars.get(CameraCharacteristics.FLASH_INFO_STRENGTH_DEFAULT_LEVEL) ?: maxStrength
-                        cm.turnOnTorchWithStrengthLevel(cameraId, defaultLevel)
+                        val level = preferredTorchLevel.coerceIn(1, maxStrength)
+                        cm.turnOnTorchWithStrengthLevel(cameraId, level)
                     } else {
                         cm.setTorchMode(cameraId, false)
                     }
@@ -206,6 +221,10 @@ class TileToggler(
     }
 
     fun setTorchStrength(level: Int) {
+        preferredTorchLevel = level
+        settings?.let { s ->
+            coroutineScope.launch { s.setTorchStrengthLevel(level) }
+        }
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return
         try {
             val cm = context.getSystemService(CameraManager::class.java)

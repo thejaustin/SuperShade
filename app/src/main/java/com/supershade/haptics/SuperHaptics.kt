@@ -79,6 +79,9 @@ class SuperHaptics(context: Context) {
         } catch (_: Exception) {}
     }
 
+    /** Heavy click feedback for significant actions such as lock screen double-tap. */
+    fun heavyClick() = sheetDetent()
+
     /** Haptic rejection / error when a permission or capability is blocked. */
     fun actionDenied() {
         if (vibrator?.hasVibrator() != true) return

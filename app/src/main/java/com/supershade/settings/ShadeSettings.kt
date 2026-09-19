@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -23,7 +24,21 @@ enum class TileShape(val id: String, val label: String, val cornerRadiusDp: Int)
     ROUNDED("rounded", "Rounded", 16),
     CIRCLE("circle", "Circle", 50),
     PILL("pill", "Stadium Pill", 28),
-    SOFT("soft", "Soft Minimal", 12);
+    SOFT("soft", "Soft Minimal", 12),
+    LEAF("leaf", "Asymmetric Leaf", 24),
+    SHARP("sharp", "Sharp Modern", 6);
+}
+
+enum class TileSize(
+    val id: String,
+    val label: String,
+    val subtitle: String,
+    val heightDp: Int,
+    val iconSizeDp: Int,
+) {
+    COMPACT("compact", "Compact (58dp)", "Space-saving height; fits more notifications and media", 58, 20),
+    STANDARD("standard", "Standard (72dp)", "Balanced One UI 8 height with clear icon, label & status", 72, 22),
+    COMFORTABLE("comfortable", "Comfortable (84dp)", "Spacious height with large iconography for easy reach", 84, 26);
 }
 
 enum class TileGridColumns(val id: String, val label: String, val count: Int) {
@@ -96,9 +111,11 @@ class ShadeSettings(private val context: Context) {
         private val BLOCK_SYSTEM_SHADE_KEY = booleanPreferencesKey("block_system_shade")
         private val QS_TILE_TAP_ACTION_KEY = stringPreferencesKey("qs_tile_tap_action")
         private val TILE_SHAPE_KEY = stringPreferencesKey("tile_shape")
+        private val TILE_SIZE_KEY = stringPreferencesKey("tile_size")
         private val TILE_COLUMNS_KEY = stringPreferencesKey("tile_columns")
         private val SHOW_WIDE_CARDS_KEY = booleanPreferencesKey("show_wide_cards")
         private val SPLIT_GESTURE_MODE_KEY = stringPreferencesKey("split_gesture_mode")
+        private val TORCH_STRENGTH_LEVEL_KEY = intPreferencesKey("torch_strength_level")
     }
 
     val theme: Flow<ShadeTheme> = context.dataStore.data.map { prefs ->
@@ -164,8 +181,22 @@ class ShadeSettings(private val context: Context) {
             "circle" -> TileShape.CIRCLE
             "pill" -> TileShape.PILL
             "soft" -> TileShape.SOFT
+            "leaf" -> TileShape.LEAF
+            "sharp" -> TileShape.SHARP
             else -> TileShape.SQUIRCLE
         }
+    }
+
+    val tileSize: Flow<TileSize> = context.dataStore.data.map { prefs ->
+        when (prefs[TILE_SIZE_KEY]) {
+            "compact" -> TileSize.COMPACT
+            "comfortable" -> TileSize.COMFORTABLE
+            else -> TileSize.STANDARD
+        }
+    }
+
+    val torchStrengthLevel: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[TORCH_STRENGTH_LEVEL_KEY] ?: 3
     }
 
     val tileColumns: Flow<TileGridColumns> = context.dataStore.data.map { prefs ->
@@ -243,6 +274,18 @@ class ShadeSettings(private val context: Context) {
     suspend fun setTileShape(shape: TileShape) {
         context.dataStore.edit { prefs ->
             prefs[TILE_SHAPE_KEY] = shape.id
+        }
+    }
+
+    suspend fun setTileSize(size: TileSize) {
+        context.dataStore.edit { prefs ->
+            prefs[TILE_SIZE_KEY] = size.id
+        }
+    }
+
+    suspend fun setTorchStrengthLevel(level: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[TORCH_STRENGTH_LEVEL_KEY] = level
         }
     }
 

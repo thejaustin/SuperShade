@@ -50,6 +50,7 @@ data class ShadeState(
     val darkThemeMode: com.supershade.ui.theme.DarkThemeMode = com.supershade.ui.theme.DarkThemeMode.SYSTEM,
     val accentColor: com.supershade.settings.AccentColor = com.supershade.settings.AccentColor.GALAXY_BLUE,
     val tileShape: com.supershade.settings.TileShape = com.supershade.settings.TileShape.SQUIRCLE,
+    val tileSize: com.supershade.settings.TileSize = com.supershade.settings.TileSize.STANDARD,
     val tileColumns: com.supershade.settings.TileGridColumns = com.supershade.settings.TileGridColumns.STANDARD,
     val showWideCards: Boolean = true,
     val activeTileDetail: TileDetailState? = null,

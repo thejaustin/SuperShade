@@ -45,6 +45,15 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.7" -> """
+        ✨ Multi-Size Quick Tiles, Leaf/Sharp Shapes, Reorder Studio & Double-Tap Sleep
+        • Multiple Tile Sizes: Choose between Compact (58dp, saves vertical space for notifications & media), Standard (72dp One UI 8), or Tall & Spacious (84dp, large touch targets and thumb readability)
+        • Expanded Tile Shapes: Added Asymmetric Leaf (24dp/8dp organic curve) and Sharp Modern (6dp technical minimal) alongside Squircle, Rounded, Stadium Circle, Pill, and Soft Minimal
+        • Tile Customizer & Reorder Studio: Upgraded bottom sheet with live shade mini-preview, categorized tile drawer (Connectivity, Display, Audio/Power, Utilities), position indexing, and quick move-to-top/bottom
+        • Double-Tap Header to Sleep: Double-tap anywhere on the status bar header clock or empty area to instantly sleep/lock the device via accessibility or power governor
+        • Persistent Hardware Torch Level: Restores your preferred flashlight brightness level (1–5) whenever toggled ON
+        • Anti-Clipping Guarantees: Text in quick tile detail panels, headers, and metric tiles now automatically wraps and adapts to prevent any cutoffs
+    """.trimIndent()
         "1.9.6" -> """
         ✨ Split Shade Pull Presets, In-Shade Tile Sub-Panels & Hardware Torch Slider
         • Split Status Bar Pull Presets: Choose between 5 split modes including One UI 8 / iOS 50/50 Half & Half, Standard 70/30, Left-Handed 30/70, Notifications Only, or Quick Settings Only with a live interactive visualizer

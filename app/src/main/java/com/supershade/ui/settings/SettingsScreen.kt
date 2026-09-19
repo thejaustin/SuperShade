@@ -84,10 +84,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.style.TextOverflow
 import com.supershade.domain.tile.DEFAULT_TILES
 import com.supershade.domain.tile.KNOWN_TILES
+import com.supershade.settings.CardBorderWidth
 import com.supershade.settings.SplitGestureMode
 import com.supershade.settings.TileGridColumns
 import com.supershade.settings.TileShape
 import com.supershade.settings.TileSize
+import com.supershade.ui.theme.getCardBorder
 import com.supershade.ui.shade.tileIcon
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -147,6 +149,8 @@ fun SettingsScreen(
     onEnabledTilesChange: (List<String>) -> Unit = {},
     splitGestureMode: SplitGestureMode = SplitGestureMode.SEPARATE_70_30,
     onSplitGestureModeChange: (SplitGestureMode) -> Unit = {},
+    cardBorderWidth: CardBorderWidth = CardBorderWidth.THIN,
+    onCardBorderWidthChange: (CardBorderWidth) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -925,6 +929,36 @@ fun SettingsScreen(
                                 isSelected = selectedAccentColor == accent,
                                 onClick = { onAccentColorChange(accent) },
                             )
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
+                // Card Borders & Outlines
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Card Borders & Outlines",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    )
+                    Text(
+                        text = "Customize the outline sharpness and border stroke around shade cards and tiles",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        CardBorderWidth.entries.forEachIndexed { index, width ->
+                            SegmentedButton(
+                                selected = cardBorderWidth == width,
+                                onClick = { onCardBorderWidthChange(width) },
+                                shape = SegmentedButtonDefaults.itemShape(index, CardBorderWidth.entries.size),
+                                icon = {},
+                            ) {
+                                Text(
+                                    text = width.label,
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                )
+                            }
                         }
                     }
                 }

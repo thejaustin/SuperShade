@@ -43,6 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.BorderStroke
+import com.supershade.ui.theme.getCardBorder
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Surface
@@ -194,10 +195,7 @@ fun NotificationCard(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
             ),
-            border = androidx.compose.foundation.BorderStroke(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
-            ),
+            border = getCardBorder(alpha = 0.25f),
             modifier = Modifier
                 .fillMaxWidth()
                 .animateContentSize()
@@ -499,10 +497,7 @@ fun NotificationCard(
                                 },
                                 shape = RoundedCornerShape(50),
                                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                border = BorderStroke(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-                                ),
+                                border = getCardBorder(alpha = 0.35f),
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(38.dp),

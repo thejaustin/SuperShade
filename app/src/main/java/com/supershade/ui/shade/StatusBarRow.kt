@@ -8,6 +8,7 @@ import android.os.BatteryManager
 import android.provider.AlarmClock
 import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
+import com.supershade.ui.theme.getCardBorder
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -364,10 +365,7 @@ fun StatusBarRow(
             Surface(
                 shape = RoundedCornerShape(14.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f),
-                border = BorderStroke(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f),
-                ),
+                border = getCardBorder(alpha = 0.30f),
                 modifier = Modifier
                     .clip(RoundedCornerShape(14.dp))
                     .clickable(

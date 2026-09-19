@@ -45,6 +45,14 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.9" -> """
+        ✨ Maximized Notification Space, Dual-Panel Swipes, Sound Mode & Card Borders
+        • Maximized Notification Viewport: Swiping up on quick controls or scrolling notifications tucks quick settings into a minimal 36dp bar, granting ~90% vertical display space to notifications
+        • Dual-Panel Pill Tabs & Horizontal Gestures: Switch smoothly between Notifications and dedicated full Quick Settings via top pill tabs or fluid horizontal swipe gestures
+        • Instant Tile Loading & Sound Mode: Pre-seeded tile cache eliminates loading flicker; renamed Mute to Sound with dynamic Sound/Vibrate/Mute cycling and live icon states
+        • Uniform Card Borders & Outlines: Choose between None (0dp), Thin (1dp default), Distinct (1.5dp), and Bold (2dp) border outlines for all cards, tiles, and dialogs
+        • Dynamic Rotation State: Live Screen Rotation tile icon and label adapt to portrait lock vs auto-rotate
+    """.trimIndent()
         "1.9.8" -> """
         ✨ Fluid Gesture Navigation, Zero-Clip Peek Overlays & Enhanced Touch Points
         • Seamless Viewport Transitions: Scrolling notifications upward automatically collapses expanded Quick Settings into compact mode, dynamically allocating 100% of screen height to notifications

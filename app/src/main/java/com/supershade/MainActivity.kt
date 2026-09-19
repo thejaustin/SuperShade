@@ -78,6 +78,7 @@ class MainActivity : ComponentActivity() {
             val tileColumns by settings.tileColumns.collectAsState(initial = com.supershade.settings.TileGridColumns.STANDARD)
             val showWideCards by settings.showWideCards.collectAsState(initial = true)
             val splitGestureMode by settings.splitGestureMode.collectAsState(initial = com.supershade.settings.SplitGestureMode.SEPARATE_70_30)
+            val cardBorderWidth by settings.cardBorderWidth.collectAsState(initial = com.supershade.settings.CardBorderWidth.THIN)
             val enabledTiles by settings.enabledTiles.collectAsState(initial = emptyList())
             val availableUpdate by updateRepo.availableUpdate.collectAsState()
             val isCheckingUpdate by updateRepo.isChecking.collectAsState()
@@ -290,6 +291,11 @@ class MainActivity : ComponentActivity() {
                         onSplitGestureModeChange = { mode ->
                             superHaptics.sliderTick()
                             scope.launch { settings.setSplitGestureMode(mode) }
+                        },
+                        cardBorderWidth = cardBorderWidth,
+                        onCardBorderWidthChange = { width ->
+                            superHaptics.sliderTick()
+                            scope.launch { settings.setCardBorderWidth(width) }
                         },
                         modifier = Modifier.padding(padding),
                     )

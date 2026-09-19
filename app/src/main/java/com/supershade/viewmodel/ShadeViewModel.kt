@@ -99,6 +99,10 @@ class ShadeViewModel(
             .onEach { show -> _state.update { it.copy(showWideCards = show) } }
             .launchIn(viewModelScope)
 
+        settings.cardBorderWidth
+            .onEach { width -> _state.update { it.copy(cardBorderWidth = width) } }
+            .launchIn(viewModelScope)
+
         governor.isCommanderConnected
             .onEach { connected -> _state.update { it.copy(isShizukuConnected = connected) } }
             .launchIn(viewModelScope)
@@ -126,7 +130,15 @@ class ShadeViewModel(
     }
 
     fun open(expandQs: Boolean = false) {
-        _state.update { it.copy(isOpen = true, isQsExpanded = expandQs, brightness = brightnessRepo.getCurrent()) }
+        _state.update {
+            it.copy(
+                isOpen = true,
+                isQsExpanded = expandQs,
+                activePanel = if (expandQs) ShadePanel.QUICK_SETTINGS else ShadePanel.NOTIFICATIONS,
+                isQuickControlsTucked = false,
+                brightness = brightnessRepo.getCurrent(),
+            )
+        }
         mediaRepo.refresh()
         tileRepo.reload()
         notificationRepo.refresh()
@@ -140,11 +152,29 @@ class ShadeViewModel(
     }
 
     fun setQsExpanded(expanded: Boolean) {
-        _state.update { it.copy(isQsExpanded = expanded) }
+        _state.update {
+            it.copy(
+                isQsExpanded = expanded,
+                activePanel = if (expanded) ShadePanel.QUICK_SETTINGS else ShadePanel.NOTIFICATIONS,
+            )
+        }
+    }
+
+    fun setActivePanel(panel: ShadePanel) {
+        _state.update {
+            it.copy(
+                activePanel = panel,
+                isQsExpanded = (panel == ShadePanel.QUICK_SETTINGS),
+            )
+        }
+    }
+
+    fun setQuickControlsTucked(tucked: Boolean) {
+        _state.update { it.copy(isQuickControlsTucked = tucked) }
     }
 
     fun close() {
-        _state.update { it.copy(isOpen = false, isQsExpanded = false) }
+        _state.update { it.copy(isOpen = false, isQsExpanded = false, isQuickControlsTucked = false) }
         tileRefreshJob?.cancel()
         tileRefreshJob = null
     }

@@ -72,6 +72,8 @@ import android.media.AudioManager
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import com.supershade.ui.theme.getCardBorder
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Surface
 import androidx.compose.ui.platform.LocalContext
@@ -204,7 +206,7 @@ private fun AudioOutputChip(
         },
         shape = RoundedCornerShape(50),
         color = Color.White.copy(alpha = 0.15f),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
+        border = getCardBorder(borderColor = Color.White.copy(alpha = 0.25f)),
         modifier = modifier.height(28.dp),
     ) {
         Row(
@@ -295,6 +297,11 @@ fun MediaCard(
             .shadow(elevation = 4.dp, shape = RoundedCornerShape(24.dp), clip = false)
             .clip(RoundedCornerShape(24.dp))
             .background(animatedBg)
+            .then(
+                getCardBorder(alpha = 0.30f)?.let {
+                    Modifier.border(it, RoundedCornerShape(24.dp))
+                } ?: Modifier
+            )
             .animateContentSize(),
     ) {
         // Full-bleed album art background (blurred, low alpha) when art is available

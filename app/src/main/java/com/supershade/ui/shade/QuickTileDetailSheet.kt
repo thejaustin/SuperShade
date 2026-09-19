@@ -7,6 +7,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import com.supershade.ui.theme.getCardBorder
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -232,7 +233,7 @@ private fun FlashlightDetailContent(
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)),
+        border = getCardBorder(alpha = 0.30f),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
@@ -273,7 +274,7 @@ private fun FlashlightDetailContent(
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surfaceContainer,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)),
+            border = getCardBorder(alpha = 0.30f),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(
@@ -322,7 +323,7 @@ private fun FlashlightDetailContent(
                         Surface(
                             shape = CircleShape,
                             color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
-                            border = if (isSelected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                            border = if (isSelected) null else getCardBorder(alpha = 0.35f),
                             modifier = Modifier
                                 .size(36.dp)
                                 .clickable(enabled = isActive) { onLevelChange(level) },
@@ -357,7 +358,7 @@ private fun WifiDetailContent(
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)),
+        border = getCardBorder(alpha = 0.30f),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
@@ -457,7 +458,7 @@ private fun BluetoothDetailContent(
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)),
+        border = getCardBorder(alpha = 0.30f),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(

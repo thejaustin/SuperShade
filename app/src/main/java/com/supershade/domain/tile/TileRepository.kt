@@ -36,13 +36,26 @@ class TileRepository(
     private val settings: ShadeSettings? = null,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val _tiles = MutableStateFlow<List<TileDefinition>>(emptyList())
+    private val componentToId: Map<String, String> =
+        TILE_COMPONENTS.entries.associate { (id, comp) -> comp to id }
+
+    private val _tiles = MutableStateFlow<List<TileDefinition>>(
+        DEFAULT_TILES.map { id ->
+            val (label, capability) = KNOWN_TILES[id] ?: (id to TileCapability.SETTINGS_INTENT)
+            TileDefinition(
+                id = id,
+                label = label,
+                isActive = false,
+                capability = capability,
+                componentName = TILE_COMPONENTS[id],
+                settingsAction = TILE_SETTINGS_ACTIONS[id],
+                subtitle = null,
+            )
+        }
+    )
     val tiles: StateFlow<List<TileDefinition>> = _tiles.asStateFlow()
 
     @Volatile private var torchEnabled = false
-
-    private val componentToId: Map<String, String> =
-        TILE_COMPONENTS.entries.associate { (id, comp) -> comp to id }
 
     init {
         // Track torch state without polling so the flashlight tile stays accurate
@@ -287,7 +300,7 @@ class TileRepository(
                 }
                 key.contains("mute") || key.contains("sound") -> {
                     val am = context.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
-                    am?.ringerMode != android.media.AudioManager.RINGER_MODE_NORMAL
+                    am?.ringerMode == android.media.AudioManager.RINGER_MODE_NORMAL
                 }
                 key.contains("sync") -> {
                     android.content.ContentResolver.getMasterSyncAutomatically()

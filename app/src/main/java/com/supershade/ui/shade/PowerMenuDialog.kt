@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 
+import com.supershade.ui.theme.getCardBorder
+
 /**
  * Modern One UI style floating Quick Power Menu dialog.
  */
@@ -49,6 +51,7 @@ fun PowerMenuDialog(
         Surface(
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            border = getCardBorder(),
             tonalElevation = 6.dp,
             modifier = Modifier
                 .fillMaxWidth()

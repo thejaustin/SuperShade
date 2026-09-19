@@ -88,7 +88,7 @@ val KNOWN_TILES: Map<String, Pair<String, TileCapability>> = mapOf(
     "Dnd"                to ("Do Not Disturb"    to TileCapability.FULL_TOGGLE),
     "flashlight"         to ("Flashlight"        to TileCapability.FULL_TOGGLE),
     "Flashlight"         to ("Flashlight"        to TileCapability.FULL_TOGGLE),
-    "mute"               to ("Mute"              to TileCapability.FULL_TOGGLE),
+    "mute"               to ("Sound"             to TileCapability.FULL_TOGGLE),
     "SoundMode"          to ("Sound"             to TileCapability.FULL_TOGGLE),
     "volume"             to ("Volume"            to TileCapability.SETTINGS_INTENT),
     // Power & Device

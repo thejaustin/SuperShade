@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
+import com.supershade.ui.theme.getCardBorder
 import androidx.compose.ui.graphics.graphicsLayer
 import android.content.Intent
 import android.provider.Settings
@@ -203,10 +204,7 @@ fun GroupedNotificationCard(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 ),
-                border = androidx.compose.foundation.BorderStroke(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
-                ),
+                border = getCardBorder(alpha = 0.25f),
                 modifier = Modifier
                     .fillMaxWidth()
                     .animateContentSize(spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))

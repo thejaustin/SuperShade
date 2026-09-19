@@ -9,6 +9,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.foundation.BorderStroke
+import com.supershade.ui.theme.getCardBorder
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -98,10 +99,7 @@ fun QuickSettingsGrid(
     Surface(
         shape = RoundedCornerShape(26.dp),
         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f),
-        ),
+        border = getCardBorder(alpha = 0.30f),
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 4.dp),
@@ -218,10 +216,7 @@ private fun ConnectivityWideCard(
         label = "connContent",
     )
 
-    val borderStroke = if (tile.isActive) null else BorderStroke(
-        width = 1.dp,
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f),
-    )
+    val borderStroke = if (tile.isActive) null else getCardBorder(alpha = 0.40f)
 
     val wideCardShape = when {
         theme is ShadeTheme.Pixel -> CircleShape

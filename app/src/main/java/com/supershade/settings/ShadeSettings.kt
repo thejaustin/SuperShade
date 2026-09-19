@@ -29,6 +29,13 @@ enum class TileShape(val id: String, val label: String, val cornerRadiusDp: Int)
     SHARP("sharp", "Sharp Modern", 6);
 }
 
+enum class CardBorderWidth(val id: String, val label: String, val widthDp: Float) {
+    NONE("none", "Borderless (0dp)", 0f),
+    THIN("thin", "Subtle (1dp)", 1f),
+    DISTINCT("distinct", "Distinct (1.5dp)", 1.5f),
+    BOLD("bold", "Bold (2dp)", 2f);
+}
+
 enum class TileSize(
     val id: String,
     val label: String,
@@ -116,6 +123,7 @@ class ShadeSettings(private val context: Context) {
         private val SHOW_WIDE_CARDS_KEY = booleanPreferencesKey("show_wide_cards")
         private val SPLIT_GESTURE_MODE_KEY = stringPreferencesKey("split_gesture_mode")
         private val TORCH_STRENGTH_LEVEL_KEY = intPreferencesKey("torch_strength_level")
+        private val CARD_BORDER_WIDTH_KEY = stringPreferencesKey("card_border_width")
     }
 
     val theme: Flow<ShadeTheme> = context.dataStore.data.map { prefs ->
@@ -218,6 +226,15 @@ class ShadeSettings(private val context: Context) {
             "always_notifs" -> SplitGestureMode.ALWAYS_NOTIFICATIONS
             "always_qs" -> SplitGestureMode.ALWAYS_QUICK_SETTINGS
             else -> SplitGestureMode.SEPARATE_70_30
+        }
+    }
+
+    val cardBorderWidth: Flow<CardBorderWidth> = context.dataStore.data.map { prefs ->
+        when (prefs[CARD_BORDER_WIDTH_KEY]) {
+            "none" -> CardBorderWidth.NONE
+            "distinct" -> CardBorderWidth.DISTINCT
+            "bold" -> CardBorderWidth.BOLD
+            else -> CardBorderWidth.THIN
         }
     }
 
@@ -328,6 +345,12 @@ class ShadeSettings(private val context: Context) {
     suspend fun setSplitGestureMode(mode: SplitGestureMode) {
         context.dataStore.edit { prefs ->
             prefs[SPLIT_GESTURE_MODE_KEY] = mode.id
+        }
+    }
+
+    suspend fun setCardBorderWidth(width: CardBorderWidth) {
+        context.dataStore.edit { prefs ->
+            prefs[CARD_BORDER_WIDTH_KEY] = width.id
         }
     }
 }

@@ -32,6 +32,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.haptics.SuperHaptics
+import com.supershade.ui.theme.getCardBorder
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -50,10 +51,12 @@ import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material.icons.filled.PanTool
 import androidx.compose.material.icons.filled.RadioButtonChecked
+import androidx.compose.material.icons.filled.ScreenLockPortrait
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.WifiTethering
@@ -144,10 +147,7 @@ fun TileCard(
 
     val indication = LocalIndication.current
 
-    val borderStroke = if (tile.isActive) null else BorderStroke(
-        width = 1.dp,
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f),
-    )
+    val borderStroke = if (tile.isActive) null else getCardBorder(alpha = 0.40f)
 
     val stateDesc = if (tile.isActive) {
         tile.subtitle ?: "Active"
@@ -224,7 +224,7 @@ fun TileCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    imageVector = tileIcon(tile.id),
+                    imageVector = tileIcon(tile.id, tile.isActive, tile.subtitle),
                     contentDescription = null,
                     tint = contentColor,
                     modifier = Modifier.size(iconSize),
@@ -278,9 +278,8 @@ fun TileCard(
     }
 }
 
-internal fun tileIcon(id: String): ImageVector = when (id) {
-    "internet"     -> Icons.Default.Wifi
-    "wifi"         -> Icons.Default.Wifi
+internal fun tileIcon(id: String, isActive: Boolean = false, subtitle: String? = null): ImageVector = when (id) {
+    "internet", "wifi" -> Icons.Default.Wifi
     "bt"           -> Icons.Default.Bluetooth
     "nfc"          -> Icons.Default.Nfc
     "hotspot"      -> Icons.Default.WifiTethering
@@ -289,12 +288,16 @@ internal fun tileIcon(id: String): ImageVector = when (id) {
     "vpn"          -> Icons.Default.VpnKey
     "dark"         -> Icons.Default.DarkMode
     "night"        -> Icons.Default.NightsStay
-    "rotation"     -> Icons.Default.ScreenRotation
+    "rotation"     -> if (isActive) Icons.Default.ScreenRotation else Icons.Default.ScreenLockPortrait
     "cast"         -> Icons.Default.Cast
     "screenrecord" -> Icons.Default.RadioButtonChecked
     "dnd"          -> Icons.Default.DoNotDisturb
     "flashlight"   -> Icons.Default.FlashOn
-    "mute"         -> Icons.AutoMirrored.Filled.VolumeOff
+    "mute", "sound" -> when {
+        subtitle?.equals("vibrate", ignoreCase = true) == true -> Icons.Default.Vibration
+        subtitle?.equals("mute", ignoreCase = true) == true || !isActive -> Icons.AutoMirrored.Filled.VolumeOff
+        else -> Icons.AutoMirrored.Filled.VolumeUp
+    }
     "volume"       -> Icons.AutoMirrored.Filled.VolumeUp
     "battery"      -> Icons.Default.Battery5Bar
     "powershare"   -> Icons.Default.BatteryChargingFull

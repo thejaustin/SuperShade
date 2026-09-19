@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.supershade.domain.notification.model.ShadeCategory
+import com.supershade.ui.theme.getCardBorder
 
 @Composable
 fun CategoryBar(
@@ -117,10 +118,7 @@ private fun CategoryChip(
         label = "chipScale",
     )
 
-    val border = if (isSelected) null else androidx.compose.foundation.BorderStroke(
-        width = 1.dp,
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-    )
+    val border = if (isSelected) null else getCardBorder(alpha = 0.35f)
 
     Surface(
         onClick = {

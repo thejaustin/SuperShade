@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.BorderStroke
+import com.supershade.ui.theme.getCardBorder
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.CompositionLocalProvider
 import com.supershade.haptics.LocalSuperHaptics
@@ -331,10 +332,7 @@ class HeadsUpOverlay(
                 colors = CardDefaults.cardColors(
                     containerColor = cardBg,
                 ),
-                border = BorderStroke(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-                ),
+                border = getCardBorder(alpha = 0.35f),
                 elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
                 modifier = Modifier
                     .fillMaxWidth()

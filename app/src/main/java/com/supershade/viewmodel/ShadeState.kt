@@ -35,6 +35,11 @@ data class TileDetailState(
     val settingsAction: String? = null,
 )
 
+enum class ShadePanel {
+    NOTIFICATIONS,
+    QUICK_SETTINGS,
+}
+
 data class ShadeState(
     val isOpen: Boolean = false,
     val isQsExpanded: Boolean = false,
@@ -54,4 +59,7 @@ data class ShadeState(
     val tileColumns: com.supershade.settings.TileGridColumns = com.supershade.settings.TileGridColumns.STANDARD,
     val showWideCards: Boolean = true,
     val activeTileDetail: TileDetailState? = null,
+    val cardBorderWidth: com.supershade.settings.CardBorderWidth = com.supershade.settings.CardBorderWidth.THIN,
+    val isQuickControlsTucked: Boolean = false,
+    val activePanel: ShadePanel = ShadePanel.NOTIFICATIONS,
 )

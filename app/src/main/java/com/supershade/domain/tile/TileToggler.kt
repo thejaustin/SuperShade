@@ -56,6 +56,7 @@ class TileToggler(
                     } else {
                         launchWriteSettingsOrSettings(tile)
                     }
+                    tileRepo?.reload()
                 }
 
                 // Do Not Disturb: direct NotificationManager or NotificationCollector listener
@@ -94,6 +95,7 @@ class TileToggler(
                             }
                             else -> am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL
                         }
+                        tileRepo?.reload()
                     } catch (_: Exception) {
                         openSettings(tile)
                     }

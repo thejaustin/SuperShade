@@ -424,13 +424,14 @@ class HeadsUpOverlay(
                                 }
                             }
                         }
-                    }
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    },
             ) {
                 if (isSettingsMode) {
                     // ---- OS-STYLE NOTIFICATION SETTINGS VIEW ----
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp, vertical = 14.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Row(
@@ -568,7 +569,9 @@ class HeadsUpOverlay(
                 } else {
                     // ---- STANDARD PEEK NOTIFICATION CARD ----
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp, vertical = 14.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         // Header row
@@ -611,11 +614,13 @@ class HeadsUpOverlay(
                         if (notification.title.isNotBlank()) {
                             Text(
                                 text = notification.title,
-                                style = MaterialTheme.typography.titleSmall,
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    lineHeight = 18.sp,
+                                ),
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                fontWeight = FontWeight.SemiBold,
                             )
                         }
 
@@ -627,12 +632,13 @@ class HeadsUpOverlay(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 3,
                                 overflow = TextOverflow.Ellipsis,
+                                softWrap = true,
                             )
                         }
 
                         // Action buttons (Reply / Mark read / etc.)
                         if (notification.actions.isNotEmpty() && replyingAction == null) {
-                            Spacer(Modifier.height(4.dp))
+                            Spacer(Modifier.height(6.dp))
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth(),
@@ -650,15 +656,21 @@ class HeadsUpOverlay(
                                                 onHide()
                                             }
                                         },
-                                        modifier = Modifier.weight(1f).height(32.dp),
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(36.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                                     ) {
                                         Text(
                                             text = action.label,
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = actionFontSize),
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = actionFontSize,
+                                                fontWeight = FontWeight.SemiBold,
+                                            ),
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
+                                            softWrap = false,
                                         )
                                     }
                                 }

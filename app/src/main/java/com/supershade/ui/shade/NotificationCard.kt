@@ -67,6 +67,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.domain.notification.model.NotificationAction
 import com.supershade.domain.notification.model.ShadeNotification
@@ -326,13 +327,13 @@ fun NotificationCard(
                                             haptics.lightTap()
                                             showSettingsMenu = true
                                         },
-                                        modifier = Modifier.size(32.dp),
+                                        modifier = Modifier.size(38.dp),
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Snooze,
                                             contentDescription = "Snooze notification",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f),
-                                            modifier = Modifier.size(17.dp),
+                                            modifier = Modifier.size(18.dp),
                                         )
                                     }
                                 }
@@ -342,13 +343,13 @@ fun NotificationCard(
                                             haptics.lightTap()
                                             expanded = !expanded
                                         },
-                                        modifier = Modifier.size(36.dp),
+                                        modifier = Modifier.size(38.dp),
                                     ) {
                                         Icon(
                                             imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                                             contentDescription = if (expanded) "Collapse notification details" else "Expand notification details",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(20.dp),
+                                            modifier = Modifier.size(22.dp),
                                         )
                                     }
                                 }
@@ -504,20 +505,25 @@ fun NotificationCard(
                                 ),
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(36.dp),
+                                    .height(38.dp),
                             ) {
                                 Box(
                                     contentAlignment = Alignment.Center,
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .padding(horizontal = 10.dp),
+                                        .padding(horizontal = 8.dp),
                                 ) {
+                                    val actionFontSize = if (action.label.length > 12) 10.sp else 11.sp
                                     Text(
                                         text = action.label,
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = actionFontSize,
+                                        ),
                                         color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
+                                        softWrap = false,
                                     )
                                 }
                             }

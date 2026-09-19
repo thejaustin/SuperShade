@@ -45,6 +45,14 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.8" -> """
+        ✨ Fluid Gesture Navigation, Zero-Clip Peek Overlays & Enhanced Touch Points
+        • Seamless Viewport Transitions: Scrolling notifications upward automatically collapses expanded Quick Settings into compact mode, dynamically allocating 100% of screen height to notifications
+        • Samsung & Pixel Pull-to-Expand: Pulling down at the top of the notification feed or swiping down across the header and quick settings smoothly expands the full quick settings panel
+        • Natural Quick Closes: Flinging upward from anywhere, swiping up on the bottom handle, or tapping the bottom bar instantly dismisses the shade with spring damping physics
+        • Edge-Safe Heads-Up Overlays: Completely eliminated text clipping on peek cards with calibrated internal margins that clear 26dp rounded corner contours
+        • Ergonomic Touch Targets: Upgraded notification snooze, group expansion chevrons, and inline action buttons to 38-40dp touch surfaces with mechanical tactile feedback
+    """.trimIndent()
         "1.9.7" -> """
         ✨ Multi-Size Quick Tiles, Leaf/Sharp Shapes, Reorder Studio & Double-Tap Sleep
         • Multiple Tile Sizes: Choose between Compact (58dp, saves vertical space for notifications & media), Standard (72dp One UI 8), or Tall & Spacious (84dp, large touch targets and thumb readability)

@@ -19,6 +19,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -136,6 +141,63 @@ fun ShadeRoot(
 
     val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
 
+    val nestedScrollConnection = remember(isQsExpanded) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val dy = available.y
+                // Swiping UP while Quick Settings is expanded:
+                // Instantly collapses Quick Settings first to grant full viewport to notifications
+                if (dy < -8f && isQsExpanded) {
+                    haptics.sheetDetent()
+                    viewModel.setQsExpanded(false)
+                    return Offset(0f, dy)
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                val dy = available.y
+                // Pulled down at top of notifications list (available.y > 0):
+                // Fluidly expand Quick Settings (Samsung / Google Pixel gesture)
+                if (dy > 14f && !isQsExpanded) {
+                    haptics.sheetDetent()
+                    viewModel.setQsExpanded(true)
+                    return Offset(0f, dy)
+                }
+                // Swiping up when feed cannot scroll further up:
+                if (dy < -10f && !isQsExpanded) {
+                    coroutineScope.launch {
+                        dragOffset.snapTo((dragOffset.value + dy * 0.45f).coerceAtMost(0f))
+                    }
+                    return Offset(0f, dy)
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (available.y < -velocityThresholdPxPerSec && !isQsExpanded && dragOffset.value < -20f) {
+                    dragOffset.animateTo(-3000f, tween(200))
+                    onDismiss()
+                    return available
+                }
+                return Velocity.Zero
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                if (dragOffset.value < -dismissThresholdPx || available.y < -velocityThresholdPxPerSec) {
+                    if (!isQsExpanded) {
+                        dragOffset.animateTo(-3000f, tween(200))
+                        onDismiss()
+                        return available
+                    }
+                } else if (dragOffset.value < 0f) {
+                    dragOffset.animateTo(0f, spring(0.55f, 450f))
+                }
+                return Velocity.Zero
+            }
+        }
+    }
+
     themeWrapper {
         Box(modifier = Modifier.fillMaxSize()) {
             // Dimmer scrim — tapping it dismisses the shade.
@@ -197,64 +259,97 @@ fun ShadeRoot(
                         .statusBarsPadding()
                         .navigationBarsPadding(),
                 ) {
-                    StatusBarRow(
-                        statusBar = state.statusBar,
-                        onOpenPowerMenu = { showPowerMenu = true },
-                        onOpenSettings = {
-                            try {
-                                val intent = Intent(context, com.supershade.MainActivity::class.java).apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                                context.startActivity(intent)
-                                onDismiss()
-                            } catch (_: Exception) {}
-                        },
-                        onLockScreen = { viewModel.lockScreen() },
-                    )
-
-                    // Quick Settings grid (compact 1-row or expanded 2-row)
-                    QuickSettingsGrid(
-                        tiles = state.tiles,
-                        theme = state.theme,
-                        isShizukuConnected = state.isShizukuConnected,
-                        isExpanded = isQsExpanded,
-                        tileShape = state.tileShape,
-                        tileSize = state.tileSize,
-                        tileColumns = state.tileColumns,
-                        showWideCards = state.showWideCards,
-                        onTileClick = { viewModel.toggleTile(it) },
-                        onTileLongClick = { viewModel.openTileDetail(it) },
-                    )
-
-                    // Full-Width Tactile Sliders Island
-                    Surface(
-                        shape = RoundedCornerShape(24.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
-                        border = BorderStroke(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f),
-                        ),
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 3.dp),
+                            .draggable(
+                                orientation = Orientation.Vertical,
+                                state = rememberDraggableState { delta ->
+                                    if (delta > 8f && !isQsExpanded) {
+                                        haptics.sheetDetent()
+                                        viewModel.setQsExpanded(true)
+                                    } else if (delta < -8f && isQsExpanded) {
+                                        haptics.sheetDetent()
+                                        viewModel.setQsExpanded(false)
+                                    } else if (delta < -4f && !isQsExpanded) {
+                                        coroutineScope.launch {
+                                            dragOffset.snapTo((dragOffset.value + delta).coerceAtMost(0f))
+                                        }
+                                    }
+                                },
+                                onDragStopped = { velocity ->
+                                    if (!isQsExpanded && (velocity < -velocityThresholdPxPerSec || dragOffset.value < -dismissThresholdPx)) {
+                                        coroutineScope.launch {
+                                            dragOffset.animateTo(-3000f, tween(200))
+                                            onDismiss()
+                                        }
+                                    } else {
+                                        coroutineScope.launch {
+                                            dragOffset.animateTo(0f, spring(0.55f, 450f))
+                                        }
+                                    }
+                                },
+                            ),
                     ) {
-                        Column(
+                        StatusBarRow(
+                            statusBar = state.statusBar,
+                            onOpenPowerMenu = { showPowerMenu = true },
+                            onOpenSettings = {
+                                try {
+                                    val intent = Intent(context, com.supershade.MainActivity::class.java).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(intent)
+                                    onDismiss()
+                                } catch (_: Exception) {}
+                            },
+                            onLockScreen = { viewModel.lockScreen() },
+                        )
+
+                        // Quick Settings grid (compact 1-row or expanded 2-row)
+                        QuickSettingsGrid(
+                            tiles = state.tiles,
+                            theme = state.theme,
+                            isShizukuConnected = state.isShizukuConnected,
+                            isExpanded = isQsExpanded,
+                            tileShape = state.tileShape,
+                            tileSize = state.tileSize,
+                            tileColumns = state.tileColumns,
+                            showWideCards = state.showWideCards,
+                            onTileClick = { viewModel.toggleTile(it) },
+                            onTileLongClick = { viewModel.openTileDetail(it) },
+                        )
+
+                        // Full-Width Tactile Sliders Island
+                        Surface(
+                            shape = RoundedCornerShape(24.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
+                            border = BorderStroke(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f),
+                            ),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                                .padding(horizontal = 14.dp, vertical = 3.dp),
                         ) {
-                            BrightnessSlider(
-                                brightness = state.brightness,
-                                onBrightnessChange = { viewModel.setBrightness(it) },
-                                compact = false,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            if (isQsExpanded) {
-                                VolumeSlider(
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                BrightnessSlider(
+                                    brightness = state.brightness,
+                                    onBrightnessChange = { viewModel.setBrightness(it) },
                                     compact = false,
                                     modifier = Modifier.fillMaxWidth(),
                                 )
+                                if (isQsExpanded) {
+                                    VolumeSlider(
+                                        compact = false,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
                             }
                         }
                     }
@@ -352,7 +447,7 @@ fun ShadeRoot(
                         )
                     }
 
-                    // Notification feed with full remaining space
+                    // Notification feed with full remaining space and responsive nested-scroll coordination
                     NotificationFeed(
                         notifications = state.visibleNotifications,
                         onDismiss = { viewModel.dismissNotification(it) },
@@ -362,13 +457,23 @@ fun ShadeRoot(
                             onDismiss()
                         },
                         onSnooze = { key, delayMs -> viewModel.snoozeNotification(key, delayMs) },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .nestedScroll(nestedScrollConnection),
                     )
 
-                    // Bottom drag-handle — swipe up to dismiss with spring physics
+                    // Bottom drag-handle — swipe up to dismiss with spring physics, or tap for fast quick-close
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .defaultMinSize(minHeight = 46.dp)
+                            .clickable {
+                                haptics.sheetDetent()
+                                coroutineScope.launch {
+                                    dragOffset.animateTo(-3000f, tween(180))
+                                    onDismiss()
+                                }
+                            }
                             .padding(vertical = 10.dp)
                             .draggable(
                                 orientation = Orientation.Vertical,
@@ -405,10 +510,10 @@ fun ShadeRoot(
                     ) {
                         Box(
                             modifier = Modifier
-                                .width(40.dp)
-                                .height(4.dp)
+                                .width(44.dp)
+                                .height(5.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)),
+                                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.40f)),
                         )
                     }
                 }

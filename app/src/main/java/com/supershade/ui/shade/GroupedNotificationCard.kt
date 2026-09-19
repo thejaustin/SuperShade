@@ -286,13 +286,13 @@ fun GroupedNotificationCard(
                                     )
                                     IconButton(
                                         onClick = { expanded = !expanded },
-                                        modifier = Modifier.size(24.dp),
+                                        modifier = Modifier.size(36.dp),
                                     ) {
                                         Icon(
                                             imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                            contentDescription = if (expanded) "Collapse" else "Expand",
+                                            contentDescription = if (expanded) "Collapse group" else "Expand group",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(18.dp),
+                                            modifier = Modifier.size(20.dp),
                                         )
                                     }
                                 }

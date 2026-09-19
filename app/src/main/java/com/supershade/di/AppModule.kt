@@ -23,7 +23,7 @@ val appModule = module {
     single { ShizukuPlusConnector(androidContext()) }
     single { StatusBarGovernor(androidContext(), get()) }
     single { NotificationRepository() }
-    single { TileRepository(androidContext(), get()) }
+    single { TileRepository(androidContext(), get(), get()) }
     single { TileToggler(androidContext(), get(), get()) }
     single { MediaRepository(androidContext()) }
     single { BrightnessRepository(androidContext(), get()) }

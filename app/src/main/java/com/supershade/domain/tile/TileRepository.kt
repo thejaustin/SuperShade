@@ -14,6 +14,7 @@ import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import android.app.NotificationManager
+import com.supershade.settings.ShadeSettings
 import com.supershade.shizuku.StatusBarGovernor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,6 +22,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -30,7 +32,8 @@ import java.util.Locale
 
 class TileRepository(
     private val context: Context,
-    private val governor: StatusBarGovernor
+    private val governor: StatusBarGovernor,
+    private val settings: ShadeSettings? = null,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _tiles = MutableStateFlow<List<TileDefinition>>(emptyList())
@@ -89,6 +92,10 @@ class TileRepository(
 
         scope.launch { loadTiles() }
 
+        settings?.enabledTiles
+            ?.onEach { loadTiles() }
+            ?.launchIn(scope)
+
         governor.isCommanderConnected
             .onEach { connected -> if (connected) loadTiles() }
             .launchIn(scope)
@@ -119,9 +126,14 @@ class TileRepository(
     }
 
     private suspend fun loadTiles() {
-        val raw = governor.getCurrentTiles()
-        val tokens = if (raw.isNotBlank()) raw.split(",").map { it.trim() }
-                     else DEFAULT_TILES
+        val userConfigured = try { settings?.enabledTiles?.first() ?: emptyList() } catch (_: Exception) { emptyList() }
+        val tokens = if (userConfigured.isNotEmpty()) {
+            userConfigured
+        } else {
+            val raw = governor.getCurrentTiles()
+            if (raw.isNotBlank()) raw.split(",").map { it.trim() }
+            else DEFAULT_TILES
+        }
 
         _tiles.value = tokens.map { token ->
             val id = componentToId[token] ?: token

@@ -77,6 +77,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.supershade.domain.tile.TileDefinition
+import com.supershade.settings.TileShape
 import com.supershade.ui.theme.ShadeTheme
 
 @Composable
@@ -84,14 +85,22 @@ fun TileCard(
     tile: TileDefinition,
     theme: ShadeTheme,
     isShizukuConnected: Boolean,
+    tileShape: TileShape = TileShape.SQUIRCLE,
+    columns: Int = 4,
     onClick: () -> Unit,
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
 
-    // Pixel uses full pill (50%); OneUI uses a refined squircle (22dp)
-    val cornerRadius = if (theme is ShadeTheme.Pixel) 50 else 22
+    val cardShape = when {
+        theme is ShadeTheme.Pixel -> CircleShape
+        tileShape == TileShape.CIRCLE -> CircleShape
+        tileShape == TileShape.ROUNDED -> RoundedCornerShape(16.dp)
+        tileShape == TileShape.PILL -> RoundedCornerShape(28.dp)
+        tileShape == TileShape.SOFT -> RoundedCornerShape(12.dp)
+        else -> RoundedCornerShape(22.dp)
+    }
 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -142,7 +151,7 @@ fun TileCard(
     }
 
     Surface(
-        shape = RoundedCornerShape(cornerRadius),
+        shape = cardShape,
         color = containerColor,
         border = borderStroke,
         modifier = Modifier
@@ -186,7 +195,7 @@ fun TileCard(
                     },
                     role = Role.Switch,
                 )
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = if (columns >= 5) 6.dp else 8.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(
@@ -198,29 +207,43 @@ fun TileCard(
                     imageVector = tileIcon(tile.id),
                     contentDescription = null,
                     tint = contentColor,
-                    modifier = Modifier.size(22.dp),
+                    modifier = Modifier.size(if (columns >= 5) 20.dp else 22.dp),
                 )
                 if (tile.isActive) {
                     Box(
                         modifier = Modifier
-                            .size(6.dp)
+                            .size(if (columns >= 5) 5.dp else 6.dp)
                             .clip(CircleShape)
                             .background(contentColor.copy(alpha = 0.85f)),
                     )
                 }
             }
-            Column {
+            val titleFontSize = when {
+                columns >= 5 && tile.label.length > 8 -> 8.5.sp
+                columns >= 5 -> 9.5.sp
+                tile.label.length > 13 -> 9.5.sp
+                tile.label.length > 10 -> 10.5.sp
+                else -> 11.5.sp
+            }
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = tile.label,
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Medium,
+                        fontSize = titleFontSize,
+                        lineHeight = (titleFontSize.value + 2).sp,
+                    ),
                     color = contentColor,
-                    maxLines = 1,
+                    maxLines = if (tile.subtitle != null) 1 else 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (tile.subtitle != null) {
                     Text(
                         text = tile.subtitle,
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = if (columns >= 5) 8.sp else 9.sp,
+                            lineHeight = if (columns >= 5) 9.sp else 10.sp,
+                        ),
                         color = contentColor.copy(alpha = 0.65f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,

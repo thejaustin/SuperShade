@@ -15,43 +15,55 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DashboardCustomize
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.SwipeDown
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -60,8 +72,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.style.TextOverflow
+import com.supershade.domain.tile.DEFAULT_TILES
+import com.supershade.domain.tile.KNOWN_TILES
+import com.supershade.settings.TileGridColumns
+import com.supershade.settings.TileShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -108,6 +130,14 @@ fun SettingsScreen(
     qsTileTapAction: QsTileTapAction = QsTileTapAction.TOGGLE_ACTIVE,
     onQsTileTapActionChange: (QsTileTapAction) -> Unit = {},
     onOpenTilePreferences: () -> Unit = {},
+    tileShape: TileShape = TileShape.SQUIRCLE,
+    onTileShapeChange: (TileShape) -> Unit = {},
+    tileColumns: TileGridColumns = TileGridColumns.STANDARD,
+    onTileColumnsChange: (TileGridColumns) -> Unit = {},
+    showWideCards: Boolean = true,
+    onShowWideCardsChange: (Boolean) -> Unit = {},
+    enabledTiles: List<String> = emptyList(),
+    onEnabledTilesChange: (List<String>) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -692,7 +722,204 @@ fun SettingsScreen(
         }
 
         // =======================================================================
-        // 6. SYSTEM QUICK SETTINGS TILE
+        // 6. QUICK TILES & GRID CUSTOMIZATION
+        // =======================================================================
+        var showTileEditor by remember { mutableStateOf(false) }
+
+        SectionHeader(
+            title = "Quick Tiles & Grid",
+            badge = "${tileShape.label} • ${tileColumns.count} cols",
+        )
+
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                // Tile Shape Selector
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Tile Shape & Rounding",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    )
+                    Text(
+                        text = "Select your preferred quick tile contour and corner radius",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        TileShape.entries.forEach { shape ->
+                            val isSelected = tileShape == shape
+                            val previewCorner = when (shape) {
+                                TileShape.SQUIRCLE -> RoundedCornerShape(22.dp)
+                                TileShape.ROUNDED -> RoundedCornerShape(16.dp)
+                                TileShape.CIRCLE -> CircleShape
+                                TileShape.PILL -> RoundedCornerShape(28.dp)
+                                TileShape.SOFT -> RoundedCornerShape(12.dp)
+                            }
+                            Surface(
+                                shape = previewCorner,
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                border = BorderStroke(
+                                    width = if (isSelected) 2.dp else 1.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f),
+                                ),
+                                modifier = Modifier
+                                    .width(108.dp)
+                                    .height(68.dp)
+                                    .clickable { onTileShapeChange(shape) },
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Widgets,
+                                            contentDescription = null,
+                                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                        if (isSelected) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .clip(CircleShape)
+                                                    .background(MaterialTheme.colorScheme.primary),
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = shape.label,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            fontSize = 11.sp,
+                                        ),
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
+                // Grid Columns Density
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Tile Grid Density",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    )
+                    Text(
+                        text = when (tileColumns) {
+                            TileGridColumns.COMFORTABLE -> "3 Columns: Extra-large cards for comfortable thumb reach & readability"
+                            TileGridColumns.COMPACT -> "5 Columns: Dense layout showing maximum toggles per row"
+                            else -> "4 Columns: Standard balanced One UI 8 grid density"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    val colsList = listOf(
+                        TileGridColumns.COMFORTABLE to "3 Large",
+                        TileGridColumns.STANDARD to "4 Standard",
+                        TileGridColumns.COMPACT to "5 Dense",
+                    )
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        colsList.forEachIndexed { index, (colOption, label) ->
+                            SegmentedButton(
+                                selected = tileColumns == colOption,
+                                onClick = { onTileColumnsChange(colOption) },
+                                shape = SegmentedButtonDefaults.itemShape(index, colsList.size),
+                                icon = {},
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                )
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
+                // Dual Connectivity Pills Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Prominent Connectivity Pills",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        )
+                        Text(
+                            text = "Display dedicated top Wi-Fi & Bluetooth island cards in expanded Quick Settings",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = showWideCards,
+                        onCheckedChange = onShowWideCardsChange,
+                    )
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
+                // Active Tiles Manager Button
+                FilledTonalButton(
+                    onClick = { showTileEditor = true },
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DashboardCustomize,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "Customize & Reorder Active Tiles (${if (enabledTiles.isNotEmpty()) enabledTiles.size else DEFAULT_TILES.size})",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    )
+                }
+            }
+        }
+
+        if (showTileEditor) {
+            TileEditorSheet(
+                currentTiles = if (enabledTiles.isNotEmpty()) enabledTiles else DEFAULT_TILES,
+                onDismiss = { showTileEditor = false },
+                onSave = { updated ->
+                    onEnabledTilesChange(updated)
+                    showTileEditor = false
+                },
+            )
+        }
+
+        // =======================================================================
+        // 7. SYSTEM QUICK SETTINGS TILE
         // =======================================================================
         SectionHeader(title = "System Quick Settings Tile")
 
@@ -1118,5 +1345,206 @@ private fun ColorPaletteSwatch(
             ),
             color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TileEditorSheet(
+    currentTiles: List<String>,
+    onDismiss: () -> Unit,
+    onSave: (List<String>) -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    var selectedTiles by remember(currentTiles) { mutableStateOf(currentTiles.toList()) }
+
+    // All available tile IDs from KNOWN_TILES
+    val allTileIds = remember {
+        val list = mutableListOf<String>()
+        DEFAULT_TILES.forEach { if (!list.contains(it)) list.add(it) }
+        KNOWN_TILES.keys.forEach { id ->
+            val cleanId = id.lowercase()
+            if (!list.contains(id) && !list.contains(cleanId)) list.add(id)
+        }
+        list.distinct()
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column {
+                    Text(
+                        text = "Customize Quick Tiles",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    )
+                    Text(
+                        text = "${selectedTiles.size} active tiles in Quick Settings",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                TextButton(
+                    onClick = { selectedTiles = DEFAULT_TILES.toList() },
+                ) {
+                    Icon(Icons.Default.RestartAlt, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Reset")
+                }
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+            // Scrollable list of tiles
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(340.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                allTileIds.forEach { tileId ->
+                    val isEnabled = selectedTiles.contains(tileId)
+                    val label = KNOWN_TILES[tileId]?.first ?: tileId.replaceFirstChar { it.uppercase() }
+                    val currentIndex = selectedTiles.indexOf(tileId)
+
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (isEnabled) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = if (isEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Checkbox(
+                                    checked = isEnabled,
+                                    onCheckedChange = { checked ->
+                                        selectedTiles = if (checked) {
+                                            selectedTiles + tileId
+                                        } else {
+                                            selectedTiles - tileId
+                                        }
+                                    },
+                                )
+                                Column {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                    if (isEnabled) {
+                                        Text(
+                                            text = "Position #${currentIndex + 1}",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (isEnabled) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                ) {
+                                    IconButton(
+                                        onClick = {
+                                            if (currentIndex > 0) {
+                                                val mutable = selectedTiles.toMutableList()
+                                                val item = mutable.removeAt(currentIndex)
+                                                mutable.add(currentIndex - 1, item)
+                                                selectedTiles = mutable
+                                            }
+                                        },
+                                        enabled = currentIndex > 0,
+                                        modifier = Modifier.size(32.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowUpward,
+                                            contentDescription = "Move up",
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            if (currentIndex < selectedTiles.size - 1) {
+                                                val mutable = selectedTiles.toMutableList()
+                                                val item = mutable.removeAt(currentIndex)
+                                                mutable.add(currentIndex + 1, item)
+                                                selectedTiles = mutable
+                                            }
+                                        },
+                                        enabled = currentIndex < selectedTiles.size - 1,
+                                        modifier = Modifier.size(32.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowDownward,
+                                            contentDescription = "Move down",
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+            // Action buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                    },
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.weight(1f).height(48.dp),
+                ) {
+                    Text("Cancel")
+                }
+
+                Button(
+                    onClick = {
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { onSave(selectedTiles) }
+                    },
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.weight(1f).height(48.dp),
+                ) {
+                    Text("Save Tiles")
+                }
+            }
+        }
     }
 }

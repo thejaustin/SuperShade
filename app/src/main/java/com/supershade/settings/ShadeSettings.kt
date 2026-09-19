@@ -18,6 +18,20 @@ enum class QsTileTapAction {
     SHOW_MENU,
 }
 
+enum class TileShape(val id: String, val label: String, val cornerRadiusDp: Int) {
+    SQUIRCLE("squircle", "Squircle", 22),
+    ROUNDED("rounded", "Rounded", 16),
+    CIRCLE("circle", "Circle", 50),
+    PILL("pill", "Stadium Pill", 28),
+    SOFT("soft", "Soft Minimal", 12);
+}
+
+enum class TileGridColumns(val id: String, val label: String, val count: Int) {
+    COMFORTABLE("comfortable", "Comfortable (3)", 3),
+    STANDARD("standard", "Standard (4)", 4),
+    COMPACT("compact", "Compact (5)", 5);
+}
+
 enum class AccentColor(val label: String, val hex: Long) {
     GALAXY_BLUE("Galaxy Blue", 0xFF2575FC),
     EMERALD("Emerald", 0xFF10B981),
@@ -41,6 +55,9 @@ class ShadeSettings(private val context: Context) {
         private val LAST_UPDATE_CHECK_KEY = longPreferencesKey("last_update_check_ms")
         private val BLOCK_SYSTEM_SHADE_KEY = booleanPreferencesKey("block_system_shade")
         private val QS_TILE_TAP_ACTION_KEY = stringPreferencesKey("qs_tile_tap_action")
+        private val TILE_SHAPE_KEY = stringPreferencesKey("tile_shape")
+        private val TILE_COLUMNS_KEY = stringPreferencesKey("tile_columns")
+        private val SHOW_WIDE_CARDS_KEY = booleanPreferencesKey("show_wide_cards")
     }
 
     val theme: Flow<ShadeTheme> = context.dataStore.data.map { prefs ->
@@ -100,6 +117,28 @@ class ShadeSettings(private val context: Context) {
         }
     }
 
+    val tileShape: Flow<TileShape> = context.dataStore.data.map { prefs ->
+        when (prefs[TILE_SHAPE_KEY]) {
+            "rounded" -> TileShape.ROUNDED
+            "circle" -> TileShape.CIRCLE
+            "pill" -> TileShape.PILL
+            "soft" -> TileShape.SOFT
+            else -> TileShape.SQUIRCLE
+        }
+    }
+
+    val tileColumns: Flow<TileGridColumns> = context.dataStore.data.map { prefs ->
+        when (prefs[TILE_COLUMNS_KEY]) {
+            "comfortable" -> TileGridColumns.COMFORTABLE
+            "compact" -> TileGridColumns.COMPACT
+            else -> TileGridColumns.STANDARD
+        }
+    }
+
+    val showWideCards: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[SHOW_WIDE_CARDS_KEY] ?: true
+    }
+
     suspend fun setTheme(theme: ShadeTheme) {
         context.dataStore.edit { prefs ->
             prefs[THEME_KEY] = when (theme) {
@@ -147,6 +186,24 @@ class ShadeSettings(private val context: Context) {
                 QsTileTapAction.SHOW_MENU -> "show_menu"
                 QsTileTapAction.TOGGLE_ACTIVE -> "toggle_active"
             }
+        }
+    }
+
+    suspend fun setTileShape(shape: TileShape) {
+        context.dataStore.edit { prefs ->
+            prefs[TILE_SHAPE_KEY] = shape.id
+        }
+    }
+
+    suspend fun setTileColumns(columns: TileGridColumns) {
+        context.dataStore.edit { prefs ->
+            prefs[TILE_COLUMNS_KEY] = columns.id
+        }
+    }
+
+    suspend fun setShowWideCards(show: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[SHOW_WIDE_CARDS_KEY] = show
         }
     }
 

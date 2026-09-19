@@ -59,12 +59,14 @@ import androidx.compose.ui.semantics.stateDescription
 import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.haptics.SuperHaptics
 import com.supershade.domain.tile.TileDefinition
+import com.supershade.settings.TileGridColumns
+import com.supershade.settings.TileShape
 import com.supershade.ui.theme.ShadeTheme
 
 /**
- * Quick settings grid supporting compact mode (1 row, 4 primary quick tiles)
+ * Quick settings grid supporting compact mode (1 row, dynamic columns)
  * and expanded mode enclosed in a modern One UI 8 island container.
- * In One UI expanded mode, prominent dual connectivity pills (Wi-Fi & Bluetooth)
+ * In expanded mode, optional prominent dual connectivity pills (Wi-Fi & Bluetooth)
  * sit at the top of the island matching Samsung One UI 8.
  */
 @Composable
@@ -73,17 +75,21 @@ fun QuickSettingsGrid(
     theme: ShadeTheme,
     isShizukuConnected: Boolean,
     isExpanded: Boolean = false,
+    tileShape: TileShape = TileShape.SQUIRCLE,
+    tileColumns: TileGridColumns = TileGridColumns.STANDARD,
+    showWideCards: Boolean = true,
     onTileClick: (TileDefinition) -> Unit,
 ) {
-    val showOneUiIslandCards = isExpanded && theme is ShadeTheme.OneUI
+    val colCount = tileColumns.count
+    val showOneUiIslandCards = isExpanded && showWideCards
     val wifiTile = if (showOneUiIslandCards) tiles.firstOrNull { it.id == "wifi" || it.id == "internet" } else null
     val btTile = if (showOneUiIslandCards) tiles.firstOrNull { it.id == "bt" || it.id == "bluetooth" } else null
     val hasWideCards = wifiTile != null && btTile != null
 
     val displayedTiles = when {
-        hasWideCards -> tiles.filter { it != wifiTile && it != btTile }.take(8)
-        isExpanded -> tiles.take(12)
-        else -> tiles.take(4)
+        hasWideCards -> tiles.filter { it != wifiTile && it != btTile }.take(colCount * 2)
+        isExpanded -> tiles.take(colCount * 3)
+        else -> tiles.take(colCount)
     }
 
     Surface(
@@ -117,22 +123,24 @@ fun QuickSettingsGrid(
                     ConnectivityWideCard(
                         tile = wifiTile,
                         theme = theme,
+                        tileShape = tileShape,
                         onClick = { onTileClick(wifiTile) },
                         modifier = Modifier.weight(1f),
                     )
                     ConnectivityWideCard(
                         tile = btTile,
                         theme = theme,
+                        tileShape = tileShape,
                         onClick = { onTileClick(btTile) },
                         modifier = Modifier.weight(1f),
                     )
                 }
             }
 
-            displayedTiles.chunked(4).forEach { rowTiles ->
+            displayedTiles.chunked(colCount).forEach { rowTiles ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(if (colCount >= 5) 6.dp else 8.dp),
                 ) {
                     rowTiles.forEach { tile ->
                         Box(modifier = Modifier.weight(1f)) {
@@ -140,11 +148,13 @@ fun QuickSettingsGrid(
                                 tile = tile,
                                 theme = theme,
                                 isShizukuConnected = isShizukuConnected,
+                                tileShape = tileShape,
+                                columns = colCount,
                                 onClick = { onTileClick(tile) },
                             )
                         }
                     }
-                    repeat(4 - rowTiles.size) {
+                    repeat(colCount - rowTiles.size) {
                         Spacer(modifier = Modifier.weight(1f))
                     }
                 }
@@ -157,6 +167,7 @@ fun QuickSettingsGrid(
 private fun ConnectivityWideCard(
     tile: TileDefinition,
     theme: ShadeTheme,
+    tileShape: TileShape = TileShape.SQUIRCLE,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -204,8 +215,16 @@ private fun ConnectivityWideCard(
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f),
     )
 
+    val wideCardShape = when {
+        theme is ShadeTheme.Pixel -> CircleShape
+        tileShape == TileShape.CIRCLE || tileShape == TileShape.PILL -> CircleShape
+        tileShape == TileShape.SOFT -> RoundedCornerShape(14.dp)
+        tileShape == TileShape.ROUNDED -> RoundedCornerShape(16.dp)
+        else -> RoundedCornerShape(22.dp)
+    }
+
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = wideCardShape,
         color = containerColor,
         border = borderStroke,
         modifier = modifier

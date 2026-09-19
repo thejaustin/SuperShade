@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -337,6 +338,7 @@ class HeadsUpOverlay(
                 elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .displayCutoutPadding()
                     .statusBarsPadding()
                     .padding(horizontal = 12.dp, vertical = 6.dp)
                     .offset { IntOffset(offsetX.value.roundToInt(), offsetY.value.roundToInt()) }
@@ -621,9 +623,9 @@ class HeadsUpOverlay(
                         if (notification.text.isNotBlank()) {
                             Text(
                                 text = notification.text,
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MaterialTheme.typography.bodySmall.copy(lineHeight = 16.sp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 2,
+                                maxLines = 3,
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
@@ -636,6 +638,7 @@ class HeadsUpOverlay(
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 notification.actions.take(3).forEach { action ->
+                                    val actionFontSize = if (action.label.length > 11) 10.sp else 11.sp
                                     OutlinedButton(
                                         onClick = {
                                             haptics.tileToggleOn()
@@ -649,11 +652,11 @@ class HeadsUpOverlay(
                                         },
                                         modifier = Modifier.weight(1f).height(32.dp),
                                         shape = RoundedCornerShape(10.dp),
-                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 2.dp),
                                     ) {
                                         Text(
                                             text = action.label,
-                                            style = MaterialTheme.typography.labelSmall,
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = actionFontSize),
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
                                         )

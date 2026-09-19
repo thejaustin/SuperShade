@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -44,6 +45,14 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.5" -> """
+        ✨ Custom Tile Shapes, Multi-Density Grid & Anti-Clipping Polish
+        • Custom Tile Shapes: Choose between Squircle (22dp One UI 8), Rounded (16dp), Circle / Stadium (50%), Stadium Pill (28dp), or Soft Minimal (12dp) with real-time interactive previews
+        • Multi-Density Quick Tile Grid: Tailor your layout with 3-column Comfortable (large reach), 4-column Standard, or 5-column Compact grids
+        • Prominent Dual Connectivity Toggle: Choose whether to display top Wi-Fi & Bluetooth island pills in expanded Quick Settings
+        • Zero Text Cut-offs & Cutout Insets: Comprehensive audit and resolution of text cutoffs across peek cards, tiles, headers, and bottom sheets with dynamic font scaling and camera cutout padding
+        • Interactive Tile Manager: Enable, disable, and customize your active quick settings tiles directly from settings
+    """.trimIndent()
         "1.9.4" -> """
         ✨ Frosted Peek Notifications, Dynamic Music Visualizer & Zero-Drift Clock
         • Frosted Acrylic Heads-Up Notifications: Peek notification cards now feature real-time 50–90px window background blur, 26dp One UI 8 rounded contours, and translucent frosted glass styling
@@ -313,6 +322,7 @@ fun WhatsNewSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
+                .navigationBarsPadding()
                 .padding(bottom = 32.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),

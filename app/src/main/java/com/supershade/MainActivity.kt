@@ -73,6 +73,10 @@ class MainActivity : ComponentActivity() {
             val isActive by settings.isActive.collectAsState(initial = false)
             val blockSystemShade by settings.blockSystemShade.collectAsState(initial = true)
             val qsTileTapAction by settings.qsTileTapAction.collectAsState(initial = QsTileTapAction.TOGGLE_ACTIVE)
+            val tileShape by settings.tileShape.collectAsState(initial = com.supershade.settings.TileShape.SQUIRCLE)
+            val tileColumns by settings.tileColumns.collectAsState(initial = com.supershade.settings.TileGridColumns.STANDARD)
+            val showWideCards by settings.showWideCards.collectAsState(initial = true)
+            val enabledTiles by settings.enabledTiles.collectAsState(initial = emptyList())
             val availableUpdate by updateRepo.availableUpdate.collectAsState()
             val isCheckingUpdate by updateRepo.isChecking.collectAsState()
             val showWhatsNew by updateRepo.showWhatsNew.collectAsState()
@@ -254,6 +258,26 @@ class MainActivity : ComponentActivity() {
                         onOpenTilePreferences = {
                             superHaptics.sheetDetent()
                             startActivity(Intent(this@MainActivity, TilePreferencesActivity::class.java))
+                        },
+                        tileShape = tileShape,
+                        onTileShapeChange = { shape ->
+                            superHaptics.sliderTick()
+                            scope.launch { settings.setTileShape(shape) }
+                        },
+                        tileColumns = tileColumns,
+                        onTileColumnsChange = { cols ->
+                            superHaptics.sliderTick()
+                            scope.launch { settings.setTileColumns(cols) }
+                        },
+                        showWideCards = showWideCards,
+                        onShowWideCardsChange = { show ->
+                            if (show) superHaptics.tileToggleOn() else superHaptics.tileToggleOff()
+                            scope.launch { settings.setShowWideCards(show) }
+                        },
+                        enabledTiles = enabledTiles,
+                        onEnabledTilesChange = { tiles ->
+                            superHaptics.sheetDetent()
+                            scope.launch { settings.setEnabledTiles(tiles) }
                         },
                         modifier = Modifier.padding(padding),
                     )

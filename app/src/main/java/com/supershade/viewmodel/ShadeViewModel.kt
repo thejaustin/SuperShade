@@ -74,6 +74,18 @@ class ShadeViewModel(
             .onEach { a -> _state.update { it.copy(accentColor = a) } }
             .launchIn(viewModelScope)
 
+        settings.tileShape
+            .onEach { shape -> _state.update { it.copy(tileShape = shape) } }
+            .launchIn(viewModelScope)
+
+        settings.tileColumns
+            .onEach { cols -> _state.update { it.copy(tileColumns = cols) } }
+            .launchIn(viewModelScope)
+
+        settings.showWideCards
+            .onEach { show -> _state.update { it.copy(showWideCards = show) } }
+            .launchIn(viewModelScope)
+
         governor.isCommanderConnected
             .onEach { connected -> _state.update { it.copy(isShizukuConnected = connected) } }
             .launchIn(viewModelScope)

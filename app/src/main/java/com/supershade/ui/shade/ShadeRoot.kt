@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -192,6 +193,7 @@ fun ShadeRoot(
                         .fillMaxSize()
                         .offset { IntOffset(0, dragOffset.value.roundToInt()) }
                         .background(glassBackdrop)
+                        .displayCutoutPadding()
                         .statusBarsPadding()
                         .navigationBarsPadding(),
                 ) {
@@ -215,6 +217,9 @@ fun ShadeRoot(
                         theme = state.theme,
                         isShizukuConnected = state.isShizukuConnected,
                         isExpanded = isQsExpanded,
+                        tileShape = state.tileShape,
+                        tileColumns = state.tileColumns,
+                        showWideCards = state.showWideCards,
                         onTileClick = { viewModel.toggleTile(it) },
                     )
 

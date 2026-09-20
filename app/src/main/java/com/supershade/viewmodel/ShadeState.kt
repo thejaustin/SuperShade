@@ -62,4 +62,7 @@ data class ShadeState(
     val cardBorderWidth: com.supershade.settings.CardBorderWidth = com.supershade.settings.CardBorderWidth.THIN,
     val isQuickControlsTucked: Boolean = false,
     val activePanel: ShadePanel = ShadePanel.NOTIFICATIONS,
+    val splitGestureMode: com.supershade.settings.SplitGestureMode = com.supershade.settings.SplitGestureMode.SEPARATE_70_30,
+    val showPanelSwitcherPill: Boolean = false,
+    val backdropTheme: com.supershade.ui.theme.BackdropTheme = com.supershade.ui.theme.BackdropTheme.FROSTED_GLASS,
 )

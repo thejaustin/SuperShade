@@ -63,8 +63,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.supershade.settings.SplitGestureMode
+import com.supershade.ui.theme.BackdropTheme
+import com.supershade.ui.theme.LocalBackdropTheme
 import com.supershade.ui.theme.LocalCardBorderWidth
+import com.supershade.ui.theme.LocalShadeShapeScheme
+import com.supershade.ui.theme.ShadeShapeScheme
 import com.supershade.ui.theme.getCardBorder
+import com.supershade.ui.tile.TilePreferencesActivity
 import com.supershade.viewmodel.ShadePanel
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -222,13 +228,26 @@ fun ShadeRoot(
         }
     }
 
+    val shapeScheme = remember(state.tileShape) {
+        ShadeShapeScheme.fromTileShape(state.tileShape)
+    }
+
+    val backdropTheme = state.backdropTheme
+
     CompositionLocalProvider(
         LocalCardBorderWidth provides state.cardBorderWidth,
+        LocalShadeShapeScheme provides shapeScheme,
+        LocalBackdropTheme provides backdropTheme,
     ) {
         themeWrapper {
             Box(modifier = Modifier.fillMaxSize()) {
                 // Dimmer scrim — tapping it dismisses the shade.
-                val scrimAlpha = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.22f else 0.55f
+                val scrimAlpha = when (backdropTheme) {
+                    BackdropTheme.OPAQUE -> 0.70f
+                    BackdropTheme.BLURRY -> 0.42f
+                    BackdropTheme.FROSTED_GLASS -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.24f else 0.50f
+                    BackdropTheme.TRANSPARENT -> 0.12f
+                }
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -272,11 +291,25 @@ fun ShadeRoot(
                     enter = slideInVertically(spring(dampingRatio = 0.78f, stiffness = 420f)) { -it } + fadeIn(tween(180)),
                     exit  = slideOutVertically(tween(220)) { -it } + fadeOut(tween(180)),
                 ) {
-                    val glassBackdrop = when {
-                        isAmoled -> Color(0xF005070A)
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
-                        else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)
+                    val glassBackdrop = when (backdropTheme) {
+                        BackdropTheme.OPAQUE -> {
+                            if (isAmoled) Color(0xFF000000) else MaterialTheme.colorScheme.surface
+                        }
+                        BackdropTheme.BLURRY -> {
+                            if (isAmoled) Color(0xFA030406) else MaterialTheme.colorScheme.surface.copy(alpha = 0.90f)
+                        }
+                        BackdropTheme.FROSTED_GLASS -> {
+                            if (isAmoled) Color(0xF005070A)
+                            else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
+                            else MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)
+                        }
+                        BackdropTheme.TRANSPARENT -> {
+                            if (isAmoled) Color(0xAA05070A)
+                            else MaterialTheme.colorScheme.surface.copy(alpha = 0.58f)
+                        }
                     }
+                    val isCombined = state.splitGestureMode == SplitGestureMode.ALWAYS_NOTIFICATIONS ||
+                                     state.splitGestureMode == SplitGestureMode.ALWAYS_QUICK_SETTINGS
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -287,6 +320,7 @@ fun ShadeRoot(
                             .navigationBarsPadding()
                             .draggable(
                                 orientation = Orientation.Horizontal,
+                                enabled = !isCombined,
                                 state = rememberDraggableState { delta ->
                                     if (delta < -24f && state.activePanel == ShadePanel.NOTIFICATIONS) {
                                         haptics.sheetDetent()
@@ -298,10 +332,22 @@ fun ShadeRoot(
                                 },
                             ),
                     ) {
-                        // Top Status Bar (Clock, Battery, Lock, Settings, Power)
+                        // Top Status Bar (Clock, Battery, Lock, Settings, Power, Edit)
                         StatusBarRow(
                             statusBar = state.statusBar,
                             onOpenPowerMenu = { showPowerMenu = true },
+                            onOpenEdit = {
+                                try {
+                                    val intent = Intent(context, TilePreferencesActivity::class.java).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(intent)
+                                    onDismiss()
+                                } catch (_: Exception) {}
+                            },
+                            onOpenDeviceSettings = {
+                                onDismiss()
+                            },
                             onOpenSettings = {
                                 try {
                                     val intent = Intent(context, com.supershade.MainActivity::class.java).apply {
@@ -313,84 +359,6 @@ fun ShadeRoot(
                             },
                             onLockScreen = { viewModel.lockScreen() },
                         )
-
-                        // Segmented Panel Switcher Pill (Notifications <---> Quick Settings)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 2.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.50f),
-                                border = getCardBorder(),
-                            ) {
-                                Row(modifier = Modifier.padding(3.dp)) {
-                                    Surface(
-                                        shape = RoundedCornerShape(50),
-                                        color = if (state.activePanel == ShadePanel.NOTIFICATIONS) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(50))
-                                            .clickable {
-                                                haptics.lightTap()
-                                                viewModel.setActivePanel(ShadePanel.NOTIFICATIONS)
-                                            },
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        ) {
-                                            Text(
-                                                text = "Notifications",
-                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                                color = if (state.activePanel == ShadePanel.NOTIFICATIONS) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                            if (state.allNotifications.isNotEmpty()) {
-                                                Surface(
-                                                    shape = CircleShape,
-                                                    color = if (state.activePanel == ShadePanel.NOTIFICATIONS) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant,
-                                                    modifier = Modifier.size(18.dp),
-                                                ) {
-                                                    Box(contentAlignment = Alignment.Center) {
-                                                        Text(
-                                                            text = "${state.allNotifications.size}",
-                                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
-                                                            color = if (state.activePanel == ShadePanel.NOTIFICATIONS) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    Surface(
-                                        shape = RoundedCornerShape(50),
-                                        color = if (state.activePanel == ShadePanel.QUICK_SETTINGS) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(50))
-                                            .clickable {
-                                                haptics.lightTap()
-                                                viewModel.setActivePanel(ShadePanel.QUICK_SETTINGS)
-                                            },
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        ) {
-                                            Text(
-                                                text = "Quick Settings",
-                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                                color = if (state.activePanel == ShadePanel.QUICK_SETTINGS) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
 
                         // Active View Content
                         if (state.activePanel == ShadePanel.NOTIFICATIONS) {
@@ -409,6 +377,9 @@ fun ShadeRoot(
                                                 if (delta < -8f) {
                                                     haptics.sheetDetent()
                                                     viewModel.setQuickControlsTucked(true)
+                                                } else if (delta > 14f && isCombined) {
+                                                    haptics.sheetDetent()
+                                                    viewModel.setActivePanel(ShadePanel.QUICK_SETTINGS)
                                                 } else if (delta < -4f) {
                                                     coroutineScope.launch {
                                                         dragOffset.snapTo((dragOffset.value + delta).coerceAtMost(0f))
@@ -443,7 +414,7 @@ fun ShadeRoot(
                                     )
 
                                     Surface(
-                                        shape = RoundedCornerShape(24.dp),
+                                        shape = shapeScheme.container,
                                         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
                                         border = getCardBorder(),
                                         modifier = Modifier
@@ -623,7 +594,7 @@ fun ShadeRoot(
 
                                 // Full tactile sliders island (Brightness & Volume)
                                 Surface(
-                                    shape = RoundedCornerShape(24.dp),
+                                    shape = shapeScheme.container,
                                     color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
                                     border = getCardBorder(),
                                     modifier = Modifier
@@ -658,6 +629,133 @@ fun ShadeRoot(
                                         onSkipPrevious = { viewModel.mediaSkipPrevious() },
                                         onSeek = { viewModel.mediaSeek(it) },
                                     )
+                                }
+                            }
+                        }
+
+                        // Bottom Panel Switcher Pill (accessibility and quick-switching dock)
+                        if (state.showPanelSwitcherPill) {
+                            if (!isCombined) {
+                                // Separate (Split) mode: Horizontal segmented pill dock
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.50f),
+                                        border = getCardBorder(),
+                                    ) {
+                                        Row(modifier = Modifier.padding(3.dp)) {
+                                            Surface(
+                                                shape = RoundedCornerShape(50),
+                                                color = if (state.activePanel == ShadePanel.NOTIFICATIONS) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(50))
+                                                    .clickable {
+                                                        haptics.lightTap()
+                                                        viewModel.setActivePanel(ShadePanel.NOTIFICATIONS)
+                                                    },
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                ) {
+                                                    Text(
+                                                        text = "Notifications",
+                                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                                        color = if (state.activePanel == ShadePanel.NOTIFICATIONS) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    )
+                                                    if (state.allNotifications.isNotEmpty()) {
+                                                        Surface(
+                                                            shape = CircleShape,
+                                                            color = if (state.activePanel == ShadePanel.NOTIFICATIONS) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant,
+                                                            modifier = Modifier.size(18.dp),
+                                                        ) {
+                                                            Box(contentAlignment = Alignment.Center) {
+                                                                Text(
+                                                                    text = "${state.allNotifications.size}",
+                                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                                                                    color = if (state.activePanel == ShadePanel.NOTIFICATIONS) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            Surface(
+                                                shape = RoundedCornerShape(50),
+                                                color = if (state.activePanel == ShadePanel.QUICK_SETTINGS) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(50))
+                                                    .clickable {
+                                                        haptics.lightTap()
+                                                        viewModel.setActivePanel(ShadePanel.QUICK_SETTINGS)
+                                                    },
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                ) {
+                                                    Text(
+                                                        text = "Quick Settings",
+                                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                                        color = if (state.activePanel == ShadePanel.QUICK_SETTINGS) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                // Combined (Together) mode: Vertical compact pill button
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.50f),
+                                        border = getCardBorder(),
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(50))
+                                            .clickable {
+                                                haptics.lightTap()
+                                                if (state.activePanel == ShadePanel.NOTIFICATIONS) {
+                                                    viewModel.setActivePanel(ShadePanel.QUICK_SETTINGS)
+                                                } else {
+                                                    viewModel.setActivePanel(ShadePanel.NOTIFICATIONS)
+                                                }
+                                            },
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = if (state.activePanel == ShadePanel.NOTIFICATIONS)
+                                                    Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(16.dp),
+                                            )
+                                            Text(
+                                                text = if (state.activePanel == ShadePanel.NOTIFICATIONS)
+                                                    "Quick Settings" else "Notifications",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 11.sp),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }

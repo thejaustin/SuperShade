@@ -98,16 +98,11 @@ fun TileCard(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
+    val shapeScheme = com.supershade.ui.theme.LocalShadeShapeScheme.current
 
     val cardShape = when {
         theme is ShadeTheme.Pixel -> CircleShape
-        tileShape == TileShape.CIRCLE -> CircleShape
-        tileShape == TileShape.ROUNDED -> RoundedCornerShape(16.dp)
-        tileShape == TileShape.PILL -> RoundedCornerShape(28.dp)
-        tileShape == TileShape.SOFT -> RoundedCornerShape(12.dp)
-        tileShape == TileShape.LEAF -> RoundedCornerShape(topStart = 24.dp, bottomEnd = 24.dp, topEnd = 8.dp, bottomStart = 8.dp)
-        tileShape == TileShape.SHARP -> RoundedCornerShape(6.dp)
-        else -> RoundedCornerShape(22.dp)
+        else -> shapeScheme.tile
     }
 
     val interactionSource = remember { MutableInteractionSource() }
@@ -158,10 +153,11 @@ fun TileCard(
     val cardHeight = tileSize.heightDp.dp
     val rawIconSize = if (columns >= 5) (tileSize.iconSizeDp - 2).coerceAtLeast(18) else tileSize.iconSizeDp
     val iconSize = rawIconSize.dp
+    val horizPadding = if (columns >= 5) (shapeScheme.tilePaddingHorizontal - 2.dp).coerceAtLeast(4.dp) else shapeScheme.tilePaddingHorizontal
     val vertPadding = when (tileSize) {
-        TileSize.COMPACT -> 5.dp
-        TileSize.COMFORTABLE -> 10.dp
-        TileSize.STANDARD -> 8.dp
+        TileSize.COMPACT -> (shapeScheme.tilePaddingVertical - 3.dp).coerceAtLeast(4.dp)
+        TileSize.COMFORTABLE -> shapeScheme.tilePaddingVertical + 2.dp
+        TileSize.STANDARD -> shapeScheme.tilePaddingVertical
     }
 
     Surface(
@@ -215,7 +211,7 @@ fun TileCard(
                     } else null,
                     role = Role.Switch,
                 )
-                .padding(horizontal = if (columns >= 5) 6.dp else 8.dp, vertical = vertPadding),
+                .padding(horizontal = horizPadding, vertical = vertPadding),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(

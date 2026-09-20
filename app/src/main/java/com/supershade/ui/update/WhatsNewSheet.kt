@@ -45,6 +45,16 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.10" -> """
+        ✨ Frosted Glass, Blurry & Opaque Themes, Global Shape Adaptation, One UI Header & Switcher Dock
+        • Glass & Backdrop Themes: Choose between Frosted Glass (acrylic blur & luminous highlights), Blurry (heavy Gaussian blur with deep contrast scrim), Opaque (100% solid surface with zero bleed-through for maximum legibility), and Transparent (translucent see-through glass)
+        • Dynamic Window Compositor: Android 12+ real-time blur behind scales dynamically (0px for solid opaque, 115px for frosted, 160px for deep blur) with zero background lag
+        • Global Shape Adaptation: Selected Tile Shape (Squircle, Rounded, Circle, Pill, Soft, Leaf, Sharp) harmoniously cascades across all cards, containers, sliders, chips, and pills
+        • One UI Header Actions: Single-tap settings gear opens Android device settings, long-press opens SuperShade settings; added permanent Edit (pencil) button to quickly access tile customization
+        • Natural Gesture Navigation: Swiping down on notifications in combined mode smoothly expands quick settings; separate mode supports effortless horizontal gestures
+        • Bottom Switcher Dock: Panel switcher pill is now hidden by default for clean swipe-driven navigation, can be enabled via settings, and sits ergonomically at the bottom of the screen
+        • M3 Expressive Settings & Developer Options: Streamlined settings with collapsible permissions accordion and non-overlapping About actions; 7-tap Easter egg unlocks experimental card border width controls
+    """.trimIndent()
         "1.9.9" -> """
         ✨ Maximized Notification Space, Dual-Panel Swipes, Sound Mode & Card Borders
         • Maximized Notification Viewport: Swiping up on quick controls or scrolling notifications tucks quick settings into a minimal 36dp bar, granting ~90% vertical display space to notifications

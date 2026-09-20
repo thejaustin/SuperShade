@@ -55,6 +55,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.haptics.SuperHaptics
+import com.supershade.ui.theme.LocalShadeShapeScheme
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -186,17 +187,19 @@ fun BrightnessSlider(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
+        val shapes = LocalShadeShapeScheme.current
+
         // Main Tactile Slider Pill
         Box(
             modifier = Modifier
                 .weight(1f)
                 .height(50.dp)
-                .clip(RoundedCornerShape(25.dp))
+                .clip(shapes.slider)
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
                 .border(
                     width = 1.dp,
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-                    shape = RoundedCornerShape(25.dp),
+                    shape = shapes.slider,
                 )
                 .semantics {
                     contentDescription = "Screen brightness"

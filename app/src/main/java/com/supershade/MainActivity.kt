@@ -37,6 +37,7 @@ import com.supershade.settings.QsTileTapAction
 import com.supershade.settings.ShadeSettings
 import com.supershade.shizuku.ShizukuPlusConnector
 import com.supershade.ui.settings.SettingsScreen
+import com.supershade.ui.theme.BackdropTheme
 import com.supershade.ui.theme.ShadeTheme
 import com.supershade.ui.theme.SuperShadeAppTheme
 import com.supershade.ui.tile.TilePreferencesActivity
@@ -70,6 +71,7 @@ class MainActivity : ComponentActivity() {
             val theme by settings.theme.collectAsState(initial = ShadeTheme.OneUI)
             val darkThemeMode by settings.darkThemeMode.collectAsState(initial = com.supershade.ui.theme.DarkThemeMode.SYSTEM)
             val accentColor by settings.accentColor.collectAsState(initial = com.supershade.settings.AccentColor.GALAXY_BLUE)
+            val backdropTheme by settings.backdropTheme.collectAsState(initial = BackdropTheme.FROSTED_GLASS)
             val isActive by settings.isActive.collectAsState(initial = false)
             val blockSystemShade by settings.blockSystemShade.collectAsState(initial = true)
             val qsTileTapAction by settings.qsTileTapAction.collectAsState(initial = QsTileTapAction.TOGGLE_ACTIVE)
@@ -78,6 +80,7 @@ class MainActivity : ComponentActivity() {
             val tileColumns by settings.tileColumns.collectAsState(initial = com.supershade.settings.TileGridColumns.STANDARD)
             val showWideCards by settings.showWideCards.collectAsState(initial = true)
             val splitGestureMode by settings.splitGestureMode.collectAsState(initial = com.supershade.settings.SplitGestureMode.SEPARATE_70_30)
+            val showPanelSwitcherPill by settings.showPanelSwitcherPill.collectAsState(initial = false)
             val cardBorderWidth by settings.cardBorderWidth.collectAsState(initial = com.supershade.settings.CardBorderWidth.THIN)
             val enabledTiles by settings.enabledTiles.collectAsState(initial = emptyList())
             val availableUpdate by updateRepo.availableUpdate.collectAsState()
@@ -153,6 +156,7 @@ class MainActivity : ComponentActivity() {
                         blockSystemShade = blockSystemShade,
                         selectedTheme = theme,
                         selectedAccentColor = accentColor,
+                        backdropTheme = backdropTheme,
                         darkThemeMode = darkThemeMode,
                         appVersion = BuildConfig.VERSION_NAME,
                         onToggleShade = { enabled ->
@@ -188,6 +192,10 @@ class MainActivity : ComponentActivity() {
                         onDarkModeChange = { newMode ->
                             superHaptics.sliderTick()
                             scope.launch { settings.setDarkThemeMode(newMode) }
+                        },
+                        onBackdropThemeChange = { newBackdrop ->
+                            superHaptics.sliderTick()
+                            scope.launch { settings.setBackdropTheme(newBackdrop) }
                         },
                         onGrantOverlay = {
                             superHaptics.lightTap()
@@ -291,6 +299,11 @@ class MainActivity : ComponentActivity() {
                         onSplitGestureModeChange = { mode ->
                             superHaptics.sliderTick()
                             scope.launch { settings.setSplitGestureMode(mode) }
+                        },
+                        showPanelSwitcherPill = showPanelSwitcherPill,
+                        onShowPanelSwitcherPillChange = { show ->
+                            if (show) superHaptics.tileToggleOn() else superHaptics.tileToggleOff()
+                            scope.launch { settings.setShowPanelSwitcherPill(show) }
                         },
                         cardBorderWidth = cardBorderWidth,
                         onCardBorderWidthChange = { width ->

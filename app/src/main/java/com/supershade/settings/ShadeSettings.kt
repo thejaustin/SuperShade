@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.supershade.ui.theme.BackdropTheme
 import com.supershade.ui.theme.ShadeTheme
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -124,6 +125,12 @@ class ShadeSettings(private val context: Context) {
         private val SPLIT_GESTURE_MODE_KEY = stringPreferencesKey("split_gesture_mode")
         private val TORCH_STRENGTH_LEVEL_KEY = intPreferencesKey("torch_strength_level")
         private val CARD_BORDER_WIDTH_KEY = stringPreferencesKey("card_border_width")
+        private val SHOW_PANEL_SWITCHER_PILL_KEY = booleanPreferencesKey("show_panel_switcher_pill")
+        private val BACKDROP_THEME_KEY = stringPreferencesKey("backdrop_theme")
+    }
+
+    val backdropTheme: Flow<BackdropTheme> = context.dataStore.data.map { prefs ->
+        BackdropTheme.fromId(prefs[BACKDROP_THEME_KEY])
     }
 
     val theme: Flow<ShadeTheme> = context.dataStore.data.map { prefs ->
@@ -236,6 +243,10 @@ class ShadeSettings(private val context: Context) {
             "bold" -> CardBorderWidth.BOLD
             else -> CardBorderWidth.THIN
         }
+    }
+
+    val showPanelSwitcherPill: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[SHOW_PANEL_SWITCHER_PILL_KEY] ?: false
     }
 
     suspend fun setTheme(theme: ShadeTheme) {
@@ -351,6 +362,18 @@ class ShadeSettings(private val context: Context) {
     suspend fun setCardBorderWidth(width: CardBorderWidth) {
         context.dataStore.edit { prefs ->
             prefs[CARD_BORDER_WIDTH_KEY] = width.id
+        }
+    }
+
+    suspend fun setShowPanelSwitcherPill(show: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[SHOW_PANEL_SWITCHER_PILL_KEY] = show
+        }
+    }
+
+    suspend fun setBackdropTheme(theme: BackdropTheme) {
+        context.dataStore.edit { prefs ->
+            prefs[BACKDROP_THEME_KEY] = theme.id
         }
     }
 }

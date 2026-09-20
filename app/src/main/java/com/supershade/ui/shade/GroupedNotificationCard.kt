@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
+import com.supershade.ui.theme.LocalShadeShapeScheme
 import com.supershade.ui.theme.getCardBorder
 import androidx.compose.ui.graphics.graphicsLayer
 import android.content.Intent
@@ -101,6 +102,7 @@ fun GroupedNotificationCard(
     onSnooze: (String, Long) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
+    val shapes = LocalShadeShapeScheme.current
     var expanded by remember { mutableStateOf(false) }
     var showSettingsMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -146,7 +148,7 @@ fun GroupedNotificationCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight()
-                    .clip(RoundedCornerShape(24.dp))
+                    .clip(shapes.card)
                     .background(Color(0xFFE53935).copy(alpha = bgAlpha)),
                 contentAlignment = alignment,
             ) {
@@ -180,7 +182,7 @@ fun GroupedNotificationCard(
                         .align(Alignment.BottomCenter)
                         .offset(y = 8.dp)
                         .height(16.dp)
-                        .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+                        .clip(shapes.card)
                         .background(MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.8f)),
                 )
             }
@@ -193,14 +195,14 @@ fun GroupedNotificationCard(
                         .align(Alignment.BottomCenter)
                         .offset(y = 4.dp)
                         .height(12.dp)
-                        .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+                        .clip(shapes.card)
                         .background(MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.9f)),
                 )
             }
 
             // Main card — on top, determines Box height
             Card(
-                shape = RoundedCornerShape(24.dp),
+                shape = shapes.card,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 ),

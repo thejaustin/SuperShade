@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Battery4Bar
 import androidx.compose.material.icons.filled.Battery5Bar
 import androidx.compose.material.icons.filled.Battery6Bar
 import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -56,6 +57,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.supershade.haptics.LocalSuperHaptics
+import com.supershade.ui.theme.LocalShadeShapeScheme
 import com.supershade.viewmodel.StatusBarState
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -142,10 +144,13 @@ fun StatusBarRow(
     statusBar: StatusBarState,
     onOpenPowerMenu: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onOpenDeviceSettings: () -> Unit = {},
+    onOpenEdit: () -> Unit = {},
     onLockScreen: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { com.supershade.haptics.SuperHaptics(context) }
+    val shapes = LocalShadeShapeScheme.current
 
     var time by remember { mutableStateOf(SimpleDateFormat("h:mm", Locale.getDefault()).format(Date())) }
     var ampm by remember { mutableStateOf(SimpleDateFormat("a", Locale.getDefault()).format(Date())) }
@@ -238,7 +243,7 @@ fun StatusBarRow(
             // Two-part clock: large digits + smaller AM/PM — One UI style
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(shapes.chip)
                     .combinedClickable(
                         onClick = {
                             haptics.lightTap()
@@ -275,7 +280,7 @@ fun StatusBarRow(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(shapes.chip)
                     .clickable(
                         onClick = {
                             haptics.lightTap()
@@ -301,16 +306,37 @@ fun StatusBarRow(
             }
         }
 
-        // Right side: Header actions (Power & Settings) + Battery Status
+        // Right side: Header actions (Edit, Power & Settings) + Battery Status
         Column(
             horizontalAlignment = Alignment.End,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            // Top action buttons: Power menu & Settings gear with 44dp minimum touch targets
+            // Top action buttons: Edit quick tiles, Power menu & Settings gear with 44dp minimum touch targets
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
+                IconButton(
+                    onClick = {
+                        haptics.sheetDetent()
+                        onOpenEdit()
+                    },
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .semantics {
+                            role = Role.Button
+                            contentDescription = "Edit Quick Settings"
+                        },
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit Quick Settings",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+
                 IconButton(
                     onClick = {
                         haptics.sheetDetent()
@@ -339,16 +365,17 @@ fun StatusBarRow(
                         .combinedClickable(
                             onClick = {
                                 haptics.sheetDetent()
-                                onOpenSettings()
+                                launchSystemSettings(context)
+                                onOpenDeviceSettings()
                             },
                             onLongClick = {
                                 haptics.sheetDetent()
-                                launchSystemSettings(context)
+                                onOpenSettings()
                             },
                             role = Role.Button,
                         )
                         .semantics {
-                            contentDescription = "Settings"
+                            contentDescription = "Settings. Tap for Android Settings, long press for SuperShade Settings"
                         },
                     contentAlignment = Alignment.Center,
                 ) {
@@ -363,11 +390,11 @@ fun StatusBarRow(
 
             // Battery percentage + icon with comfortable capsule pill & full accessibility description
             Surface(
-                shape = RoundedCornerShape(14.dp),
+                shape = shapes.chip,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f),
                 border = getCardBorder(alpha = 0.30f),
                 modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(shapes.chip)
                     .clickable(
                         onClick = {
                             haptics.lightTap()

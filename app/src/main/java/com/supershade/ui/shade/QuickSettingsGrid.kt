@@ -9,6 +9,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.foundation.BorderStroke
+import com.supershade.ui.theme.LocalShadeShapeScheme
 import com.supershade.ui.theme.getCardBorder
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -97,7 +98,7 @@ fun QuickSettingsGrid(
     }
 
     Surface(
-        shape = RoundedCornerShape(26.dp),
+        shape = LocalShadeShapeScheme.current.container,
         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
         border = getCardBorder(alpha = 0.30f),
         modifier = Modifier
@@ -218,14 +219,10 @@ private fun ConnectivityWideCard(
 
     val borderStroke = if (tile.isActive) null else getCardBorder(alpha = 0.40f)
 
+    val shapeScheme = LocalShadeShapeScheme.current
     val wideCardShape = when {
         theme is ShadeTheme.Pixel -> CircleShape
-        tileShape == TileShape.CIRCLE || tileShape == TileShape.PILL -> CircleShape
-        tileShape == TileShape.SOFT -> RoundedCornerShape(14.dp)
-        tileShape == TileShape.ROUNDED -> RoundedCornerShape(16.dp)
-        tileShape == TileShape.LEAF -> RoundedCornerShape(topStart = 24.dp, bottomEnd = 24.dp, topEnd = 10.dp, bottomStart = 10.dp)
-        tileShape == TileShape.SHARP -> RoundedCornerShape(8.dp)
-        else -> RoundedCornerShape(22.dp)
+        else -> shapeScheme.tile
     }
 
     Surface(

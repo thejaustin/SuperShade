@@ -74,6 +74,7 @@ import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import com.supershade.ui.theme.getCardBorder
+import com.supershade.ui.theme.LocalShadeShapeScheme
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Surface
 import androidx.compose.ui.platform.LocalContext
@@ -204,7 +205,7 @@ private fun AudioOutputChip(
                 } catch (_: Exception) {}
             }
         },
-        shape = RoundedCornerShape(50),
+        shape = LocalShadeShapeScheme.current.chip,
         color = Color.White.copy(alpha = 0.15f),
         border = getCardBorder(borderColor = Color.White.copy(alpha = 0.25f)),
         modifier = modifier.height(28.dp),
@@ -289,17 +290,18 @@ fun MediaCard(
 
     // Local liked state per-track (persists until track changes)
     var isLiked by remember(media.title + media.artist) { mutableStateOf(false) }
+    val shapes = LocalShadeShapeScheme.current
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 6.dp)
-            .shadow(elevation = 4.dp, shape = RoundedCornerShape(24.dp), clip = false)
-            .clip(RoundedCornerShape(24.dp))
+            .shadow(elevation = 4.dp, shape = shapes.card, clip = false)
+            .clip(shapes.card)
             .background(animatedBg)
             .then(
                 getCardBorder(alpha = 0.30f)?.let {
-                    Modifier.border(it, RoundedCornerShape(24.dp))
+                    Modifier.border(it, shapes.card)
                 } ?: Modifier
             )
             .animateContentSize(),
@@ -343,8 +345,8 @@ fun MediaCard(
                         contentDescription = "Album art",
                         modifier = Modifier
                             .size(64.dp)
-                            .shadow(8.dp, RoundedCornerShape(14.dp))
-                            .clip(RoundedCornerShape(14.dp)),
+                            .shadow(8.dp, shapes.chip)
+                            .clip(shapes.chip),
                         contentScale = ContentScale.Crop,
                     )
                     Spacer(Modifier.width(14.dp))

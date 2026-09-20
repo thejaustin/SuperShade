@@ -18,6 +18,9 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.supershade.ui.theme.BackdropTheme
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import com.supershade.ui.shade.ShadeRoot
 import com.supershade.viewmodel.ShadeViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -79,6 +82,52 @@ class ShadeWindowManager(
         }
     }
 
+    init {
+        scope.launch {
+            viewModel.state
+                .map { it.backdropTheme }
+                .distinctUntilChanged()
+                .collect { backdrop ->
+                    applyBackdropTheme(backdrop)
+                }
+        }
+    }
+
+    private fun applyBackdropTheme(backdrop: BackdropTheme) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val density = context.resources.displayMetrics.density
+            when (backdrop) {
+                BackdropTheme.OPAQUE -> {
+                    @Suppress("DEPRECATION")
+                    params.flags = params.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
+                    params.blurBehindRadius = 0
+                }
+                BackdropTheme.TRANSPARENT -> {
+                    @Suppress("DEPRECATION")
+                    params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+                    params.blurBehindRadius = (16 * density).toInt().coerceIn(35, 60)
+                }
+                BackdropTheme.FROSTED_GLASS -> {
+                    @Suppress("DEPRECATION")
+                    params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+                    params.blurBehindRadius = (28 * density).toInt().coerceIn(75, 115)
+                }
+                BackdropTheme.BLURRY -> {
+                    @Suppress("DEPRECATION")
+                    params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+                    params.blurBehindRadius = (45 * density).toInt().coerceIn(120, 160)
+                }
+            }
+            overlayView?.let { view ->
+                if (view.isAttachedToWindow) {
+                    try {
+                        windowManager.updateViewLayout(view, params)
+                    } catch (_: Exception) {}
+                }
+            }
+        }
+    }
+
     // ---------------------------------------------------------------------------
     // Public API
     // ---------------------------------------------------------------------------
@@ -90,6 +139,7 @@ class ShadeWindowManager(
         if (overlayView != null) return
         val owner = ShadeLifecycleOwner().also { lifecycleOwner = it }
         owner.start()
+        applyBackdropTheme(viewModel.state.value.backdropTheme)
         val view = ComposeView(context).apply {
             setViewTreeLifecycleOwner(owner)
             setViewTreeViewModelStoreOwner(owner)

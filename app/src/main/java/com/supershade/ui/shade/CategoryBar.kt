@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.supershade.domain.notification.model.ShadeCategory
+import com.supershade.ui.theme.LocalShadeShapeScheme
 import com.supershade.ui.theme.getCardBorder
 
 @Composable
@@ -125,7 +126,7 @@ private fun CategoryChip(
             haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
             onClick()
         },
-        shape = RoundedCornerShape(50),
+        shape = LocalShadeShapeScheme.current.chip,
         color = containerColor,
         border = border,
         interactionSource = interactionSource,

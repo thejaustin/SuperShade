@@ -78,6 +78,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.core.graphics.drawable.toBitmap
+import com.supershade.ui.theme.LocalShadeShapeScheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -92,6 +93,7 @@ fun NotificationCard(
 ) {
     val context = LocalContext.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { com.supershade.haptics.SuperHaptics(context) }
+    val shapes = LocalShadeShapeScheme.current
     var expanded by remember { mutableStateOf(false) }
     var replyingAction by remember { mutableStateOf<NotificationAction?>(null) }
     var showSettingsMenu by remember { mutableStateOf(false) }
@@ -169,7 +171,7 @@ fun NotificationCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight()
-                    .clip(RoundedCornerShape(24.dp))
+                    .clip(shapes.card)
                     .background(Color(0xFFE53935).copy(alpha = bgAlpha)),
                 contentAlignment = alignment,
             ) {
@@ -191,7 +193,7 @@ fun NotificationCard(
         modifier = modifier.fillMaxWidth(),
     ) {
         Card(
-            shape = RoundedCornerShape(24.dp),
+            shape = shapes.card,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
             ),
@@ -495,7 +497,7 @@ fun NotificationCard(
                                         try { action.pendingIntent?.send() } catch (_: Exception) {}
                                     }
                                 },
-                                shape = RoundedCornerShape(50),
+                                shape = shapes.chip,
                                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 border = getCardBorder(alpha = 0.35f),
                                 modifier = Modifier
@@ -553,7 +555,7 @@ fun NotificationCard(
                                     placeholder = { Text("Reply…", style = MaterialTheme.typography.bodySmall) },
                                     modifier = Modifier.weight(1f),
                                     singleLine = true,
-                                    shape = RoundedCornerShape(24.dp),
+                                    shape = shapes.chip,
                                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                                     keyboardActions = KeyboardActions(onSend = { sendReply() }),
                                 )

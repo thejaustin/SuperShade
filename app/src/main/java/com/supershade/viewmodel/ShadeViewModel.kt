@@ -103,6 +103,18 @@ class ShadeViewModel(
             .onEach { width -> _state.update { it.copy(cardBorderWidth = width) } }
             .launchIn(viewModelScope)
 
+        settings.splitGestureMode
+            .onEach { mode -> _state.update { it.copy(splitGestureMode = mode) } }
+            .launchIn(viewModelScope)
+
+        settings.showPanelSwitcherPill
+            .onEach { show -> _state.update { it.copy(showPanelSwitcherPill = show) } }
+            .launchIn(viewModelScope)
+
+        settings.backdropTheme
+            .onEach { backdrop -> _state.update { it.copy(backdropTheme = backdrop) } }
+            .launchIn(viewModelScope)
+
         governor.isCommanderConnected
             .onEach { connected -> _state.update { it.copy(isShizukuConnected = connected) } }
             .launchIn(viewModelScope)

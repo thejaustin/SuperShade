@@ -27,6 +27,10 @@ import androidx.compose.foundation.layout.width
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -38,7 +42,10 @@ import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DashboardCustomize
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Notifications
@@ -104,6 +111,7 @@ import androidx.compose.ui.unit.sp
 import com.supershade.R
 import com.supershade.settings.AccentColor
 import com.supershade.settings.QsTileTapAction
+import com.supershade.ui.theme.BackdropTheme
 import com.supershade.ui.theme.DarkThemeMode
 import com.supershade.ui.theme.ShadeTheme
 
@@ -120,6 +128,7 @@ fun SettingsScreen(
     blockSystemShade: Boolean = true,
     selectedTheme: ShadeTheme,
     selectedAccentColor: AccentColor = AccentColor.GALAXY_BLUE,
+    backdropTheme: BackdropTheme = BackdropTheme.FROSTED_GLASS,
     appVersion: String,
     darkThemeMode: DarkThemeMode = DarkThemeMode.SYSTEM,
     onToggleShade: (Boolean) -> Unit,
@@ -127,6 +136,7 @@ fun SettingsScreen(
     onThemeChange: (ShadeTheme) -> Unit,
     onAccentColorChange: (AccentColor) -> Unit = {},
     onDarkModeChange: (DarkThemeMode) -> Unit = {},
+    onBackdropThemeChange: (BackdropTheme) -> Unit = {},
     onGrantOverlay: () -> Unit,
     onGrantWriteSettings: () -> Unit = {},
     onGrantAccessibility: () -> Unit = {},
@@ -149,6 +159,8 @@ fun SettingsScreen(
     onEnabledTilesChange: (List<String>) -> Unit = {},
     splitGestureMode: SplitGestureMode = SplitGestureMode.SEPARATE_70_30,
     onSplitGestureModeChange: (SplitGestureMode) -> Unit = {},
+    showPanelSwitcherPill: Boolean = false,
+    onShowPanelSwitcherPillChange: (Boolean) -> Unit = {},
     cardBorderWidth: CardBorderWidth = CardBorderWidth.THIN,
     onCardBorderWidthChange: (CardBorderWidth) -> Unit = {},
     modifier: Modifier = Modifier,
@@ -367,6 +379,8 @@ fun SettingsScreen(
         // =======================================================================
         // 3. SYSTEM INTEGRATION & PERMISSIONS HUB
         // =======================================================================
+        var permissionsExpanded by remember { mutableStateOf(activeServiceCount < 5) }
+
         SectionHeader(
             title = "System Integration",
             badge = "$activeServiceCount of 5 ready",
@@ -380,92 +394,142 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // 1. Notification Access (Required)
-                PermissionRow(
-                    icon = Icons.Default.Notifications,
-                    title = "Notification Access",
-                    subtitle = "Reads & categorizes notifications with bidirectional swipe dismiss",
-                    isGranted = notificationAccessGranted,
-                    isRequired = true,
-                    actionText = "Grant",
-                    onClick = {
-                        context.startActivity(
-                            Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        )
-                    },
-                )
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
-
-                // 2. Display Over Other Apps (Required)
-                PermissionRow(
-                    icon = Icons.Default.Layers,
-                    title = "Display Over Other Apps",
-                    subtitle = "Enables drawing the full-screen shade and Quick Settings window",
-                    isGranted = overlayGranted,
-                    isRequired = true,
-                    actionText = "Grant",
-                    onClick = onGrantOverlay,
-                )
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
-
-                // 3. Accessibility Service (Zero-ADB - Recommended)
-                PermissionRow(
-                    icon = Icons.Default.TouchApp,
-                    title = "Accessibility Service",
-                    subtitle = "Zero-ADB pull interception — catches status bar pulls seamlessly",
-                    isGranted = accessibilityGranted,
-                    isRequired = false,
-                    isRecommended = true,
-                    actionText = "Enable",
-                    onClick = onGrantAccessibility,
-                )
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
-
-                // 4. Modify System Settings (Recommended)
-                PermissionRow(
-                    icon = Icons.Default.BrightnessMedium,
-                    title = "Modify System Settings",
-                    subtitle = "Direct screen brightness and auto-rotation control without Shizuku",
-                    isGranted = writeSettingsGranted,
-                    isRequired = false,
-                    isRecommended = true,
-                    actionText = "Grant",
-                    onClick = onGrantWriteSettings,
-                )
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
-
-                // 5. Shizuku Privileged API (Advanced)
-                PermissionRow(
-                    icon = Icons.Default.Smartphone,
-                    title = "Shizuku Privileged API",
-                    subtitle = when {
-                        shizukuOk -> "Connected — privileged hardware controls & system panel suppression"
-                        shizukuConnected && !shizukuPermGranted -> "Connected — tap to authorize permission"
-                        else -> "Optional — run wireless ADB or Shizuku for rootless toggles"
-                    },
-                    isGranted = shizukuOk,
-                    isRequired = false,
-                    actionText = when {
-                        shizukuConnected && !shizukuPermGranted -> "Authorize"
-                        !shizukuConnected -> "Open"
-                        else -> "Active"
-                    },
-                    onClick = when {
-                        shizukuConnected && !shizukuPermGranted -> null
-                        !shizukuConnected -> {
-                            {
-                                val launchIntent = context.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")
-                                context.startActivity(launchIntent ?: Intent(Settings.ACTION_SETTINGS))
+                if (activeServiceCount == 5) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { permissionsExpanded = !permissionsExpanded }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp),
+                            )
+                            Column {
+                                Text(
+                                    text = "All System Permissions Active",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    text = "Notifications, Overlay, Accessibility, Settings, & Shizuku ready",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
                         }
-                        else -> null
-                    },
-                )
+                        IconButton(onClick = { permissionsExpanded = !permissionsExpanded }) {
+                            Icon(
+                                imageVector = if (permissionsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = if (permissionsExpanded) "Collapse" else "Expand",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    if (permissionsExpanded) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+                    }
+                }
+
+                AnimatedVisibility(visible = permissionsExpanded) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        // 1. Notification Access (Required)
+                        PermissionRow(
+                            icon = Icons.Default.Notifications,
+                            title = "Notification Access",
+                            subtitle = "Reads & categorizes notifications with bidirectional swipe dismiss",
+                            isGranted = notificationAccessGranted,
+                            isRequired = true,
+                            actionText = "Grant",
+                            onClick = {
+                                context.startActivity(
+                                    Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            },
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
+                        // 2. Display Over Other Apps (Required)
+                        PermissionRow(
+                            icon = Icons.Default.Layers,
+                            title = "Display Over Other Apps",
+                            subtitle = "Enables drawing the full-screen shade and Quick Settings window",
+                            isGranted = overlayGranted,
+                            isRequired = true,
+                            actionText = "Grant",
+                            onClick = onGrantOverlay,
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
+                        // 3. Accessibility Service (Zero-ADB - Recommended)
+                        PermissionRow(
+                            icon = Icons.Default.TouchApp,
+                            title = "Accessibility Service",
+                            subtitle = "Zero-ADB pull interception — catches status bar pulls seamlessly",
+                            isGranted = accessibilityGranted,
+                            isRequired = false,
+                            isRecommended = true,
+                            actionText = "Enable",
+                            onClick = onGrantAccessibility,
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
+                        // 4. Modify System Settings (Recommended)
+                        PermissionRow(
+                            icon = Icons.Default.BrightnessMedium,
+                            title = "Modify System Settings",
+                            subtitle = "Direct screen brightness and auto-rotation control without Shizuku",
+                            isGranted = writeSettingsGranted,
+                            isRequired = false,
+                            isRecommended = true,
+                            actionText = "Grant",
+                            onClick = onGrantWriteSettings,
+                        )
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
+                        // 5. Shizuku Privileged API (Advanced)
+                        PermissionRow(
+                            icon = Icons.Default.Smartphone,
+                            title = "Shizuku Privileged API",
+                            subtitle = when {
+                                shizukuOk -> "Connected — privileged hardware controls & system panel suppression"
+                                shizukuConnected && !shizukuPermGranted -> "Connected — tap to authorize permission"
+                                else -> "Optional — run wireless ADB or Shizuku for rootless toggles"
+                            },
+                            isGranted = shizukuOk,
+                            isRequired = false,
+                            actionText = when {
+                                shizukuConnected && !shizukuPermGranted -> "Authorize"
+                                !shizukuConnected -> "Open"
+                                else -> "Active"
+                            },
+                            onClick = when {
+                                shizukuConnected && !shizukuPermGranted -> null
+                                !shizukuConnected -> {
+                                    {
+                                        val launchIntent = context.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")
+                                        context.startActivity(launchIntent ?: Intent(Settings.ACTION_SETTINGS))
+                                    }
+                                }
+                                else -> null
+                            },
+                        )
+                    }
+                }
             }
         }
 
@@ -763,6 +827,31 @@ fun SettingsScreen(
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
 
+                // Bottom Panel Switcher Pill Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Bottom Panel Switcher Pill",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        )
+                        Text(
+                            text = "Display accessible dock pill at the bottom to switch between Notifications and Quick Settings (swipe gestures are always active)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = showPanelSwitcherPill,
+                        onCheckedChange = onShowPanelSwitcherPillChange,
+                    )
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
                 // Haptic feedback info row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -912,6 +1001,66 @@ fun SettingsScreen(
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
 
+                // Glass & Backdrop Theme
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "Glass & Backdrop Theme",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                        ) {
+                            Text(
+                                text = backdropTheme.label,
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            )
+                        }
+                    }
+                    Text(
+                        text = backdropTheme.subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    val backdropOptions = listOf(
+                        BackdropTheme.FROSTED_GLASS,
+                        BackdropTheme.BLURRY,
+                        BackdropTheme.OPAQUE,
+                        BackdropTheme.TRANSPARENT,
+                    )
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        backdropOptions.forEachIndexed { index, option ->
+                            SegmentedButton(
+                                selected = backdropTheme == option,
+                                onClick = { onBackdropThemeChange(option) },
+                                shape = SegmentedButtonDefaults.itemShape(index, backdropOptions.size),
+                                icon = {},
+                            ) {
+                                Text(
+                                    text = when (option) {
+                                        BackdropTheme.FROSTED_GLASS -> "Frosted"
+                                        BackdropTheme.BLURRY -> "Blurry"
+                                        BackdropTheme.OPAQUE -> "Opaque"
+                                        BackdropTheme.TRANSPARENT -> "Clear"
+                                    },
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
                 // Color Palette
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
@@ -929,36 +1078,6 @@ fun SettingsScreen(
                                 isSelected = selectedAccentColor == accent,
                                 onClick = { onAccentColorChange(accent) },
                             )
-                        }
-                    }
-                }
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
-
-                // Card Borders & Outlines
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Card Borders & Outlines",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                    )
-                    Text(
-                        text = "Customize the outline sharpness and border stroke around shade cards and tiles",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        CardBorderWidth.entries.forEachIndexed { index, width ->
-                            SegmentedButton(
-                                selected = cardBorderWidth == width,
-                                onClick = { onCardBorderWidthChange(width) },
-                                shape = SegmentedButtonDefaults.itemShape(index, CardBorderWidth.entries.size),
-                                icon = {},
-                            ) {
-                                Text(
-                                    text = width.label,
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                                )
-                            }
                         }
                     }
                 }
@@ -1327,8 +1446,10 @@ fun SettingsScreen(
         }
 
         // =======================================================================
-        // 7. ABOUT & UPDATES
+        // 8. ABOUT & UPDATES
         // =======================================================================
+        var devTapCount by remember { mutableIntStateOf(0) }
+
         SectionHeader(title = "About")
 
         Surface(
@@ -1341,12 +1462,39 @@ fun SettingsScreen(
                 modifier = Modifier.padding(18.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
+                // Header with logo and tap-for-dev version
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable {
+                            devTapCount++
+                            if (devTapCount == 7) {
+                                android.widget.Toast.makeText(context, "Experimental & Developer Options Unlocked! 🚀", android.widget.Toast.LENGTH_SHORT).show()
+                            } else if (devTapCount in 4..6) {
+                                android.widget.Toast.makeText(context, "${7 - devTapCount} more taps to unlock developer options", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        .padding(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    Column {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_notification_shade),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(26.dp),
+                        )
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "SuperShade",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -1357,9 +1505,19 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                }
+
+                // Action buttons row: What's New & Updates side-by-side with no text overlap
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     FilledTonalButton(
                         onClick = onShowWhatsNew,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(46.dp),
                     ) {
                         Icon(
                             imageVector = Icons.Default.AutoAwesome,
@@ -1369,29 +1527,117 @@ fun SettingsScreen(
                         Spacer(Modifier.width(6.dp))
                         Text("What's new", style = MaterialTheme.typography.labelMedium)
                     }
-                }
 
-                OutlinedButton(
-                    onClick = onCheckUpdate,
-                    enabled = !isCheckingUpdate,
-                    shape = RoundedCornerShape(14.dp),
+                    OutlinedButton(
+                        onClick = onCheckUpdate,
+                        enabled = !isCheckingUpdate,
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(46.dp),
+                    ) {
+                        if (isCheckingUpdate) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text("Checking…", style = MaterialTheme.typography.labelMedium)
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text("Updates", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Developer & Experimental Options (revealed only after 7 taps!)
+        AnimatedVisibility(
+            visible = devTapCount >= 7,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut(),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                SectionHeader(
+                    title = "Experimental & Developer Options",
+                    badge = "Unlocked",
+                    badgeColor = MaterialTheme.colorScheme.tertiary,
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.40f)),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    if (isCheckingUpdate) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text("Checking for updates...")
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text("Check for updates")
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Code,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.size(22.dp),
+                            )
+                            Column {
+                                Text(
+                                    text = "Experimental Features",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                )
+                                Text(
+                                    text = "Developer-only UI outline and border parameters",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
+                        // Card Borders & Outlines
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "Card Border Stroke Width",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                            )
+                            Text(
+                                text = "Customize the outline sharpness and border stroke around shade cards and tiles",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                CardBorderWidth.entries.forEachIndexed { index, width ->
+                                    SegmentedButton(
+                                        selected = cardBorderWidth == width,
+                                        onClick = { onCardBorderWidthChange(width) },
+                                        shape = SegmentedButtonDefaults.itemShape(index, CardBorderWidth.entries.size),
+                                        icon = {},
+                                    ) {
+                                        Text(
+                                            text = width.label,
+                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

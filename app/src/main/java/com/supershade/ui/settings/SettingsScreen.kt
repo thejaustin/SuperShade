@@ -38,6 +38,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Battery5Bar
+import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -53,13 +55,16 @@ import androidx.compose.material.icons.filled.Opacity
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.ScreenLockPortrait
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.SwipeDown
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Widgets
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -106,6 +111,8 @@ import com.supershade.ui.shade.tileIcon
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -951,6 +958,287 @@ fun SettingsScreen(
                 modifier = Modifier.padding(18.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
+                // Live Interactive Appearance Studio Canvas
+                val activeAccent = if (selectedAccentColor == AccentColor.MONET || selectedAccentColor.hex == 0L) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    Color(selectedAccentColor.hex)
+                }
+                val previewShapeScheme = remember(tileShape) {
+                    com.supershade.ui.theme.ShadeShapeScheme.fromTileShape(tileShape)
+                }
+                val previewTileShape = if (selectedTheme is ShadeTheme.Pixel) CircleShape else previewShapeScheme.tile
+
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = when {
+                        backdropOpacity >= 0.99f -> if (darkThemeMode == DarkThemeMode.AMOLED) Color(0xFF000000) else MaterialTheme.colorScheme.surface
+                        darkThemeMode == DarkThemeMode.AMOLED -> Color(0xFF05070A).copy(alpha = backdropOpacity)
+                        else -> MaterialTheme.colorScheme.surface.copy(alpha = backdropOpacity)
+                    },
+                    border = BorderStroke(
+                        width = 1.dp,
+                        brush = if (backdropTheme == BackdropTheme.LIQUID_GLASS) {
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.60f),
+                                    activeAccent.copy(alpha = 0.40f),
+                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f),
+                                ),
+                                start = Offset.Zero,
+                                end = Offset(300f, 300f),
+                            )
+                        } else {
+                            Brush.linearGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f),
+                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f),
+                                )
+                            )
+                        },
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(130.dp),
+                ) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        if (backdropTheme == BackdropTheme.LIQUID_GLASS) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.linearGradient(
+                                            colors = listOf(
+                                                Color.White.copy(alpha = 0.15f),
+                                                Color.White.copy(alpha = 0.04f),
+                                                Color.Transparent,
+                                                activeAccent.copy(alpha = 0.09f),
+                                                Color.Transparent,
+                                            ),
+                                            start = Offset.Zero,
+                                            end = Offset(400f, 600f),
+                                        )
+                                    )
+                            )
+                        }
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            // Mini status header
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = "9:41",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Wifi,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.Battery5Bar,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = activeAccent.copy(alpha = 0.20f),
+                                    ) {
+                                        Text(
+                                            text = when (selectedTheme) {
+                                                is ShadeTheme.OneUI -> "One UI 8"
+                                                is ShadeTheme.Pixel -> "Pixel"
+                                                is ShadeTheme.PureMaterial -> "Pure Material"
+                                            },
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.SemiBold),
+                                            color = activeAccent,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Mini Quick Settings Tiles Row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                // Tile 1: Wi-Fi (Active)
+                                Surface(
+                                    shape = previewTileShape,
+                                    color = activeAccent,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(38.dp),
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Wifi,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                        Text(
+                                            text = "Wi-Fi",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                                            color = Color.White,
+                                            maxLines = 1,
+                                        )
+                                    }
+                                }
+
+                                // Tile 2: Bluetooth (Active)
+                                Surface(
+                                    shape = previewTileShape,
+                                    color = activeAccent,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(38.dp),
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Bluetooth,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                        Text(
+                                            text = "BT",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                                            color = Color.White,
+                                            maxLines = 1,
+                                        )
+                                    }
+                                }
+
+                                // Tile 3: Sound (Inactive)
+                                Surface(
+                                    shape = previewTileShape,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(38.dp),
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                        Text(
+                                            text = "Sound",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Medium),
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                        )
+                                    }
+                                }
+
+                                // Tile 4: Portrait (Inactive)
+                                Surface(
+                                    shape = previewTileShape,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(38.dp),
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ScreenLockPortrait,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                        Text(
+                                            text = "Portrait",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Medium),
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Mini Brightness Slider
+                            Surface(
+                                shape = previewShapeScheme.slider,
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(22.dp),
+                            ) {
+                                Box(modifier = Modifier.fillMaxSize()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxHeight()
+                                            .fillMaxWidth(0.68f)
+                                            .background(
+                                                Brush.horizontalGradient(
+                                                    listOf(
+                                                        Color(0xFFFFA000),
+                                                        Color(0xFFFFD54F),
+                                                    )
+                                                )
+                                            )
+                                    )
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.BrightnessMedium,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(12.dp),
+                                        )
+                                        Text(
+                                            text = "68%",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
                 // Shade Style
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(

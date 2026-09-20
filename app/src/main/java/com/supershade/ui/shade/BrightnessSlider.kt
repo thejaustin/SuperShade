@@ -56,6 +56,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.haptics.SuperHaptics
 import com.supershade.ui.theme.LocalShadeShapeScheme
+import com.supershade.ui.theme.getCardBorder
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -188,6 +189,7 @@ fun BrightnessSlider(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         val shapes = LocalShadeShapeScheme.current
+        val border = getCardBorder(alpha = 0.35f)
 
         // Main Tactile Slider Pill
         Box(
@@ -196,11 +198,7 @@ fun BrightnessSlider(
                 .height(50.dp)
                 .clip(shapes.slider)
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
-                    shape = shapes.slider,
-                )
+                .then(if (border != null) Modifier.border(border, shapes.slider) else Modifier)
                 .semantics {
                     contentDescription = "Screen brightness"
                     stateDescription = if (isAuto) "Auto ${(fraction * 100).roundToInt()}%" else "${(fraction * 100).roundToInt()}%"
@@ -287,12 +285,14 @@ fun BrightnessSlider(
         }
 
         // Auto Toggle Pill Button
+        val autoBorder = if (isAuto) null else getCardBorder(alpha = 0.35f)
         IconButton(
             onClick = { toggleAuto() },
             modifier = Modifier
                 .size(44.dp)
                 .clip(CircleShape)
                 .background(autoBg)
+                .then(if (autoBorder != null) Modifier.border(autoBorder, CircleShape) else Modifier)
                 .semantics {
                     role = Role.Switch
                     stateDescription = if (isAuto) "Auto brightness on" else "Auto brightness off"

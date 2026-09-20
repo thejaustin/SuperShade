@@ -45,6 +45,11 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.13" -> """
+        ✨ Live Appearance Studio Canvas & Unified Refractive Sliders
+        • Live Appearance Studio Canvas: Real-time interactive preview canvas in Appearance settings showcasing your theme style, glass opacity, specular sheen, accent color, and custom tile shape instantly as you customize
+        • Unified Refractive Sliders: Brightness and Media Volume slider pills and secondary controls now adapt to custom card borders and Liquid Glass specular refraction
+    """.trimIndent()
         "1.9.12" -> """
         ✨ Liquid Glass Theme, Specular Card Refraction & Adaptive Quick Toggles
         • Liquid Glass Theme: New theme featuring luminous diagonal specular light sweeps, iridescent border refraction, and vivid fluid depth

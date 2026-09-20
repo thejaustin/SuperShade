@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -127,10 +128,20 @@ class ShadeSettings(private val context: Context) {
         private val CARD_BORDER_WIDTH_KEY = stringPreferencesKey("card_border_width")
         private val SHOW_PANEL_SWITCHER_PILL_KEY = booleanPreferencesKey("show_panel_switcher_pill")
         private val BACKDROP_THEME_KEY = stringPreferencesKey("backdrop_theme")
+        private val BACKDROP_OPACITY_KEY = floatPreferencesKey("backdrop_opacity")
     }
 
     val backdropTheme: Flow<BackdropTheme> = context.dataStore.data.map { prefs ->
         BackdropTheme.fromId(prefs[BACKDROP_THEME_KEY])
+    }
+
+    val backdropOpacity: Flow<Float> = context.dataStore.data.map { prefs ->
+        prefs[BACKDROP_OPACITY_KEY] ?: when (prefs[BACKDROP_THEME_KEY]) {
+            "opaque" -> 1.00f
+            "blurry" -> 0.90f
+            "transparent" -> 0.55f
+            else -> 0.78f
+        }
     }
 
     val theme: Flow<ShadeTheme> = context.dataStore.data.map { prefs ->
@@ -374,6 +385,26 @@ class ShadeSettings(private val context: Context) {
     suspend fun setBackdropTheme(theme: BackdropTheme) {
         context.dataStore.edit { prefs ->
             prefs[BACKDROP_THEME_KEY] = theme.id
+            prefs[BACKDROP_OPACITY_KEY] = when (theme) {
+                BackdropTheme.OPAQUE -> 1.00f
+                BackdropTheme.BLURRY -> 0.90f
+                BackdropTheme.FROSTED_GLASS -> 0.78f
+                BackdropTheme.TRANSPARENT -> 0.55f
+            }
+        }
+    }
+
+    suspend fun setBackdropOpacity(opacity: Float) {
+        val clamped = opacity.coerceIn(0.20f, 1.00f)
+        val matchingTheme = when {
+            clamped >= 0.98f -> BackdropTheme.OPAQUE
+            clamped >= 0.85f -> BackdropTheme.BLURRY
+            clamped >= 0.65f -> BackdropTheme.FROSTED_GLASS
+            else -> BackdropTheme.TRANSPARENT
+        }
+        context.dataStore.edit { prefs ->
+            prefs[BACKDROP_OPACITY_KEY] = clamped
+            prefs[BACKDROP_THEME_KEY] = matchingTheme.id
         }
     }
 }

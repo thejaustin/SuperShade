@@ -72,6 +72,7 @@ class MainActivity : ComponentActivity() {
             val darkThemeMode by settings.darkThemeMode.collectAsState(initial = com.supershade.ui.theme.DarkThemeMode.SYSTEM)
             val accentColor by settings.accentColor.collectAsState(initial = com.supershade.settings.AccentColor.GALAXY_BLUE)
             val backdropTheme by settings.backdropTheme.collectAsState(initial = BackdropTheme.FROSTED_GLASS)
+            val backdropOpacity by settings.backdropOpacity.collectAsState(initial = 0.78f)
             val isActive by settings.isActive.collectAsState(initial = false)
             val blockSystemShade by settings.blockSystemShade.collectAsState(initial = true)
             val qsTileTapAction by settings.qsTileTapAction.collectAsState(initial = QsTileTapAction.TOGGLE_ACTIVE)
@@ -157,6 +158,7 @@ class MainActivity : ComponentActivity() {
                         selectedTheme = theme,
                         selectedAccentColor = accentColor,
                         backdropTheme = backdropTheme,
+                        backdropOpacity = backdropOpacity,
                         darkThemeMode = darkThemeMode,
                         appVersion = BuildConfig.VERSION_NAME,
                         onToggleShade = { enabled ->
@@ -196,6 +198,9 @@ class MainActivity : ComponentActivity() {
                         onBackdropThemeChange = { newBackdrop ->
                             superHaptics.sliderTick()
                             scope.launch { settings.setBackdropTheme(newBackdrop) }
+                        },
+                        onBackdropOpacityChange = { newOpacity ->
+                            scope.launch { settings.setBackdropOpacity(newOpacity) }
                         },
                         onGrantOverlay = {
                             superHaptics.lightTap()

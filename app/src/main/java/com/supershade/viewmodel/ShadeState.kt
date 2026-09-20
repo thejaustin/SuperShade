@@ -65,4 +65,5 @@ data class ShadeState(
     val splitGestureMode: com.supershade.settings.SplitGestureMode = com.supershade.settings.SplitGestureMode.SEPARATE_70_30,
     val showPanelSwitcherPill: Boolean = false,
     val backdropTheme: com.supershade.ui.theme.BackdropTheme = com.supershade.ui.theme.BackdropTheme.FROSTED_GLASS,
+    val backdropOpacity: Float = 0.78f,
 )

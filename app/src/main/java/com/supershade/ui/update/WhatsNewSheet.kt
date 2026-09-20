@@ -45,6 +45,13 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.11" -> """
+        ✨ Expressive Glass Transparency Slider & Live Haptic Calibration
+        • Expressive Transparency Slider: Fine-tune glass opacity continuously from 20% crystal-clear to 100% solid opaque with real-time responsive feedback
+        • Harmonious Preset Synchronization: Slider seamlessly stays in sync with Frosted Glass, Blurry, Opaque, and Clear presets without overwhelming or cluttered settings
+        • Dynamic Window Compositor Scaling: Window compositor blur behind and scrim contrast automatically adjust in real time to match exact opacity
+        • Tactile Potentiometer Detents: Mechanical haptic tick feedback as you slide across 5% calibration thresholds
+    """.trimIndent()
         "1.9.10" -> """
         ✨ Frosted Glass, Blurry & Opaque Themes, Global Shape Adaptation, One UI Header & Switcher Dock
         • Glass & Backdrop Themes: Choose between Frosted Glass (acrylic blur & luminous highlights), Blurry (heavy Gaussian blur with deep contrast scrim), Opaque (100% solid surface with zero bleed-through for maximum legibility), and Transparent (translucent see-through glass)

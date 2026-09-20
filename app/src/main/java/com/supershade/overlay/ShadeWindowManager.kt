@@ -85,38 +85,31 @@ class ShadeWindowManager(
     init {
         scope.launch {
             viewModel.state
-                .map { it.backdropTheme }
+                .map { it.backdropTheme to it.backdropOpacity }
                 .distinctUntilChanged()
-                .collect { backdrop ->
-                    applyBackdropTheme(backdrop)
+                .collect { (backdrop, opacity) ->
+                    applyBackdropTheme(backdrop, opacity)
                 }
         }
     }
 
-    private fun applyBackdropTheme(backdrop: BackdropTheme) {
+    private fun applyBackdropTheme(backdrop: BackdropTheme, opacity: Float = 0.78f) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val density = context.resources.displayMetrics.density
-            when (backdrop) {
-                BackdropTheme.OPAQUE -> {
-                    @Suppress("DEPRECATION")
-                    params.flags = params.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
-                    params.blurBehindRadius = 0
+            if (opacity >= 0.99f || backdrop == BackdropTheme.OPAQUE) {
+                @Suppress("DEPRECATION")
+                params.flags = params.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
+                params.blurBehindRadius = 0
+            } else {
+                @Suppress("DEPRECATION")
+                params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
+                val targetRadius = when (backdrop) {
+                    BackdropTheme.TRANSPARENT -> (16 * density).toInt().coerceIn(35, 60)
+                    BackdropTheme.FROSTED_GLASS -> (28 * density).toInt().coerceIn(75, 115)
+                    BackdropTheme.BLURRY -> (45 * density).toInt().coerceIn(120, 160)
+                    else -> ((15f + (opacity * 34f)) * density).toInt().coerceIn(35, 160)
                 }
-                BackdropTheme.TRANSPARENT -> {
-                    @Suppress("DEPRECATION")
-                    params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-                    params.blurBehindRadius = (16 * density).toInt().coerceIn(35, 60)
-                }
-                BackdropTheme.FROSTED_GLASS -> {
-                    @Suppress("DEPRECATION")
-                    params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-                    params.blurBehindRadius = (28 * density).toInt().coerceIn(75, 115)
-                }
-                BackdropTheme.BLURRY -> {
-                    @Suppress("DEPRECATION")
-                    params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
-                    params.blurBehindRadius = (45 * density).toInt().coerceIn(120, 160)
-                }
+                params.blurBehindRadius = targetRadius
             }
             overlayView?.let { view ->
                 if (view.isAttachedToWindow) {
@@ -139,7 +132,8 @@ class ShadeWindowManager(
         if (overlayView != null) return
         val owner = ShadeLifecycleOwner().also { lifecycleOwner = it }
         owner.start()
-        applyBackdropTheme(viewModel.state.value.backdropTheme)
+        val s = viewModel.state.value
+        applyBackdropTheme(s.backdropTheme, s.backdropOpacity)
         val view = ComposeView(context).apply {
             setViewTreeLifecycleOwner(owner)
             setViewTreeViewModelStoreOwner(owner)

@@ -49,6 +49,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Opacity
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RestartAlt
@@ -76,6 +77,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -83,12 +86,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.style.TextOverflow
+import kotlin.math.roundToInt
 import com.supershade.domain.tile.DEFAULT_TILES
 import com.supershade.domain.tile.KNOWN_TILES
 import com.supershade.settings.CardBorderWidth
@@ -129,6 +134,7 @@ fun SettingsScreen(
     selectedTheme: ShadeTheme,
     selectedAccentColor: AccentColor = AccentColor.GALAXY_BLUE,
     backdropTheme: BackdropTheme = BackdropTheme.FROSTED_GLASS,
+    backdropOpacity: Float = 0.78f,
     appVersion: String,
     darkThemeMode: DarkThemeMode = DarkThemeMode.SYSTEM,
     onToggleShade: (Boolean) -> Unit,
@@ -137,6 +143,7 @@ fun SettingsScreen(
     onAccentColorChange: (AccentColor) -> Unit = {},
     onDarkModeChange: (DarkThemeMode) -> Unit = {},
     onBackdropThemeChange: (BackdropTheme) -> Unit = {},
+    onBackdropOpacityChange: (Float) -> Unit = {},
     onGrantOverlay: () -> Unit,
     onGrantWriteSettings: () -> Unit = {},
     onGrantAccessibility: () -> Unit = {},
@@ -166,6 +173,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val haptics = com.supershade.haptics.LocalSuperHaptics.current
     val allEssentialGranted = notificationAccessGranted && overlayGranted
     val shizukuOk = shizukuConnected && shizukuPermGranted
 
@@ -1002,7 +1010,7 @@ fun SettingsScreen(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
 
                 // Glass & Backdrop Theme
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1012,16 +1020,32 @@ fun SettingsScreen(
                             text = "Glass & Backdrop Theme",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                         )
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
-                                text = backdropTheme.label,
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            )
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                            ) {
+                                Text(
+                                    text = backdropTheme.label,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                            ) {
+                                Text(
+                                    text = "${(backdropOpacity * 100).roundToInt()}%",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                                )
+                            }
                         }
                     }
                     Text(
@@ -1056,6 +1080,58 @@ fun SettingsScreen(
                                 )
                             }
                         }
+                    }
+
+                    // Expressive Transparency Slider
+                    var isDraggingSlider by remember { mutableStateOf(false) }
+                    var liveSliderValue by remember(backdropOpacity) { mutableFloatStateOf(backdropOpacity) }
+                    val currentDisplayOpacity = if (isDraggingSlider) liveSliderValue else backdropOpacity
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f))
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Opacity,
+                            contentDescription = "Transparency",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Slider(
+                            value = currentDisplayOpacity,
+                            onValueChange = { newValue ->
+                                isDraggingSlider = true
+                                val lastStep = (liveSliderValue * 20).roundToInt()
+                                val newStep = (newValue * 20).roundToInt()
+                                if (lastStep != newStep) {
+                                    haptics?.sliderTick()
+                                }
+                                liveSliderValue = newValue
+                                onBackdropOpacityChange(newValue)
+                            },
+                            onValueChangeFinished = {
+                                isDraggingSlider = false
+                                onBackdropOpacityChange(liveSliderValue)
+                            },
+                            valueRange = 0.20f..1.00f,
+                            modifier = Modifier.weight(1f),
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                            ),
+                        )
+                        Text(
+                            text = "${(currentDisplayOpacity * 100).roundToInt()}%",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.width(38.dp),
+                        )
                     }
                 }
 

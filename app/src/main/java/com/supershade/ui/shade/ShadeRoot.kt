@@ -242,11 +242,11 @@ fun ShadeRoot(
         themeWrapper {
             Box(modifier = Modifier.fillMaxSize()) {
                 // Dimmer scrim — tapping it dismisses the shade.
-                val scrimAlpha = when (backdropTheme) {
-                    BackdropTheme.OPAQUE -> 0.70f
-                    BackdropTheme.BLURRY -> 0.42f
-                    BackdropTheme.FROSTED_GLASS -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.24f else 0.50f
-                    BackdropTheme.TRANSPARENT -> 0.12f
+                val opacity = state.backdropOpacity.coerceIn(0.20f, 1.00f)
+                val scrimAlpha = when {
+                    opacity >= 0.99f -> 0.70f
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> (opacity * 0.36f).coerceIn(0.12f, 0.45f)
+                    else -> (opacity * 0.65f).coerceIn(0.25f, 0.75f)
                 }
                 Box(
                     modifier = Modifier
@@ -291,22 +291,12 @@ fun ShadeRoot(
                     enter = slideInVertically(spring(dampingRatio = 0.78f, stiffness = 420f)) { -it } + fadeIn(tween(180)),
                     exit  = slideOutVertically(tween(220)) { -it } + fadeOut(tween(180)),
                 ) {
-                    val glassBackdrop = when (backdropTheme) {
-                        BackdropTheme.OPAQUE -> {
+                    val glassBackdrop = when {
+                        opacity >= 0.99f -> {
                             if (isAmoled) Color(0xFF000000) else MaterialTheme.colorScheme.surface
                         }
-                        BackdropTheme.BLURRY -> {
-                            if (isAmoled) Color(0xFA030406) else MaterialTheme.colorScheme.surface.copy(alpha = 0.90f)
-                        }
-                        BackdropTheme.FROSTED_GLASS -> {
-                            if (isAmoled) Color(0xF005070A)
-                            else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
-                            else MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)
-                        }
-                        BackdropTheme.TRANSPARENT -> {
-                            if (isAmoled) Color(0xAA05070A)
-                            else MaterialTheme.colorScheme.surface.copy(alpha = 0.58f)
-                        }
+                        isAmoled -> Color(0xFF05070A).copy(alpha = opacity)
+                        else -> MaterialTheme.colorScheme.surface.copy(alpha = opacity)
                     }
                     val isCombined = state.splitGestureMode == SplitGestureMode.ALWAYS_NOTIFICATIONS ||
                                      state.splitGestureMode == SplitGestureMode.ALWAYS_QUICK_SETTINGS

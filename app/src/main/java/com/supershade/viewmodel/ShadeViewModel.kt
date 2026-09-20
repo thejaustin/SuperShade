@@ -115,6 +115,10 @@ class ShadeViewModel(
             .onEach { backdrop -> _state.update { it.copy(backdropTheme = backdrop) } }
             .launchIn(viewModelScope)
 
+        settings.backdropOpacity
+            .onEach { opacity -> _state.update { it.copy(backdropOpacity = opacity) } }
+            .launchIn(viewModelScope)
+
         governor.isCommanderConnected
             .onEach { connected -> _state.update { it.copy(isShizukuConnected = connected) } }
             .launchIn(viewModelScope)

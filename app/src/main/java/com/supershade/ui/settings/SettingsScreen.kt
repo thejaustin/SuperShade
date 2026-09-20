@@ -1055,6 +1055,7 @@ fun SettingsScreen(
                     )
                     val backdropOptions = listOf(
                         BackdropTheme.FROSTED_GLASS,
+                        BackdropTheme.LIQUID_GLASS,
                         BackdropTheme.BLURRY,
                         BackdropTheme.OPAQUE,
                         BackdropTheme.TRANSPARENT,
@@ -1070,6 +1071,7 @@ fun SettingsScreen(
                                 Text(
                                     text = when (option) {
                                         BackdropTheme.FROSTED_GLASS -> "Frosted"
+                                        BackdropTheme.LIQUID_GLASS -> "Liquid"
                                         BackdropTheme.BLURRY -> "Blurry"
                                         BackdropTheme.OPAQUE -> "Opaque"
                                         BackdropTheme.TRANSPARENT -> "Clear"

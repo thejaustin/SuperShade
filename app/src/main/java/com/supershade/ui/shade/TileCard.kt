@@ -239,27 +239,37 @@ fun TileCard(
                 TileSize.COMFORTABLE -> if (columns >= 5) 9.5.sp else 12.sp
                 TileSize.STANDARD -> if (columns >= 5) 8.5.sp else 10.5.sp
             }
+            val displayLabel = when {
+                tile.id.lowercase().contains("rotation") -> if (tile.isActive) "Auto rotate" else "Portrait"
+                tile.id.lowercase().contains("mute") || tile.id.lowercase().contains("sound") -> tile.subtitle ?: tile.label
+                else -> tile.label
+            }
+            val displaySubtitle = when {
+                tile.id.lowercase().contains("rotation") -> null
+                tile.id.lowercase().contains("mute") || tile.id.lowercase().contains("sound") -> null
+                else -> tile.subtitle
+            }
             val titleFontSize = when {
-                columns >= 5 && tile.label.length > 8 -> (baseSize.value - 1f).sp
-                tile.label.length > 13 -> (baseSize.value - 0.75f).sp
+                columns >= 5 && displayLabel.length > 8 -> (baseSize.value - 1f).sp
+                displayLabel.length > 13 -> (baseSize.value - 0.75f).sp
                 else -> baseSize
             }
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = tile.label,
+                    text = displayLabel,
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Medium,
                         fontSize = titleFontSize,
                         lineHeight = (titleFontSize.value + 2).sp,
                     ),
                     color = contentColor,
-                    maxLines = if (tileSize == TileSize.COMPACT || tile.subtitle != null) 1 else 2,
+                    maxLines = if (tileSize == TileSize.COMPACT || displaySubtitle != null) 1 else 2,
                     overflow = TextOverflow.Ellipsis,
                     softWrap = true,
                 )
-                if (tile.subtitle != null && tileSize != TileSize.COMPACT) {
+                if (displaySubtitle != null && tileSize != TileSize.COMPACT) {
                     Text(
-                        text = tile.subtitle,
+                        text = displaySubtitle,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontSize = if (columns >= 5) 8.sp else 9.sp,
                             lineHeight = if (columns >= 5) 9.sp else 10.sp,

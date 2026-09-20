@@ -45,6 +45,13 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.12" -> """
+        ✨ Liquid Glass Theme, Specular Card Refraction & Adaptive Quick Toggles
+        • Liquid Glass Theme: New theme featuring luminous diagonal specular light sweeps, iridescent border refraction, and vivid fluid depth
+        • Specular Refractive Card Borders: Cards, tiles, sliders, and notification feeds catch ambient light with dual-tone specular reflections when Liquid Glass is active
+        • Adaptive Quick Toggle Labels: Auto-Rotate tile dynamically relabels to "Portrait" when locked with matched portrait lock iconography; Sound tile dynamically cycles Sound / Vibrate / Mute
+        • Expanded System Tile Handlers: Added robust handlers and fallback panels for Airplane Mode, Mobile Hotspot / Tethering, Dark Mode, Location Services, and Battery Saver
+    """.trimIndent()
         "1.9.11" -> """
         ✨ Expressive Glass Transparency Slider & Live Haptic Calibration
         • Expressive Transparency Slider: Fine-tune glass opacity continuously from 20% crystal-clear to 100% solid opaque with real-time responsive feedback

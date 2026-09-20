@@ -172,6 +172,63 @@ class TileToggler(
                     }
                 }
 
+                // Airplane Mode: Shizuku privileged or internet connectivity panel
+                id.contains("airplane") -> {
+                    if (governor.canRunPrivileged) {
+                        governor.runShell("cmd", "connectivity", "airplane-mode", if (newState) "enable" else "disable")
+                    } else {
+                        try {
+                            val panelIntent = Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(panelIntent)
+                        } catch (_: Exception) {
+                            openSettings(tile)
+                        }
+                    }
+                }
+
+                // Hotspot / Tethering: Shizuku privileged or native tether settings
+                id.contains("hotspot") -> {
+                    if (governor.canRunPrivileged) {
+                        governor.runShell("cmd", "connectivity", "tether", if (newState) "start-tethering" else "stop-tethering")
+                    } else {
+                        try {
+                            val tetherIntent = Intent("android.settings.TETHER_SETTINGS")
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(tetherIntent)
+                        } catch (_: Exception) {
+                            openSettings(tile)
+                        }
+                    }
+                }
+
+                // Dark Mode: Shizuku privileged or display settings
+                id.contains("dark") || id.contains("uimodenight") -> {
+                    if (governor.canRunPrivileged) {
+                        governor.runShell("cmd", "uimode", "night", if (newState) "yes" else "no")
+                    } else {
+                        openSettings(tile)
+                    }
+                }
+
+                // Location: Shizuku privileged or location source settings
+                id.contains("location") -> {
+                    if (governor.canRunPrivileged) {
+                        governor.runShell("cmd", "location", "set-location-enabled", if (newState) "true" else "false")
+                    } else {
+                        openSettings(tile)
+                    }
+                }
+
+                // Battery Saver: Shizuku privileged or battery settings
+                id.contains("battery") || id.contains("batterymode") -> {
+                    if (governor.canRunPrivileged) {
+                        governor.runShell("cmd", "power", "set-mode", if (newState) "1" else "0")
+                    } else {
+                        openSettings(tile)
+                    }
+                }
+
                 tile.capability == TileCapability.FULL_TOGGLE && governor.canRunPrivileged -> {
                     togglePrivileged(tile)
                 }

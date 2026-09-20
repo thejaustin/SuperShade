@@ -105,6 +105,7 @@ class ShadeWindowManager(
                 params.flags = params.flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND
                 val targetRadius = when (backdrop) {
                     BackdropTheme.TRANSPARENT -> (16 * density).toInt().coerceIn(35, 60)
+                    BackdropTheme.LIQUID_GLASS -> (24 * density).toInt().coerceIn(60, 95)
                     BackdropTheme.FROSTED_GLASS -> (28 * density).toInt().coerceIn(75, 115)
                     BackdropTheme.BLURRY -> (45 * density).toInt().coerceIn(120, 160)
                     else -> ((15f + (opacity * 34f)) * density).toInt().coerceIn(35, 160)

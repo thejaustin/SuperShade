@@ -139,7 +139,9 @@ class ShadeSettings(private val context: Context) {
         prefs[BACKDROP_OPACITY_KEY] ?: when (prefs[BACKDROP_THEME_KEY]) {
             "opaque" -> 1.00f
             "blurry" -> 0.90f
-            "transparent" -> 0.55f
+            "frosted" -> 0.78f
+            "liquid" -> 0.68f
+            "transparent" -> 0.50f
             else -> 0.78f
         }
     }
@@ -389,7 +391,8 @@ class ShadeSettings(private val context: Context) {
                 BackdropTheme.OPAQUE -> 1.00f
                 BackdropTheme.BLURRY -> 0.90f
                 BackdropTheme.FROSTED_GLASS -> 0.78f
-                BackdropTheme.TRANSPARENT -> 0.55f
+                BackdropTheme.LIQUID_GLASS -> 0.68f
+                BackdropTheme.TRANSPARENT -> 0.50f
             }
         }
     }
@@ -398,8 +401,9 @@ class ShadeSettings(private val context: Context) {
         val clamped = opacity.coerceIn(0.20f, 1.00f)
         val matchingTheme = when {
             clamped >= 0.98f -> BackdropTheme.OPAQUE
-            clamped >= 0.85f -> BackdropTheme.BLURRY
-            clamped >= 0.65f -> BackdropTheme.FROSTED_GLASS
+            clamped >= 0.86f -> BackdropTheme.BLURRY
+            clamped >= 0.74f -> BackdropTheme.FROSTED_GLASS
+            clamped >= 0.58f -> BackdropTheme.LIQUID_GLASS
             else -> BackdropTheme.TRANSPARENT
         }
         context.dataStore.edit { prefs ->

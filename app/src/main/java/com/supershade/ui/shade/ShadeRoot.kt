@@ -24,6 +24,7 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -300,28 +301,51 @@ fun ShadeRoot(
                     }
                     val isCombined = state.splitGestureMode == SplitGestureMode.ALWAYS_NOTIFICATIONS ||
                                      state.splitGestureMode == SplitGestureMode.ALWAYS_QUICK_SETTINGS
-                    Column(
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .offset { IntOffset(0, dragOffset.value.roundToInt()) }
-                            .background(glassBackdrop)
-                            .displayCutoutPadding()
-                            .statusBarsPadding()
-                            .navigationBarsPadding()
-                            .draggable(
-                                orientation = Orientation.Horizontal,
-                                enabled = !isCombined,
-                                state = rememberDraggableState { delta ->
-                                    if (delta < -24f && state.activePanel == ShadePanel.NOTIFICATIONS) {
-                                        haptics.sheetDetent()
-                                        viewModel.setActivePanel(ShadePanel.QUICK_SETTINGS)
-                                    } else if (delta > 24f && state.activePanel == ShadePanel.QUICK_SETTINGS) {
-                                        haptics.sheetDetent()
-                                        viewModel.setActivePanel(ShadePanel.NOTIFICATIONS)
-                                    }
-                                },
-                            ),
+                            .background(glassBackdrop),
                     ) {
+                        if (backdropTheme == BackdropTheme.LIQUID_GLASS) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.linearGradient(
+                                            colors = listOf(
+                                                Color.White.copy(alpha = 0.12f),
+                                                Color.White.copy(alpha = 0.03f),
+                                                Color.Transparent,
+                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.07f),
+                                                Color.Transparent,
+                                            ),
+                                            start = Offset.Zero,
+                                            end = Offset(1200f, 2200f),
+                                        )
+                                    ),
+                            )
+                        }
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .displayCutoutPadding()
+                                .statusBarsPadding()
+                                .navigationBarsPadding()
+                                .draggable(
+                                    orientation = Orientation.Horizontal,
+                                    enabled = !isCombined,
+                                    state = rememberDraggableState { delta ->
+                                        if (delta < -24f && state.activePanel == ShadePanel.NOTIFICATIONS) {
+                                            haptics.sheetDetent()
+                                            viewModel.setActivePanel(ShadePanel.QUICK_SETTINGS)
+                                        } else if (delta > 24f && state.activePanel == ShadePanel.QUICK_SETTINGS) {
+                                            haptics.sheetDetent()
+                                            viewModel.setActivePanel(ShadePanel.NOTIFICATIONS)
+                                        }
+                                    },
+                                ),
+                        ) {
                         // Top Status Bar (Clock, Battery, Lock, Settings, Power, Edit)
                         StatusBarRow(
                             statusBar = state.statusBar,
@@ -806,6 +830,7 @@ fun ShadeRoot(
                         }
                     }
                 }
+            }
             }
 
             // In-shade Tile Detail Sheet (Flashlight multi-level control, Wi-Fi details, Bluetooth devices)

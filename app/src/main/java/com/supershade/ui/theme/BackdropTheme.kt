@@ -12,6 +12,11 @@ enum class BackdropTheme(
         label = "Frosted Glass",
         subtitle = "Refined acrylic glass with dynamic backdrop blur and luminous accents",
     ),
+    LIQUID_GLASS(
+        id = "liquid",
+        label = "Liquid Glass",
+        subtitle = "Luminous specular reflections, iridescent light refraction & vivid fluid depth",
+    ),
     BLURRY(
         id = "blurry",
         label = "Blurry",

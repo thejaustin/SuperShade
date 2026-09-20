@@ -32,7 +32,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.haptics.SuperHaptics
+import com.supershade.ui.theme.BackdropTheme
+import com.supershade.ui.theme.LocalBackdropTheme
 import com.supershade.ui.theme.getCardBorder
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -183,9 +187,27 @@ fun TileCard(
                 }
             },
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (tile.isActive && LocalBackdropTheme.current == BackdropTheme.LIQUID_GLASS) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.22f),
+                                    Color.White.copy(alpha = 0.05f),
+                                    Color.Transparent,
+                                ),
+                                start = Offset.Zero,
+                                end = Offset(200f, 200f),
+                            )
+                        )
+                )
+            }
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
                 .combinedClickable(
                     interactionSource = interactionSource,
                     indication = indication,
@@ -282,6 +304,7 @@ fun TileCard(
             }
         }
     }
+}
 }
 
 internal fun tileIcon(id: String, isActive: Boolean = false, subtitle: String? = null): ImageVector = when (id) {

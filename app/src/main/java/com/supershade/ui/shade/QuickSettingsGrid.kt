@@ -9,8 +9,12 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.foundation.BorderStroke
+import com.supershade.ui.theme.BackdropTheme
+import com.supershade.ui.theme.LocalBackdropTheme
 import com.supershade.ui.theme.LocalShadeShapeScheme
 import com.supershade.ui.theme.getCardBorder
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -234,9 +238,27 @@ private fun ConnectivityWideCard(
             .graphicsLayer { scaleX = scale; scaleY = scale },
     ) {
         val stateDesc = tile.subtitle ?: if (tile.isActive) "Connected" else "Off"
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (tile.isActive && LocalBackdropTheme.current == BackdropTheme.LIQUID_GLASS) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = 0.22f),
+                                    Color.White.copy(alpha = 0.05f),
+                                    Color.Transparent,
+                                ),
+                                start = Offset.Zero,
+                                end = Offset(300f, 200f),
+                            )
+                        )
+                )
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
                 .semantics(mergeDescendants = true) {
                     role = Role.Switch
                     contentDescription = tile.label
@@ -335,4 +357,5 @@ private fun ConnectivityWideCard(
             )
         }
     }
+}
 }

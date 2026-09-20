@@ -45,6 +45,13 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.14" -> """
+        ✨ Interactive Appearance Studio Canvas & Liquid Glass Active Sheens
+        • Interactive Studio Canvas: Tap mini quick tiles to toggle states, drag or tap the mini brightness bar to scrub brightness with tactile haptics, and tap the theme badge or clock to cycle styles live
+        • Luminous Liquid Glass Active Tiles: Active quick tiles and prominent connectivity pills catch luminous corner specular refraction sweeps under Liquid Glass
+        • Refractive Liquid Media Player: Media player card adopts specular gradient light overlays matching the fluid shade backdrop
+        • Full-Tree Theme Composition: Settings screen and subcomponents inherit local backdrop theme, border widths, and shape scheme seamlessly
+    """.trimIndent()
         "1.9.13" -> """
         ✨ Live Appearance Studio Canvas & Unified Refractive Sliders
         • Live Appearance Studio Canvas: Real-time interactive preview canvas in Appearance settings showcasing your theme style, glass opacity, specular sheen, accent color, and custom tile shape instantly as you customize

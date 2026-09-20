@@ -106,8 +106,16 @@ import com.supershade.settings.SplitGestureMode
 import com.supershade.settings.TileGridColumns
 import com.supershade.settings.TileShape
 import com.supershade.settings.TileSize
+import com.supershade.ui.theme.LocalBackdropTheme
+import com.supershade.ui.theme.LocalCardBorderWidth
+import com.supershade.ui.theme.LocalShadeShapeScheme
+import com.supershade.ui.theme.ShadeShapeScheme
 import com.supershade.ui.theme.getCardBorder
 import com.supershade.ui.shade.tileIcon
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -192,13 +200,20 @@ fun SettingsScreen(
         shizukuOk,
     ).count { it }
 
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+    val shapeScheme = remember(tileShape) { ShadeShapeScheme.fromTileShape(tileShape) }
+
+    CompositionLocalProvider(
+        LocalBackdropTheme provides backdropTheme,
+        LocalCardBorderWidth provides cardBorderWidth,
+        LocalShadeShapeScheme provides shapeScheme,
     ) {
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
 
         // =======================================================================
         // 1. HERO HEADER CARD
@@ -969,6 +984,13 @@ fun SettingsScreen(
                 }
                 val previewTileShape = if (selectedTheme is ShadeTheme.Pixel) CircleShape else previewShapeScheme.tile
 
+                var previewWifiActive by remember { mutableStateOf(true) }
+                var previewBtActive by remember { mutableStateOf(true) }
+                var previewSoundActive by remember { mutableStateOf(false) }
+                var previewPortraitActive by remember { mutableStateOf(false) }
+                var previewBrightnessFraction by remember { mutableFloatStateOf(0.68f) }
+                var previewUse24Hour by remember { mutableStateOf(false) }
+
                 Surface(
                     shape = RoundedCornerShape(20.dp),
                     color = when {
@@ -999,7 +1021,7 @@ fun SettingsScreen(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(130.dp),
+                        .height(134.dp),
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         if (backdropTheme == BackdropTheme.LIQUID_GLASS) {
@@ -1027,16 +1049,22 @@ fun SettingsScreen(
                                 .padding(horizontal = 14.dp, vertical = 10.dp),
                             verticalArrangement = Arrangement.SpaceBetween,
                         ) {
-                            // Mini status header
+                            // Mini status header (interactive tap on time / theme badge)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    text = "9:41",
+                                    text = if (previewUse24Hour) "21:41" else "9:41",
                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp),
                                     color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .clickable {
+                                            haptics?.lightTap()
+                                            previewUse24Hour = !previewUse24Hour
+                                        },
                                 )
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1046,7 +1074,7 @@ fun SettingsScreen(
                                         imageVector = Icons.Default.Wifi,
                                         contentDescription = null,
                                         modifier = Modifier.size(12.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        tint = if (previewWifiActive) activeAccent else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                                     )
                                     Icon(
                                         imageVector = Icons.Default.Battery5Bar,
@@ -1057,12 +1085,23 @@ fun SettingsScreen(
                                     Surface(
                                         shape = RoundedCornerShape(50),
                                         color = activeAccent.copy(alpha = 0.20f),
+                                        modifier = Modifier
+                                            .clip(CircleShape)
+                                            .clickable {
+                                                haptics?.sliderTick()
+                                                val nextTheme = when (selectedTheme) {
+                                                    is ShadeTheme.OneUI -> ShadeTheme.Pixel
+                                                    is ShadeTheme.Pixel -> ShadeTheme.PureMaterial
+                                                    is ShadeTheme.PureMaterial -> ShadeTheme.OneUI
+                                                }
+                                                onThemeChange(nextTheme)
+                                            },
                                     ) {
                                         Text(
                                             text = when (selectedTheme) {
-                                                is ShadeTheme.OneUI -> "One UI 8"
-                                                is ShadeTheme.Pixel -> "Pixel"
-                                                is ShadeTheme.PureMaterial -> "Pure Material"
+                                                is ShadeTheme.OneUI -> "One UI 8 ↻"
+                                                is ShadeTheme.Pixel -> "Pixel ↻"
+                                                is ShadeTheme.PureMaterial -> "Pure Material ↻"
                                             },
                                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.SemiBold),
                                             color = activeAccent,
@@ -1072,18 +1111,22 @@ fun SettingsScreen(
                                 }
                             }
 
-                            // Mini Quick Settings Tiles Row
+                            // Mini Quick Settings Tiles Row (Interactive tap toggles)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                // Tile 1: Wi-Fi (Active)
+                                // Tile 1: Wi-Fi
                                 Surface(
                                     shape = previewTileShape,
-                                    color = activeAccent,
+                                    color = if (previewWifiActive) activeAccent else MaterialTheme.colorScheme.surfaceContainerHighest,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(38.dp),
+                                        .height(38.dp)
+                                        .clickable {
+                                            if (!previewWifiActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                                            previewWifiActive = !previewWifiActive
+                                        },
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
@@ -1093,25 +1136,32 @@ fun SettingsScreen(
                                         Icon(
                                             imageVector = Icons.Default.Wifi,
                                             contentDescription = null,
-                                            tint = Color.White,
+                                            tint = if (previewWifiActive) Color.White else MaterialTheme.colorScheme.onSurface,
                                             modifier = Modifier.size(14.dp),
                                         )
                                         Text(
                                             text = "Wi-Fi",
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
-                                            color = Color.White,
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = 9.sp,
+                                                fontWeight = if (previewWifiActive) FontWeight.Bold else FontWeight.Medium,
+                                            ),
+                                            color = if (previewWifiActive) Color.White else MaterialTheme.colorScheme.onSurface,
                                             maxLines = 1,
                                         )
                                     }
                                 }
 
-                                // Tile 2: Bluetooth (Active)
+                                // Tile 2: Bluetooth
                                 Surface(
                                     shape = previewTileShape,
-                                    color = activeAccent,
+                                    color = if (previewBtActive) activeAccent else MaterialTheme.colorScheme.surfaceContainerHighest,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(38.dp),
+                                        .height(38.dp)
+                                        .clickable {
+                                            if (!previewBtActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                                            previewBtActive = !previewBtActive
+                                        },
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
@@ -1121,25 +1171,32 @@ fun SettingsScreen(
                                         Icon(
                                             imageVector = Icons.Default.Bluetooth,
                                             contentDescription = null,
-                                            tint = Color.White,
+                                            tint = if (previewBtActive) Color.White else MaterialTheme.colorScheme.onSurface,
                                             modifier = Modifier.size(14.dp),
                                         )
                                         Text(
                                             text = "BT",
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
-                                            color = Color.White,
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = 9.sp,
+                                                fontWeight = if (previewBtActive) FontWeight.Bold else FontWeight.Medium,
+                                            ),
+                                            color = if (previewBtActive) Color.White else MaterialTheme.colorScheme.onSurface,
                                             maxLines = 1,
                                         )
                                     }
                                 }
 
-                                // Tile 3: Sound (Inactive)
+                                // Tile 3: Sound
                                 Surface(
                                     shape = previewTileShape,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    color = if (previewSoundActive) activeAccent else MaterialTheme.colorScheme.surfaceContainerHighest,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(38.dp),
+                                        .height(38.dp)
+                                        .clickable {
+                                            if (!previewSoundActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                                            previewSoundActive = !previewSoundActive
+                                        },
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
@@ -1149,25 +1206,32 @@ fun SettingsScreen(
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.VolumeUp,
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurface,
+                                            tint = if (previewSoundActive) Color.White else MaterialTheme.colorScheme.onSurface,
                                             modifier = Modifier.size(14.dp),
                                         )
                                         Text(
                                             text = "Sound",
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Medium),
-                                            color = MaterialTheme.colorScheme.onSurface,
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = 9.sp,
+                                                fontWeight = if (previewSoundActive) FontWeight.Bold else FontWeight.Medium,
+                                            ),
+                                            color = if (previewSoundActive) Color.White else MaterialTheme.colorScheme.onSurface,
                                             maxLines = 1,
                                         )
                                     }
                                 }
 
-                                // Tile 4: Portrait (Inactive)
+                                // Tile 4: Portrait
                                 Surface(
                                     shape = previewTileShape,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    color = if (previewPortraitActive) activeAccent else MaterialTheme.colorScheme.surfaceContainerHighest,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(38.dp),
+                                        .height(38.dp)
+                                        .clickable {
+                                            if (!previewPortraitActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                                            previewPortraitActive = !previewPortraitActive
+                                        },
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
@@ -1177,32 +1241,51 @@ fun SettingsScreen(
                                         Icon(
                                             imageVector = Icons.Default.ScreenLockPortrait,
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurface,
+                                            tint = if (previewPortraitActive) Color.White else MaterialTheme.colorScheme.onSurface,
                                             modifier = Modifier.size(14.dp),
                                         )
                                         Text(
                                             text = "Portrait",
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Medium),
-                                            color = MaterialTheme.colorScheme.onSurface,
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = 9.sp,
+                                                fontWeight = if (previewPortraitActive) FontWeight.Bold else FontWeight.Medium,
+                                            ),
+                                            color = if (previewPortraitActive) Color.White else MaterialTheme.colorScheme.onSurface,
                                             maxLines = 1,
                                         )
                                     }
                                 }
                             }
 
-                            // Mini Brightness Slider
+                            // Mini Brightness Slider (Tactile scrub/tap)
                             Surface(
                                 shape = previewShapeScheme.slider,
                                 color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(22.dp),
+                                    .height(24.dp)
+                                    .pointerInput(Unit) {
+                                        detectTapGestures { offset ->
+                                            haptics?.sliderTick()
+                                            previewBrightnessFraction = (offset.x / size.width).coerceIn(0.08f, 1.0f)
+                                        }
+                                    }
+                                    .pointerInput(Unit) {
+                                        detectHorizontalDragGestures { change, _ ->
+                                            change.consume()
+                                            val newFrac = (change.position.x / size.width).coerceIn(0.08f, 1.0f)
+                                            if ((previewBrightnessFraction * 12).roundToInt() != (newFrac * 12).roundToInt()) {
+                                                haptics?.sliderTick()
+                                            }
+                                            previewBrightnessFraction = newFrac
+                                        }
+                                    },
                             ) {
                                 Box(modifier = Modifier.fillMaxSize()) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxHeight()
-                                            .fillMaxWidth(0.68f)
+                                            .fillMaxWidth(previewBrightnessFraction)
                                             .background(
                                                 Brush.horizontalGradient(
                                                     listOf(
@@ -1226,7 +1309,7 @@ fun SettingsScreen(
                                             modifier = Modifier.size(12.dp),
                                         )
                                         Text(
-                                            text = "68%",
+                                            text = "${(previewBrightnessFraction * 100).roundToInt()}%",
                                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
                                             color = MaterialTheme.colorScheme.onSurface,
                                         )
@@ -2011,6 +2094,7 @@ fun SettingsScreen(
 
         Spacer(Modifier.height(16.dp))
     }
+}
 }
 
 // ===========================================================================

@@ -73,6 +73,9 @@ import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
+import androidx.compose.ui.geometry.Offset
+import com.supershade.ui.theme.BackdropTheme
+import com.supershade.ui.theme.LocalBackdropTheme
 import com.supershade.ui.theme.getCardBorder
 import com.supershade.ui.theme.LocalShadeShapeScheme
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -315,6 +318,27 @@ fun MediaCard(
                     .matchParentSize()
                     .graphicsLayer { alpha = 0.18f },
                 contentScale = ContentScale.Crop,
+            )
+        }
+
+        // Liquid Glass specular shimmer sweep
+        if (LocalBackdropTheme.current == BackdropTheme.LIQUID_GLASS) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.16f),
+                                Color.White.copy(alpha = 0.04f),
+                                Color.Transparent,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                Color.Transparent,
+                            ),
+                            start = Offset.Zero,
+                            end = Offset(450f, 650f),
+                        )
+                    )
             )
         }
 

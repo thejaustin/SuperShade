@@ -70,12 +70,23 @@ import com.supershade.settings.TileShape
 import com.supershade.settings.TileSize
 import com.supershade.ui.theme.ShadeTheme
 
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.TextButton
+import com.supershade.domain.tile.KNOWN_TILES
+
 /**
  * Quick settings grid supporting compact mode (1 row, dynamic columns)
  * and expanded mode enclosed in a modern One UI 8 island container.
  * In expanded mode, optional prominent dual connectivity pills (Wi-Fi & Bluetooth)
  * sit at the top of the island matching Samsung One UI 8.
+ * Supports direct in-place editing, reordering, removing, and adding buttons.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun QuickSettingsGrid(
     tiles: List<TileDefinition>,
@@ -86,16 +97,25 @@ fun QuickSettingsGrid(
     tileSize: TileSize = TileSize.STANDARD,
     tileColumns: TileGridColumns = TileGridColumns.STANDARD,
     showWideCards: Boolean = true,
+    isEditing: Boolean = false,
+    onToggleEdit: () -> Unit = {},
+    onMoveTile: (fromIndex: Int, toIndex: Int) -> Unit = { _, _ -> },
+    onRemoveTile: (String) -> Unit = {},
+    onAddTile: (String) -> Unit = {},
+    onResetTiles: () -> Unit = {},
     onTileClick: (TileDefinition) -> Unit,
     onTileLongClick: ((TileDefinition) -> Unit)? = null,
 ) {
+    val context = LocalContext.current
+    val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
     val colCount = tileColumns.count
-    val showOneUiIslandCards = isExpanded && showWideCards
+    val showOneUiIslandCards = !isEditing && isExpanded && showWideCards
     val wifiTile = if (showOneUiIslandCards) tiles.firstOrNull { it.id == "wifi" || it.id == "internet" } else null
     val btTile = if (showOneUiIslandCards) tiles.firstOrNull { it.id == "bt" || it.id == "bluetooth" } else null
     val hasWideCards = wifiTile != null && btTile != null
 
     val displayedTiles = when {
+        isEditing -> tiles
         hasWideCards -> tiles.filter { it != wifiTile && it != btTile }.take(colCount * 2)
         isExpanded -> tiles.take(colCount * 3)
         else -> tiles.take(colCount)
@@ -121,7 +141,78 @@ fun QuickSettingsGrid(
                 .padding(horizontal = 10.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (wifiTile != null && btTile != null) {
+            if (isEditing) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = "Edit buttons",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = "Drag or tap arrows",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        )
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        TextButton(
+                            onClick = {
+                                haptics.tileToggleOff()
+                                onResetTiles()
+                            },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.RestartAlt,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(Modifier.size(4.dp))
+                            Text("Reset", style = MaterialTheme.typography.labelMedium)
+                        }
+                        Surface(
+                            onClick = {
+                                haptics.tileToggleOn()
+                                onToggleEdit()
+                            },
+                            shape = RoundedCornerShape(50),
+                            color = MaterialTheme.colorScheme.primary,
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Done",
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Text(
+                                    text = "Done",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!isEditing && wifiTile != null && btTile != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -151,6 +242,7 @@ fun QuickSettingsGrid(
                     horizontalArrangement = Arrangement.spacedBy(if (colCount >= 5) 6.dp else 8.dp),
                 ) {
                     rowTiles.forEach { tile ->
+                        val index = tiles.indexOf(tile)
                         Box(modifier = Modifier.weight(1f)) {
                             TileCard(
                                 tile = tile,
@@ -161,11 +253,81 @@ fun QuickSettingsGrid(
                                 columns = colCount,
                                 onClick = { onTileClick(tile) },
                                 onLongClick = onTileLongClick?.let { cb -> { cb(tile) } },
+                                isEditing = isEditing,
+                                canMoveLeft = isEditing && index > 0,
+                                canMoveRight = isEditing && index >= 0 && index < tiles.size - 1,
+                                onMoveLeft = { if (index > 0) onMoveTile(index, index - 1) },
+                                onMoveRight = { if (index in tiles.indices && index < tiles.size - 1) onMoveTile(index, index + 1) },
+                                onRemove = { onRemoveTile(tile.id) },
                             )
                         }
                     }
                     repeat(colCount - rowTiles.size) {
                         Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+
+            // Available Buttons Drawer (unassigned buttons available to add)
+            if (isEditing) {
+                val availableTileIds = remember(tiles) {
+                    val currentIds = tiles.map { it.id }.toSet()
+                    KNOWN_TILES.keys.filter { it !in currentIds }
+                }
+                if (availableTileIds.isNotEmpty()) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                    )
+                    Text(
+                        text = "Available buttons (tap + to add)",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                    )
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        availableTileIds.forEach { tileId ->
+                            val label = KNOWN_TILES[tileId]?.first ?: tileId
+                            Surface(
+                                onClick = {
+                                    haptics.tileToggleOn()
+                                    onAddTile(tileId)
+                                },
+                                shape = RoundedCornerShape(50),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                border = getCardBorder(alpha = 0.35f),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = "Add $label",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                    Icon(
+                                        imageVector = tileIcon(tileId, false, null),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(14.dp),
+                                    )
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

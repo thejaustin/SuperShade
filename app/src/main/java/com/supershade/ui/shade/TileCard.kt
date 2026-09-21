@@ -77,6 +77,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -98,6 +108,12 @@ fun TileCard(
     columns: Int = 4,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
+    isEditing: Boolean = false,
+    canMoveLeft: Boolean = false,
+    canMoveRight: Boolean = false,
+    onMoveLeft: (() -> Unit)? = null,
+    onMoveRight: (() -> Unit)? = null,
+    onRemove: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -145,7 +161,6 @@ fun TileCard(
     )
 
     val indication = LocalIndication.current
-
     val borderStroke = if (tile.isActive) null else getCardBorder(alpha = 0.40f)
 
     val stateDesc = if (tile.isActive) {
@@ -154,7 +169,7 @@ fun TileCard(
         "Off"
     }
 
-    val cardHeight = tileSize.heightDp.dp
+    val cardHeight = if (isEditing) (tileSize.heightDp + 18).dp else tileSize.heightDp.dp
     val rawIconSize = if (columns >= 5) (tileSize.iconSizeDp - 2).coerceAtLeast(18) else tileSize.iconSizeDp
     val iconSize = rawIconSize.dp
     val horizPadding = if (columns >= 5) (shapeScheme.tilePaddingHorizontal - 2.dp).coerceAtLeast(4.dp) else shapeScheme.tilePaddingHorizontal
@@ -164,6 +179,31 @@ fun TileCard(
         TileSize.STANDARD -> shapeScheme.tilePaddingVertical
     }
 
+    var dragAccumulated by remember { mutableFloatStateOf(0f) }
+    val dragThresholdPx = 45f
+
+    val dragModifier = if (isEditing) {
+        Modifier.pointerInput(tile.id, canMoveLeft, canMoveRight) {
+            detectHorizontalDragGestures(
+                onDragEnd = { dragAccumulated = 0f },
+                onDragCancel = { dragAccumulated = 0f },
+                onHorizontalDrag = { change, dragAmount ->
+                    change.consume()
+                    dragAccumulated += dragAmount
+                    if (dragAccumulated > dragThresholdPx && canMoveRight) {
+                        dragAccumulated = 0f
+                        haptics.tileToggleOn()
+                        onMoveRight?.invoke()
+                    } else if (dragAccumulated < -dragThresholdPx && canMoveLeft) {
+                        dragAccumulated = 0f
+                        haptics.tileToggleOn()
+                        onMoveLeft?.invoke()
+                    }
+                }
+            )
+        }
+    } else Modifier
+
     Surface(
         shape = cardShape,
         color = containerColor,
@@ -172,6 +212,7 @@ fun TileCard(
             .fillMaxWidth()
             .height(cardHeight)
             .graphicsLayer { scaleX = scale; scaleY = scale }
+            .then(dragModifier)
             .semantics {
                 role = Role.Switch
                 stateDescription = stateDesc
@@ -205,10 +246,9 @@ fun TileCard(
                         )
                 )
             }
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                .combinedClickable(
+
+            val clickModifier = if (!isEditing) {
+                Modifier.combinedClickable(
                     interactionSource = interactionSource,
                     indication = indication,
                     onClick = {
@@ -233,78 +273,170 @@ fun TileCard(
                     } else null,
                     role = Role.Switch,
                 )
-                .padding(horizontal = horizPadding, vertical = vertPadding),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            } else Modifier
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(clickModifier)
+                    .padding(horizontal = horizPadding, vertical = vertPadding),
+                verticalArrangement = Arrangement.SpaceBetween,
             ) {
-                Icon(
-                    imageVector = tileIcon(tile.id, tile.isActive, tile.subtitle),
-                    contentDescription = null,
-                    tint = contentColor,
-                    modifier = Modifier.size(iconSize),
-                )
-                if (tile.isActive) {
-                    Box(
-                        modifier = Modifier
-                            .size(if (columns >= 5) 5.dp else 6.dp)
-                            .clip(CircleShape)
-                            .background(contentColor.copy(alpha = 0.85f)),
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = tileIcon(tile.id, tile.isActive, tile.subtitle),
+                        contentDescription = null,
+                        tint = contentColor,
+                        modifier = Modifier.size(iconSize),
                     )
+                    if (tile.isActive && !isEditing) {
+                        Box(
+                            modifier = Modifier
+                                .size(if (columns >= 5) 5.dp else 6.dp)
+                                .clip(CircleShape)
+                                .background(contentColor.copy(alpha = 0.85f)),
+                        )
+                    }
+                }
+                val baseSize = when (tileSize) {
+                    TileSize.COMPACT -> if (columns >= 5) 8.5.sp else 9.5.sp
+                    TileSize.COMFORTABLE -> if (columns >= 5) 9.5.sp else 12.sp
+                    TileSize.STANDARD -> if (columns >= 5) 8.5.sp else 10.5.sp
+                }
+                val displayLabel = when {
+                    tile.id.lowercase().contains("rotation") -> if (tile.isActive) "Auto rotate" else "Portrait"
+                    tile.id.lowercase().contains("mute") || tile.id.lowercase().contains("sound") -> tile.subtitle ?: tile.label
+                    else -> tile.label
+                }
+                val displaySubtitle = when {
+                    tile.id.lowercase().contains("rotation") -> null
+                    tile.id.lowercase().contains("mute") || tile.id.lowercase().contains("sound") -> null
+                    else -> tile.subtitle
+                }
+                val titleFontSize = when {
+                    columns >= 5 && displayLabel.length > 8 -> (baseSize.value - 1f).sp
+                    displayLabel.length > 13 -> (baseSize.value - 0.75f).sp
+                    else -> baseSize
+                }
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = displayLabel,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Medium,
+                            fontSize = titleFontSize,
+                            lineHeight = (titleFontSize.value + 2).sp,
+                        ),
+                        color = contentColor,
+                        maxLines = if (tileSize == TileSize.COMPACT || displaySubtitle != null || isEditing) 1 else 2,
+                        overflow = TextOverflow.Ellipsis,
+                        softWrap = true,
+                    )
+                    if (displaySubtitle != null && tileSize != TileSize.COMPACT && !isEditing) {
+                        Text(
+                            text = displaySubtitle,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = if (columns >= 5) 8.sp else 9.sp,
+                                lineHeight = if (columns >= 5) 9.sp else 10.sp,
+                            ),
+                            color = contentColor.copy(alpha = 0.65f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    if (isEditing) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (canMoveLeft) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clip(CircleShape)
+                                        .background(contentColor.copy(alpha = 0.20f))
+                                        .clickable {
+                                            haptics.lightTap()
+                                            onMoveLeft?.invoke()
+                                        },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Move left",
+                                        tint = contentColor,
+                                        modifier = Modifier.size(11.dp),
+                                    )
+                                }
+                            } else {
+                                Spacer(modifier = Modifier.size(18.dp))
+                            }
+
+                            Icon(
+                                imageVector = Icons.Default.DragHandle,
+                                contentDescription = "Drag to reorder",
+                                tint = contentColor.copy(alpha = 0.6f),
+                                modifier = Modifier.size(13.dp),
+                            )
+
+                            if (canMoveRight) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clip(CircleShape)
+                                        .background(contentColor.copy(alpha = 0.20f))
+                                        .clickable {
+                                            haptics.lightTap()
+                                            onMoveRight?.invoke()
+                                        },
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = "Move right",
+                                        tint = contentColor,
+                                        modifier = Modifier.size(11.dp),
+                                    )
+                                }
+                            } else {
+                                Spacer(modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    }
                 }
             }
-            val baseSize = when (tileSize) {
-                TileSize.COMPACT -> if (columns >= 5) 8.5.sp else 9.5.sp
-                TileSize.COMFORTABLE -> if (columns >= 5) 9.5.sp else 12.sp
-                TileSize.STANDARD -> if (columns >= 5) 8.5.sp else 10.5.sp
-            }
-            val displayLabel = when {
-                tile.id.lowercase().contains("rotation") -> if (tile.isActive) "Auto rotate" else "Portrait"
-                tile.id.lowercase().contains("mute") || tile.id.lowercase().contains("sound") -> tile.subtitle ?: tile.label
-                else -> tile.label
-            }
-            val displaySubtitle = when {
-                tile.id.lowercase().contains("rotation") -> null
-                tile.id.lowercase().contains("mute") || tile.id.lowercase().contains("sound") -> null
-                else -> tile.subtitle
-            }
-            val titleFontSize = when {
-                columns >= 5 && displayLabel.length > 8 -> (baseSize.value - 1f).sp
-                displayLabel.length > 13 -> (baseSize.value - 0.75f).sp
-                else -> baseSize
-            }
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = displayLabel,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.Medium,
-                        fontSize = titleFontSize,
-                        lineHeight = (titleFontSize.value + 2).sp,
-                    ),
-                    color = contentColor,
-                    maxLines = if (tileSize == TileSize.COMPACT || displaySubtitle != null) 1 else 2,
-                    overflow = TextOverflow.Ellipsis,
-                    softWrap = true,
-                )
-                if (displaySubtitle != null && tileSize != TileSize.COMPACT) {
-                    Text(
-                        text = displaySubtitle,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = if (columns >= 5) 8.sp else 9.sp,
-                            lineHeight = if (columns >= 5) 9.sp else 10.sp,
-                        ),
-                        color = contentColor.copy(alpha = 0.65f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+
+            // Remove badge when editing
+            if (isEditing && onRemove != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(2.dp)
+                        .size(20.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.error)
+                        .clickable {
+                            haptics.lightTap()
+                            onRemove()
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Remove tile ${tile.label}",
+                        tint = MaterialTheme.colorScheme.onError,
+                        modifier = Modifier.size(13.dp),
                     )
                 }
             }
         }
     }
-}
 }
 
 internal fun tileIcon(id: String, isActive: Boolean = false, subtitle: String? = null): ImageVector = when (id) {

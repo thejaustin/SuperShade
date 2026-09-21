@@ -45,6 +45,15 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.15" -> """
+        ✨ In-Place Quick Settings Customizer & Advanced Notification Controls
+        • In-Place Quick Settings Editing: Hold down on any quick tile or tap the header Edit button to customize buttons directly inside the status bar shade without leaving the shade
+        • Tactile Reorder & Gestures: Move buttons left/right using responsive arrow keys or fluid horizontal drag gestures with tick haptics
+        • Dynamic Available Buttons Tray: Remove buttons with a single tap (×) or add new buttons from an expandable flow drawer of unassigned controls
+        • One-Tap Quick Settings Reset: Instantly restore default tile layout with the top-bar Reset action
+        • Notification History Shortcut: Access Android's Notification History directly from the notification feed header next to Clear all
+        • Expanded Notification Actions: Quick access to snooze, channel notification settings, and inline "Clear group" for stacked notifications
+    """.trimIndent()
         "1.9.14" -> """
         ✨ Interactive Appearance Studio Canvas & Liquid Glass Active Sheens
         • Interactive Studio Canvas: Tap mini quick tiles to toggle states, drag or tap the mini brightness bar to scrub brightness with tactile haptics, and tap the theme badge or clock to cycle styles live

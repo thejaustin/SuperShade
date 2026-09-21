@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Battery4Bar
 import androidx.compose.material.icons.filled.Battery5Bar
 import androidx.compose.material.icons.filled.Battery6Bar
 import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Settings
@@ -142,6 +143,7 @@ private fun launchSystemSettings(context: Context) {
 @Composable
 fun StatusBarRow(
     statusBar: StatusBarState,
+    isEditing: Boolean = false,
     onOpenPowerMenu: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onOpenDeviceSettings: () -> Unit = {},
@@ -324,15 +326,19 @@ fun StatusBarRow(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
+                        .then(
+                            if (isEditing) Modifier.background(MaterialTheme.colorScheme.primaryContainer)
+                            else Modifier
+                        )
                         .semantics {
                             role = Role.Button
-                            contentDescription = "Edit Quick Settings"
+                            contentDescription = if (isEditing) "Done Editing Quick Settings" else "Edit Quick Settings"
                         },
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit Quick Settings",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        imageVector = if (isEditing) Icons.Default.Check else Icons.Default.Edit,
+                        contentDescription = if (isEditing) "Done Editing Quick Settings" else "Edit Quick Settings",
+                        tint = if (isEditing) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp),
                     )
                 }

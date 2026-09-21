@@ -108,6 +108,7 @@ fun ShadeRoot(
 
     val context = LocalContext.current
     var showPowerMenu by remember { mutableStateOf(false) }
+    var isEditingTiles by remember { mutableStateOf(false) }
 
     val categoryCounts by remember {
         derivedStateOf {
@@ -151,10 +152,12 @@ fun ShadeRoot(
     val dismissThresholdPx = with(density) { 72.dp.toPx() }
     val velocityThresholdPxPerSec = with(density) { 400.dp.toPx() }
 
-    // Reset drag position whenever the shade re-opens.
+    // Reset drag position and editing state whenever the shade re-opens or closes.
     LaunchedEffect(state.isOpen) {
         if (state.isOpen) {
             dragOffset.snapTo(0f)
+        } else {
+            isEditingTiles = false
         }
     }
 
@@ -349,15 +352,13 @@ fun ShadeRoot(
                         // Top Status Bar (Clock, Battery, Lock, Settings, Power, Edit)
                         StatusBarRow(
                             statusBar = state.statusBar,
+                            isEditing = isEditingTiles,
                             onOpenPowerMenu = { showPowerMenu = true },
                             onOpenEdit = {
-                                try {
-                                    val intent = Intent(context, TilePreferencesActivity::class.java).apply {
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    }
-                                    context.startActivity(intent)
-                                    onDismiss()
-                                } catch (_: Exception) {}
+                                isEditingTiles = !isEditingTiles
+                                if (isEditingTiles && state.activePanel != ShadePanel.QUICK_SETTINGS) {
+                                    viewModel.setActivePanel(ShadePanel.QUICK_SETTINGS)
+                                }
                             },
                             onOpenDeviceSettings = {
                                 onDismiss()
@@ -423,8 +424,19 @@ fun ShadeRoot(
                                         tileSize = state.tileSize,
                                         tileColumns = state.tileColumns,
                                         showWideCards = state.showWideCards,
+                                        isEditing = isEditingTiles,
+                                        onToggleEdit = { isEditingTiles = !isEditingTiles },
+                                        onMoveTile = { from, to -> viewModel.moveTile(from, to) },
+                                        onRemoveTile = { viewModel.removeTile(it) },
+                                        onAddTile = { viewModel.addTile(it) },
+                                        onResetTiles = { viewModel.resetTiles() },
                                         onTileClick = { viewModel.toggleTile(it) },
-                                        onTileLongClick = { viewModel.openTileDetail(it) },
+                                        onTileLongClick = {
+                                            isEditingTiles = true
+                                            if (state.activePanel != ShadePanel.QUICK_SETTINGS) {
+                                                viewModel.setActivePanel(ShadePanel.QUICK_SETTINGS)
+                                            }
+                                        },
                                     )
 
                                     Surface(
@@ -602,8 +614,14 @@ fun ShadeRoot(
                                     tileSize = state.tileSize,
                                     tileColumns = state.tileColumns,
                                     showWideCards = state.showWideCards,
+                                    isEditing = isEditingTiles,
+                                    onToggleEdit = { isEditingTiles = !isEditingTiles },
+                                    onMoveTile = { from, to -> viewModel.moveTile(from, to) },
+                                    onRemoveTile = { viewModel.removeTile(it) },
+                                    onAddTile = { viewModel.addTile(it) },
+                                    onResetTiles = { viewModel.resetTiles() },
                                     onTileClick = { viewModel.toggleTile(it) },
-                                    onTileLongClick = { viewModel.openTileDetail(it) },
+                                    onTileLongClick = { isEditingTiles = true },
                                 )
 
                                 // Full tactile sliders island (Brightness & Volume)

@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -284,6 +285,21 @@ fun GroupedNotificationCard(
                                             .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
                                             .padding(horizontal = 7.dp, vertical = 2.dp),
                                     )
+                                    if (expanded) {
+                                        IconButton(
+                                            onClick = {
+                                                onDismissGroup()
+                                            },
+                                            modifier = Modifier.size(36.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.ClearAll,
+                                                contentDescription = "Clear group",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                        }
+                                    }
                                     IconButton(
                                         onClick = { expanded = !expanded },
                                         modifier = Modifier.size(36.dp),

@@ -15,6 +15,11 @@ import com.supershade.domain.media.MediaRepository
 import com.supershade.domain.media.MediaState
 import com.supershade.domain.notification.NotificationRepository
 import com.supershade.domain.notification.model.ShadeCategory
+import com.supershade.domain.tile.DEFAULT_TILES
+import com.supershade.domain.tile.KNOWN_TILES
+import com.supershade.domain.tile.TileCapability
+import com.supershade.domain.tile.TILE_COMPONENTS
+import com.supershade.domain.tile.TILE_SETTINGS_ACTIONS
 import com.supershade.domain.tile.TileDefinition
 import com.supershade.domain.tile.TileRepository
 import com.supershade.domain.tile.TileToggler
@@ -206,6 +211,55 @@ class ShadeViewModel(
 
     fun toggleTile(tile: TileDefinition) {
         viewModelScope.launch { tileToggler.toggle(tile) }
+    }
+
+    fun moveTile(fromIndex: Int, toIndex: Int) {
+        val currentTiles = _state.value.tiles.toMutableList()
+        if (fromIndex in currentTiles.indices && toIndex in currentTiles.indices && fromIndex != toIndex) {
+            val moved = currentTiles.removeAt(fromIndex)
+            currentTiles.add(toIndex, moved)
+            _state.update { it.copy(tiles = currentTiles) }
+            viewModelScope.launch {
+                settings.setEnabledTiles(currentTiles.map { it.id })
+            }
+        }
+    }
+
+    fun removeTile(tileId: String) {
+        val currentTiles = _state.value.tiles.toMutableList()
+        val index = currentTiles.indexOfFirst { it.id == tileId }
+        if (index != -1) {
+            currentTiles.removeAt(index)
+            _state.update { it.copy(tiles = currentTiles) }
+            viewModelScope.launch {
+                settings.setEnabledTiles(currentTiles.map { it.id })
+            }
+        }
+    }
+
+    fun addTile(tileId: String) {
+        if (_state.value.tiles.any { it.id == tileId }) return
+        val (label, capability) = KNOWN_TILES[tileId] ?: (tileId.replaceFirstChar { it.uppercase() } to TileCapability.FULL_TOGGLE)
+        val newTile = TileDefinition(
+            id = tileId,
+            label = label,
+            isActive = false,
+            capability = capability,
+            componentName = TILE_COMPONENTS[tileId],
+            settingsAction = TILE_SETTINGS_ACTIONS[tileId],
+            subtitle = null,
+        )
+        val updated = _state.value.tiles + newTile
+        _state.update { it.copy(tiles = updated) }
+        viewModelScope.launch {
+            settings.setEnabledTiles(updated.map { it.id })
+        }
+    }
+
+    fun resetTiles() {
+        viewModelScope.launch {
+            settings.setEnabledTiles(DEFAULT_TILES)
+        }
     }
 
     fun openTileDetail(tile: TileDefinition) {

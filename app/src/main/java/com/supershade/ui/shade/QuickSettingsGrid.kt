@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +30,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -42,17 +45,26 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -69,7 +81,6 @@ import com.supershade.settings.TileGridColumns
 import com.supershade.settings.TileShape
 import com.supershade.settings.TileSize
 import com.supershade.ui.theme.ShadeTheme
-
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material.icons.filled.Add
@@ -78,13 +89,15 @@ import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TextButton
 import com.supershade.domain.tile.KNOWN_TILES
+import kotlin.math.roundToInt
 
 /**
  * Quick settings grid supporting compact mode (1 row, dynamic columns)
  * and expanded mode enclosed in a modern One UI 8 island container.
  * In expanded mode, optional prominent dual connectivity pills (Wi-Fi & Bluetooth)
  * sit at the top of the island matching Samsung One UI 8.
- * Supports direct in-place editing, reordering, removing, and adding buttons.
+ * In edit mode: freehand drag-and-drop reorder (like home screen), no arrows.
+ * Edit mode only entered via the Edit pencil button — NOT by long press.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -111,14 +124,14 @@ fun QuickSettingsGrid(
     val colCount = tileColumns.count
     val showOneUiIslandCards = !isEditing && isExpanded && showWideCards
     val wifiTile = if (showOneUiIslandCards) tiles.firstOrNull { it.id == "wifi" || it.id == "internet" } else null
-    val btTile = if (showOneUiIslandCards) tiles.firstOrNull { it.id == "bt" || it.id == "bluetooth" } else null
+    val btTile   = if (showOneUiIslandCards) tiles.firstOrNull { it.id == "bt"   || it.id == "bluetooth" } else null
     val hasWideCards = wifiTile != null && btTile != null
 
     val displayedTiles = when {
-        isEditing -> tiles
+        isEditing    -> tiles
         hasWideCards -> tiles.filter { it != wifiTile && it != btTile }.take(colCount * 2)
-        isExpanded -> tiles.take(colCount * 3)
-        else -> tiles.take(colCount)
+        isExpanded   -> tiles.take(colCount * 3)
+        else         -> tiles.take(colCount)
     }
 
     Surface(
@@ -141,6 +154,7 @@ fun QuickSettingsGrid(
                 .padding(horizontal = 10.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            // ── Edit mode header ───────────────────────────────────────────────
             if (isEditing) {
                 Row(
                     modifier = Modifier
@@ -159,7 +173,7 @@ fun QuickSettingsGrid(
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
-                            text = "Drag or tap arrows",
+                            text = "Drag to reorder",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         )
@@ -212,6 +226,7 @@ fun QuickSettingsGrid(
                 }
             }
 
+            // ── Wide connectivity cards (Wi-Fi / BT) ──────────────────────────
             if (!isEditing && wifiTile != null && btTile != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -236,39 +251,47 @@ fun QuickSettingsGrid(
                 }
             }
 
-            displayedTiles.chunked(colCount).forEach { rowTiles ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(if (colCount >= 5) 6.dp else 8.dp),
-                ) {
-                    rowTiles.forEach { tile ->
-                        val index = tiles.indexOf(tile)
-                        Box(modifier = Modifier.weight(1f)) {
-                            TileCard(
-                                tile = tile,
-                                theme = theme,
-                                isShizukuConnected = isShizukuConnected,
-                                tileShape = tileShape,
-                                tileSize = tileSize,
-                                columns = colCount,
-                                onClick = { onTileClick(tile) },
-                                onLongClick = onTileLongClick?.let { cb -> { cb(tile) } },
-                                isEditing = isEditing,
-                                canMoveLeft = isEditing && index > 0,
-                                canMoveRight = isEditing && index >= 0 && index < tiles.size - 1,
-                                onMoveLeft = { if (index > 0) onMoveTile(index, index - 1) },
-                                onMoveRight = { if (index in tiles.indices && index < tiles.size - 1) onMoveTile(index, index + 1) },
-                                onRemove = { onRemoveTile(tile.id) },
-                            )
+            // ── Tile grid — normal or drag-to-reorder ─────────────────────────
+            if (isEditing) {
+                DraggableTileGrid(
+                    tiles = displayedTiles,
+                    theme = theme,
+                    tileShape = tileShape,
+                    tileSize = tileSize,
+                    colCount = colCount,
+                    haptics = haptics,
+                    onMoveTile = onMoveTile,
+                    onRemoveTile = onRemoveTile,
+                )
+            } else {
+                displayedTiles.chunked(colCount).forEach { rowTiles ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(if (colCount >= 5) 6.dp else 8.dp),
+                    ) {
+                        rowTiles.forEach { tile ->
+                            Box(modifier = Modifier.weight(1f)) {
+                                TileCard(
+                                    tile = tile,
+                                    theme = theme,
+                                    isShizukuConnected = isShizukuConnected,
+                                    tileShape = tileShape,
+                                    tileSize = tileSize,
+                                    columns = colCount,
+                                    onClick = { onTileClick(tile) },
+                                    onLongClick = onTileLongClick?.let { cb -> { cb(tile) } },
+                                    isEditing = false,
+                                )
+                            }
                         }
-                    }
-                    repeat(colCount - rowTiles.size) {
-                        Spacer(modifier = Modifier.weight(1f))
+                        repeat(colCount - rowTiles.size) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
                     }
                 }
             }
 
-            // Available Buttons Drawer (unassigned buttons available to add)
+            // ── Available Buttons drawer ───────────────────────────────────────
             if (isEditing) {
                 val availableTileIds = remember(tiles) {
                     val currentIds = tiles.map { it.id }.toSet()
@@ -329,6 +352,227 @@ fun QuickSettingsGrid(
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Freehand drag-to-reorder grid for tile editing.
+ * Works like home screen app reordering:
+ * - Press and hold a tile → it lifts and follows your finger
+ * - Drag over another tile slot → that tile shifts to make room (preview swap)
+ * - Release → swap commits via [onMoveTile]
+ *
+ * No arrow buttons. No sliders.
+ */
+@Composable
+private fun DraggableTileGrid(
+    tiles: List<TileDefinition>,
+    theme: ShadeTheme,
+    tileShape: TileShape,
+    tileSize: TileSize,
+    colCount: Int,
+    haptics: SuperHaptics,
+    onMoveTile: (Int, Int) -> Unit,
+    onRemoveTile: (String) -> Unit,
+) {
+    // Track each tile's position in the grid so we can hit-test during drag
+    val tileRects = remember { mutableMapOf<Int, androidx.compose.ui.geometry.Rect>() }
+    val density = LocalDensity.current.density
+
+    // Drag state
+    var dragIndex   by remember { mutableIntStateOf(-1) }
+    var targetIndex by remember { mutableIntStateOf(-1) }
+    // Finger offset relative to the grid Box origin
+    var dragX by remember { mutableFloatStateOf(0f) }
+    var dragY by remember { mutableFloatStateOf(0f) }
+
+    val hapticFeedback = LocalHapticFeedback.current
+    val lastTargetRef  = remember { mutableIntStateOf(-1) }
+
+    // Build a reordered preview list while dragging
+    val previewTiles: List<TileDefinition> = remember(tiles, dragIndex, targetIndex) {
+        if (dragIndex < 0 || targetIndex < 0 || dragIndex == targetIndex) {
+            tiles
+        } else {
+            val mutable = tiles.toMutableList()
+            val moved = mutable.removeAt(dragIndex)
+            mutable.add(targetIndex, moved)
+            mutable
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(tiles.size, colCount) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val downPos = down.position
+
+                    // Find which tile was pressed
+                    val pressedIndex = tileRects.entries.firstOrNull { (_, rect) ->
+                        rect.contains(downPos)
+                    }?.key ?: return@awaitEachGesture
+
+                    // Wait briefly for long-press threshold (like home screen)
+                    var isLongPress = false
+                    var elapsedMs   = 0L
+                    val longPressMs = viewConfiguration.longPressTimeoutMillis
+
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        val moved = (change.position - downPos).getDistance()
+
+                        elapsedMs += 16L // approximate frame time
+
+                        if (!change.pressed) {
+                            // Released before long-press — not a drag
+                            break
+                        }
+
+                        if (!isLongPress && elapsedMs >= longPressMs) {
+                            // Long press threshold reached — start drag
+                            isLongPress = true
+                            dragIndex   = pressedIndex
+                            targetIndex = pressedIndex
+                            dragX = change.position.x
+                            dragY = change.position.y
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            change.consume()
+                        }
+
+                        if (isLongPress) {
+                            change.consume()
+                            dragX = change.position.x
+                            dragY = change.position.y
+
+                            // Hit-test to find which slot the finger is over
+                            val hovered = tileRects.entries.minByOrNull { (_, rect) ->
+                                val cx = rect.center.x
+                                val cy = rect.center.y
+                                val dx = cx - change.position.x
+                                val dy = cy - change.position.y
+                                dx * dx + dy * dy
+                            }?.key ?: -1
+
+                            if (hovered >= 0 && hovered != targetIndex) {
+                                targetIndex = hovered
+                                if (lastTargetRef.intValue != hovered) {
+                                    lastTargetRef.intValue = hovered
+                                    haptics.lightTap()
+                                }
+                            }
+                        }
+                    }
+
+                    // Commit the swap
+                    if (isLongPress && dragIndex >= 0 && targetIndex >= 0 && dragIndex != targetIndex) {
+                        haptics.tileToggleOn()
+                        onMoveTile(dragIndex, targetIndex)
+                    }
+                    dragIndex   = -1
+                    targetIndex = -1
+                }
+            },
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            previewTiles.chunked(colCount).forEachIndexed { rowIdx, rowTiles ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(if (colCount >= 5) 6.dp else 8.dp),
+                ) {
+                    rowTiles.forEachIndexed { colIdx, tile ->
+                        val globalIndex = rowIdx * colCount + colIdx
+                        // Actual index in the original tiles list (for remove)
+                        val originalIndex = tiles.indexOf(tile)
+                        val isDragging = dragIndex >= 0 && tiles.getOrNull(dragIndex) == tile
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .onGloballyPositioned { coords ->
+                                    val pos  = coords.positionInParent()
+                                    val size = coords.size
+                                    tileRects[globalIndex] = androidx.compose.ui.geometry.Rect(
+                                        offset = pos,
+                                        size   = androidx.compose.ui.geometry.Size(
+                                            size.width.toFloat(),
+                                            size.height.toFloat(),
+                                        ),
+                                    )
+                                }
+                                // Fade non-dragged tiles slightly when drag is active
+                                .graphicsLayer {
+                                    alpha = if (dragIndex >= 0 && isDragging) 0.35f else 1f
+                                },
+                        ) {
+                            TileCard(
+                                tile = tile,
+                                theme = theme,
+                                isShizukuConnected = false,
+                                tileShape = tileShape,
+                                tileSize = tileSize,
+                                columns = colCount,
+                                onClick = {},
+                                onLongClick = null,
+                                isEditing = true,
+                                isDragging = isDragging,
+                                onRemove = if (originalIndex >= 0) {
+                                    { onRemoveTile(tile.id) }
+                                } else null,
+                            )
+                        }
+                    }
+                    repeat(colCount - rowTiles.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+
+        // ── Floating ghost tile that follows the finger ───────────────────────
+        if (dragIndex >= 0 && dragIndex < previewTiles.size) {
+            val ghostTile   = tiles.getOrNull(dragIndex)
+            val ghostRect   = tileRects[dragIndex]
+            if (ghostTile != null && ghostRect != null) {
+                val ghostW = ghostRect.width
+                val ghostH = ghostRect.height
+                Box(
+                    modifier = Modifier
+                        .offset {
+                            IntOffset(
+                                x = (dragX - ghostW / 2).roundToInt(),
+                                y = (dragY - ghostH / 2).roundToInt(),
+                            )
+                        }
+                        .size(
+                            width  = (ghostW / density).dp,
+                            height = (ghostH / density).dp,
+                        )
+                        .graphicsLayer {
+                            scaleX = 1.12f
+                            scaleY = 1.12f
+                            shadowElevation = 32f
+                            alpha = 0.95f
+                        },
+                ) {
+                    TileCard(
+                        tile = ghostTile,
+                        theme = theme,
+                        isShizukuConnected = false,
+                        tileShape = tileShape,
+                        tileSize = tileSize,
+                        columns = colCount,
+                        onClick = {},
+                        onLongClick = null,
+                        isEditing = false,
+                        isDragging = true,
+                        onRemove = null,
+                    )
                 }
             }
         }
@@ -421,103 +665,103 @@ private fun ConnectivityWideCard(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                .semantics(mergeDescendants = true) {
-                    role = Role.Switch
-                    contentDescription = tile.label
-                    stateDescription = stateDesc
-                    tile.settingsAction?.let { action ->
-                        customActions = listOf(
-                            CustomAccessibilityAction("Open settings") {
-                                try {
-                                    context.startActivity(
-                                        Intent(action).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
-                                    )
-                                    true
-                                } catch (_: Exception) {
-                                    false
-                                }
-                            }
-                        )
-                    }
-                }
-                .combinedClickable(
-                    interactionSource = interactionSource,
-                    indication = LocalIndication.current,
-                    onClick = {
-                        if (!tile.isActive) haptics.tileToggleOn() else haptics.tileToggleOff()
-                        onClick()
-                    },
-                    onLongClick = if (onLongClick != null || tile.settingsAction != null) {
-                        {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            if (onLongClick != null) {
-                                onLongClick()
-                            } else {
-                                tile.settingsAction?.let { action ->
+                    .semantics(mergeDescendants = true) {
+                        role = Role.Switch
+                        contentDescription = tile.label
+                        stateDescription = stateDesc
+                        tile.settingsAction?.let { action ->
+                            customActions = listOf(
+                                CustomAccessibilityAction("Open settings") {
                                     try {
                                         context.startActivity(
                                             Intent(action).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
                                         )
-                                    } catch (_: Exception) {}
+                                        true
+                                    } catch (_: Exception) {
+                                        false
+                                    }
+                                }
+                            )
+                        }
+                    }
+                    .combinedClickable(
+                        interactionSource = interactionSource,
+                        indication = LocalIndication.current,
+                        onClick = {
+                            if (!tile.isActive) haptics.tileToggleOn() else haptics.tileToggleOff()
+                            onClick()
+                        },
+                        onLongClick = if (onLongClick != null || tile.settingsAction != null) {
+                            {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                if (onLongClick != null) {
+                                    onLongClick()
+                                } else {
+                                    tile.settingsAction?.let { action ->
+                                        try {
+                                            context.startActivity(
+                                                Intent(action).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                                            )
+                                        } catch (_: Exception) {}
+                                    }
                                 }
                             }
-                        }
-                    } else null,
-                )
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (tile.isActive)
-                            Color.White.copy(alpha = 0.22f)
+                        } else null,
+                    )
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (tile.isActive)
+                                Color.White.copy(alpha = 0.22f)
+                            else
+                                MaterialTheme.colorScheme.surfaceContainerHighest
+                        ),
+                ) {
+                    Icon(
+                        imageVector = if (tile.id.contains("bt") || tile.id.contains("bluetooth"))
+                            Icons.Default.Bluetooth
                         else
-                            MaterialTheme.colorScheme.surfaceContainerHighest
-                    ),
-            ) {
+                            Icons.Default.Wifi,
+                        contentDescription = null,
+                        tint = contentColor,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        text = tile.label,
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        color = contentColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = tile.subtitle ?: if (tile.isActive) "Connected" else "Off",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        color = contentColor.copy(alpha = 0.70f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
                 Icon(
-                    imageVector = if (tile.id.contains("bt") || tile.id.contains("bluetooth"))
-                        Icons.Default.Bluetooth
-                    else
-                        Icons.Default.Wifi,
+                    imageVector = Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = contentColor,
-                    modifier = Modifier.size(20.dp),
+                    tint = contentColor.copy(alpha = 0.40f),
+                    modifier = Modifier.size(18.dp),
                 )
             }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text(
-                    text = tile.label,
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = contentColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = tile.subtitle ?: if (tile.isActive) "Connected" else "Off",
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = contentColor.copy(alpha = 0.70f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = contentColor.copy(alpha = 0.40f),
-                modifier = Modifier.size(18.dp),
-            )
         }
     }
-}
 }

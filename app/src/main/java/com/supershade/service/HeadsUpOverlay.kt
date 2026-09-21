@@ -344,7 +344,6 @@ class HeadsUpOverlay(
                         val maxDelta = max(abs(offsetX.value) / (dismissThresholdPx * 1.5f), abs(offsetY.value) / (hideThresholdPx * 2f))
                         alpha = (1f - maxDelta).coerceIn(0f, 1f)
                     }
-                    .animateContentSize()
                     .pointerInput(Unit) {
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)

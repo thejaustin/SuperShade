@@ -45,6 +45,15 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.16" -> """
+        ✨ Freehand Tile Drag & Drop (AOSP / One UI Style)
+        • Home Screen–Style Tile Reorder: Drag tiles freely anywhere in the Quick Settings grid, just like rearranging apps on a launcher home screen — no arrows, no sliders
+        • Long Press → App Settings: Holding down a tile now opens the tile's own system settings or panel, as on stock Android/One UI — not edit mode
+        • Edit Mode via Pencil Button Only: Quick tile editing is now exclusively entered via the header Edit (✎) button for a clean, intentional experience
+        • Lifted Ghost Tile: The dragged tile lifts off the grid with scale and shadow, and a semi-transparent placeholder shows its original slot
+        • Live Slot Preview: Tiles shift in real time as you drag over new positions, giving instant visual feedback before you release
+        • Heads-Up Notification Rectangle Fix: Eliminated the faint rectangle that appeared in the center of pop-up (heads-up) notifications caused by an animateContentSize ghost frame
+        """.trimIndent()
         "1.9.15" -> """
         ✨ In-Place Quick Settings Customizer & Advanced Notification Controls
         • In-Place Quick Settings Editing: Hold down on any quick tile or tap the header Edit button to customize buttons directly inside the status bar shade without leaving the shade

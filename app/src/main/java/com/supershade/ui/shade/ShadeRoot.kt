@@ -431,12 +431,7 @@ fun ShadeRoot(
                                         onAddTile = { viewModel.addTile(it) },
                                         onResetTiles = { viewModel.resetTiles() },
                                         onTileClick = { viewModel.toggleTile(it) },
-                                        onTileLongClick = {
-                                            isEditingTiles = true
-                                            if (state.activePanel != ShadePanel.QUICK_SETTINGS) {
-                                                viewModel.setActivePanel(ShadePanel.QUICK_SETTINGS)
-                                            }
-                                        },
+                                         onTileLongClick = { viewModel.openTileDetail(it) },
                                     )
 
                                     Surface(
@@ -621,7 +616,7 @@ fun ShadeRoot(
                                     onAddTile = { viewModel.addTile(it) },
                                     onResetTiles = { viewModel.resetTiles() },
                                     onTileClick = { viewModel.toggleTile(it) },
-                                    onTileLongClick = { isEditingTiles = true },
+                                    onTileLongClick = { viewModel.openTileDetail(it) },
                                 )
 
                                 // Full tactile sliders island (Brightness & Volume)

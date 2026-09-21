@@ -78,15 +78,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -109,10 +101,8 @@ fun TileCard(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     isEditing: Boolean = false,
-    canMoveLeft: Boolean = false,
-    canMoveRight: Boolean = false,
-    onMoveLeft: (() -> Unit)? = null,
-    onMoveRight: (() -> Unit)? = null,
+    /** Set to true when this card is being dragged (renders with lifted shadow/scale) */
+    isDragging: Boolean = false,
     onRemove: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
@@ -128,8 +118,13 @@ fun TileCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
+    // Scale: pressed shrink, dragging lift, otherwise 1f
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.92f else 1f,
+        targetValue = when {
+            isDragging -> 1.08f
+            isPressed -> 0.92f
+            else -> 1f
+        },
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioLowBouncy,
             stiffness    = Spring.StiffnessHigh,
@@ -169,40 +164,15 @@ fun TileCard(
         "Off"
     }
 
-    val cardHeight = if (isEditing) (tileSize.heightDp + 18).dp else tileSize.heightDp.dp
+    val cardHeight = tileSize.heightDp.dp
     val rawIconSize = if (columns >= 5) (tileSize.iconSizeDp - 2).coerceAtLeast(18) else tileSize.iconSizeDp
     val iconSize = rawIconSize.dp
     val horizPadding = if (columns >= 5) (shapeScheme.tilePaddingHorizontal - 2.dp).coerceAtLeast(4.dp) else shapeScheme.tilePaddingHorizontal
     val vertPadding = when (tileSize) {
-        TileSize.COMPACT -> (shapeScheme.tilePaddingVertical - 3.dp).coerceAtLeast(4.dp)
+        TileSize.COMPACT    -> (shapeScheme.tilePaddingVertical - 3.dp).coerceAtLeast(4.dp)
         TileSize.COMFORTABLE -> shapeScheme.tilePaddingVertical + 2.dp
-        TileSize.STANDARD -> shapeScheme.tilePaddingVertical
+        TileSize.STANDARD   -> shapeScheme.tilePaddingVertical
     }
-
-    var dragAccumulated by remember { mutableFloatStateOf(0f) }
-    val dragThresholdPx = 45f
-
-    val dragModifier = if (isEditing) {
-        Modifier.pointerInput(tile.id, canMoveLeft, canMoveRight) {
-            detectHorizontalDragGestures(
-                onDragEnd = { dragAccumulated = 0f },
-                onDragCancel = { dragAccumulated = 0f },
-                onHorizontalDrag = { change, dragAmount ->
-                    change.consume()
-                    dragAccumulated += dragAmount
-                    if (dragAccumulated > dragThresholdPx && canMoveRight) {
-                        dragAccumulated = 0f
-                        haptics.tileToggleOn()
-                        onMoveRight?.invoke()
-                    } else if (dragAccumulated < -dragThresholdPx && canMoveLeft) {
-                        dragAccumulated = 0f
-                        haptics.tileToggleOn()
-                        onMoveLeft?.invoke()
-                    }
-                }
-            )
-        }
-    } else Modifier
 
     Surface(
         shape = cardShape,
@@ -211,8 +181,12 @@ fun TileCard(
         modifier = Modifier
             .fillMaxWidth()
             .height(cardHeight)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-            .then(dragModifier)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                // Subtle shadow lift when dragging
+                shadowElevation = if (isDragging) 24f else 0f
+            }
             .semantics {
                 role = Role.Switch
                 stateDescription = stateDesc
@@ -247,6 +221,7 @@ fun TileCard(
                 )
             }
 
+            // Click / long-press — disabled while editing (parent handles drag)
             val clickModifier = if (!isEditing) {
                 Modifier.combinedClickable(
                     interactionSource = interactionSource,
@@ -303,9 +278,9 @@ fun TileCard(
                     }
                 }
                 val baseSize = when (tileSize) {
-                    TileSize.COMPACT -> if (columns >= 5) 8.5.sp else 9.5.sp
+                    TileSize.COMPACT    -> if (columns >= 5) 8.5.sp else 9.5.sp
                     TileSize.COMFORTABLE -> if (columns >= 5) 9.5.sp else 12.sp
-                    TileSize.STANDARD -> if (columns >= 5) 8.5.sp else 10.5.sp
+                    TileSize.STANDARD   -> if (columns >= 5) 8.5.sp else 10.5.sp
                 }
                 val displayLabel = when {
                     tile.id.lowercase().contains("rotation") -> if (tile.isActive) "Auto rotate" else "Portrait"
@@ -331,7 +306,7 @@ fun TileCard(
                             lineHeight = (titleFontSize.value + 2).sp,
                         ),
                         color = contentColor,
-                        maxLines = if (tileSize == TileSize.COMPACT || displaySubtitle != null || isEditing) 1 else 2,
+                        maxLines = if (tileSize == TileSize.COMPACT || displaySubtitle != null) 1 else 2,
                         overflow = TextOverflow.Ellipsis,
                         softWrap = true,
                     )
@@ -347,77 +322,15 @@ fun TileCard(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    if (isEditing) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 2.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            if (canMoveLeft) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                        .clip(CircleShape)
-                                        .background(contentColor.copy(alpha = 0.20f))
-                                        .clickable {
-                                            haptics.lightTap()
-                                            onMoveLeft?.invoke()
-                                        },
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = "Move left",
-                                        tint = contentColor,
-                                        modifier = Modifier.size(11.dp),
-                                    )
-                                }
-                            } else {
-                                Spacer(modifier = Modifier.size(18.dp))
-                            }
-
-                            Icon(
-                                imageVector = Icons.Default.DragHandle,
-                                contentDescription = "Drag to reorder",
-                                tint = contentColor.copy(alpha = 0.6f),
-                                modifier = Modifier.size(13.dp),
-                            )
-
-                            if (canMoveRight) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                        .clip(CircleShape)
-                                        .background(contentColor.copy(alpha = 0.20f))
-                                        .clickable {
-                                            haptics.lightTap()
-                                            onMoveRight?.invoke()
-                                        },
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = "Move right",
-                                        tint = contentColor,
-                                        modifier = Modifier.size(11.dp),
-                                    )
-                                }
-                            } else {
-                                Spacer(modifier = Modifier.size(18.dp))
-                            }
-                        }
-                    }
                 }
             }
 
-            // Remove badge when editing
+            // Remove (×) badge shown when editing — top-right corner
             if (isEditing && onRemove != null) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(2.dp)
+                        .padding(3.dp)
                         .size(20.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.error)
@@ -429,9 +342,9 @@ fun TileCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Remove tile ${tile.label}",
+                        contentDescription = "Remove ${tile.label}",
                         tint = MaterialTheme.colorScheme.onError,
-                        modifier = Modifier.size(13.dp),
+                        modifier = Modifier.size(12.dp),
                     )
                 }
             }
@@ -439,34 +352,38 @@ fun TileCard(
     }
 }
 
-internal fun tileIcon(id: String, isActive: Boolean = false, subtitle: String? = null): ImageVector = when (id) {
-    "internet", "wifi" -> Icons.Default.Wifi
-    "bt"           -> Icons.Default.Bluetooth
-    "nfc"          -> Icons.Default.Nfc
-    "hotspot"      -> Icons.Default.WifiTethering
-    "airplane"     -> Icons.Default.AirplanemodeActive
-    "cell"         -> Icons.Default.SignalCellularAlt
-    "vpn"          -> Icons.Default.VpnKey
-    "dark"         -> Icons.Default.DarkMode
-    "night"        -> Icons.Default.NightsStay
-    "rotation"     -> if (isActive) Icons.Default.ScreenRotation else Icons.Default.ScreenLockPortrait
-    "cast"         -> Icons.Default.Cast
-    "screenrecord" -> Icons.Default.RadioButtonChecked
-    "dnd"          -> Icons.Default.DoNotDisturb
-    "flashlight"   -> Icons.Default.FlashOn
-    "mute", "sound" -> when {
-        subtitle?.equals("vibrate", ignoreCase = true) == true -> Icons.Default.Vibration
-        subtitle?.equals("mute", ignoreCase = true) == true || !isActive -> Icons.AutoMirrored.Filled.VolumeOff
-        else -> Icons.AutoMirrored.Filled.VolumeUp
+fun tileIcon(id: String, isActive: Boolean, subtitle: String?): ImageVector {
+    return when {
+        id.contains("wifi") || id.contains("internet") -> Icons.Default.Wifi
+        id.contains("bt") || id.contains("bluetooth")  -> Icons.Default.Bluetooth
+        id.contains("airplane")                        -> Icons.Default.AirplanemodeActive
+        id.contains("hotspot") || id.contains("tether") -> Icons.Default.WifiTethering
+        id.contains("dnd") || id.contains("disturb")   -> Icons.Default.DoNotDisturb
+        id.contains("rotation") || id.contains("rotate") -> Icons.Default.ScreenRotation
+        id.contains("dark") || id.contains("night")    -> Icons.Default.DarkMode
+        id.contains("flash") || id.contains("torch")   -> Icons.Default.FlashOn
+        id.contains("location") || id.contains("gps")  -> Icons.Default.LocationOn
+        id.contains("nfc")                             -> Icons.Default.Nfc
+        id.contains("sync")                            -> Icons.Default.Sync
+        id.contains("cast") || id.contains("screen")  -> Icons.Default.Cast
+        id.contains("vpn")                             -> Icons.Default.VpnKey
+        id.contains("data") || id.contains("mobile")  -> Icons.Default.SignalCellularAlt
+        id.contains("battery") || id.contains("saver") -> Icons.Default.Battery5Bar
+        id.contains("chargi")                          -> Icons.Default.BatteryChargingFull
+        id.contains("work") || id.contains("focus")    -> Icons.Default.Work
+        id.contains("alarm")                           -> Icons.Default.Alarm
+        id.contains("lock") || id.contains("secure")  -> Icons.Default.ScreenLockPortrait
+        id.contains("radio") || id.contains("nrs")    -> Icons.Default.RadioButtonChecked
+        id.contains("sensor")                         -> Icons.Default.PanTool
+        id.contains("vibrate") || id.contains("vibration") -> Icons.Default.Vibration
+        id.contains("mute") || id.contains("sound") || id.contains("volume") -> {
+            if (isActive || subtitle?.contains("Vibrate", ignoreCase = true) == true)
+                Icons.AutoMirrored.Filled.VolumeOff
+            else
+                Icons.AutoMirrored.Filled.VolumeUp
+        }
+        id.contains("bedtime") || id.contains("sleep") -> Icons.Default.NightsStay
+        id.contains("usage") || id.contains("stats")  -> Icons.Default.DataUsage
+        else -> Icons.Default.Settings
     }
-    "volume"       -> Icons.AutoMirrored.Filled.VolumeUp
-    "battery"      -> Icons.Default.Battery5Bar
-    "powershare"   -> Icons.Default.BatteryChargingFull
-    "location"     -> Icons.Default.LocationOn
-    "alarm"        -> Icons.Default.Alarm
-    "sync"         -> Icons.Default.Sync
-    "datasaver"    -> Icons.Default.DataUsage
-    "work"         -> Icons.Default.Work
-    "onehanded"    -> Icons.Default.PanTool
-    else           -> Icons.Default.Settings
 }

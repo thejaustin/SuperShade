@@ -2465,7 +2465,7 @@ private fun TileEditorSheet(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                 ) {
                                     Icon(
-                                        imageVector = tileIcon(tileId),
+                                        imageVector = tileIcon(tileId, false, null),
                                         contentDescription = null,
                                         tint = if (index < tileColumns.count) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(18.dp),
@@ -2575,7 +2575,7 @@ private fun TileEditorSheet(
                                         }
 
                                         Icon(
-                                            imageVector = tileIcon(tileId),
+                                            imageVector = tileIcon(tileId, false, null),
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(20.dp),
@@ -2692,7 +2692,7 @@ private fun TileEditorSheet(
                                         modifier = Modifier.weight(1f).padding(end = 6.dp),
                                     ) {
                                         Icon(
-                                            imageVector = tileIcon(tileId),
+                                            imageVector = tileIcon(tileId, false, null),
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.size(20.dp),

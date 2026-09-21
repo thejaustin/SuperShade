@@ -45,6 +45,12 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.20" -> """
+        ✨ Continuous Finger-Following Panel Pan
+        • Interactive Horizontal Pan: Swiping between Notifications and Quick Settings now physically tracks your finger 1:1 with elastic resistance before committing
+        • Velocity-Driven Panel Commitment: Fast flicks or swipes past threshold smoothly commit the transition with a tactile detent haptic; partial swipes rebound with physical spring dynamics
+        • Accidental Touch Prevention: Eliminates accidental panel hopping when scrolling vertically with slight horizontal movement
+        """.trimIndent()
         "1.9.19" -> """
         ✨ Predictive Scale Peek & Directional Notification Gestures
         • Predictive Scale Rubber-Banding: Pulling up or initiating edge-back gestures now applies physical elastic scale compression (anchored at top-center), matching Android 15/16 and One UI 7 predictive back aesthetics

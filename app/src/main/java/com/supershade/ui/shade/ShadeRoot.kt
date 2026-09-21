@@ -161,14 +161,17 @@ fun ShadeRoot(
 
     val coroutineScope = rememberCoroutineScope()
     val dragOffset = remember { Animatable(0f) }
+    val horizontalPanOffset = remember { Animatable(0f) }
     val density = LocalDensity.current
     val dismissThresholdPx = with(density) { 72.dp.toPx() }
     val velocityThresholdPxPerSec = with(density) { 400.dp.toPx() }
+    val maxHorizontalPanPx = with(density) { 60.dp.toPx() }
 
     // Reset drag position and editing state whenever the shade re-opens or closes.
     LaunchedEffect(state.isOpen) {
         if (state.isOpen) {
             dragOffset.snapTo(0f)
+            horizontalPanOffset.snapTo(0f)
         } else {
             isEditingTiles = false
         }
@@ -462,14 +465,26 @@ fun ShadeRoot(
                                 .navigationBarsPadding()
                                 .draggable(
                                     orientation = Orientation.Horizontal,
-                                    enabled = !isCombined,
+                                    enabled = !isCombined && !isEditingTiles,
                                     state = rememberDraggableState { delta ->
-                                        if (delta < -24f && state.activePanel == ShadePanel.NOTIFICATIONS) {
-                                            haptics.sheetDetent()
-                                            viewModel.setActivePanel(ShadePanel.QUICK_SETTINGS)
-                                        } else if (delta > 24f && state.activePanel == ShadePanel.QUICK_SETTINGS) {
-                                            haptics.sheetDetent()
-                                            viewModel.setActivePanel(ShadePanel.NOTIFICATIONS)
+                                        coroutineScope.launch {
+                                            val current = horizontalPanOffset.value
+                                            val newOffset = (current + delta * 0.70f).coerceIn(-maxHorizontalPanPx, maxHorizontalPanPx)
+                                            horizontalPanOffset.snapTo(newOffset)
+                                        }
+                                    },
+                                    onDragStopped = { velocity ->
+                                        coroutineScope.launch {
+                                            val offset = horizontalPanOffset.value
+                                            val threshold = maxHorizontalPanPx * 0.40f
+                                            if ((offset < -threshold || velocity < -500f) && state.activePanel == ShadePanel.NOTIFICATIONS) {
+                                                haptics.sheetDetent()
+                                                viewModel.setActivePanel(ShadePanel.QUICK_SETTINGS)
+                                            } else if ((offset > threshold || velocity > 500f) && state.activePanel == ShadePanel.QUICK_SETTINGS) {
+                                                haptics.sheetDetent()
+                                                viewModel.setActivePanel(ShadePanel.NOTIFICATIONS)
+                                            }
+                                            horizontalPanOffset.animateTo(0f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow))
                                         }
                                     },
                                 ),
@@ -515,7 +530,8 @@ fun ShadeRoot(
                             label = "panelTransition",
                             modifier = Modifier
                                 .weight(1f)
-                                .fillMaxWidth(),
+                                .fillMaxWidth()
+                                .offset { IntOffset(horizontalPanOffset.value.roundToInt(), 0) },
                         ) { currentPanel ->
                             if (currentPanel == ShadePanel.NOTIFICATIONS) {
                                 Column(modifier = Modifier.fillMaxSize()) {

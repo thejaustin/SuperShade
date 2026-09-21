@@ -150,9 +150,18 @@ fun NotificationCard(
 
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
-            if (value != SwipeToDismissBoxValue.Settled && notification.isClearable) {
+            if (value == SwipeToDismissBoxValue.EndToStart && notification.isClearable) {
                 haptics.sheetDetent()
-                onDismiss(); true
+                onDismiss()
+                true
+            } else if (value == SwipeToDismissBoxValue.StartToEnd && notification.isClearable) {
+                haptics.sheetDetent()
+                if (onSnooze != null) {
+                    onSnooze(3600_000L) // 1 hour snooze
+                } else {
+                    onDismiss()
+                }
+                true
             } else false
         },
         positionalThreshold = { totalDistance -> totalDistance * 0.35f },
@@ -162,30 +171,74 @@ fun NotificationCard(
         state = dismissState,
         backgroundContent = {
             val direction = dismissState.dismissDirection
-            val alignment = if (direction == SwipeToDismissBoxValue.StartToEnd)
-                Alignment.CenterStart else Alignment.CenterEnd
+            val isSnooze = direction == SwipeToDismissBoxValue.StartToEnd
+            val alignment = if (isSnooze) Alignment.CenterStart else Alignment.CenterEnd
             val progress = kotlin.math.abs(dismissState.progress).coerceIn(0f, 1f)
-            val iconScale = (0.6f + progress * 0.5f).coerceIn(0.6f, 1.15f)
-            val bgAlpha = (progress * 1.4f).coerceIn(0.2f, 1f)
+            val iconScale = (0.7f + progress * 0.45f).coerceIn(0.7f, 1.15f)
+            val bgAlpha = (progress * 1.5f).coerceIn(0.25f, 1f)
+            val backgroundColor = if (isSnooze) {
+                Color(0xFFFFA000).copy(alpha = bgAlpha)
+            } else {
+                MaterialTheme.colorScheme.error.copy(alpha = bgAlpha)
+            }
+            val icon = if (isSnooze) Icons.Default.Snooze else Icons.Default.Delete
+            val label = if (isSnooze) "Snooze 1h" else "Dismiss"
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight()
                     .clip(shapes.card)
-                    .background(Color(0xFFE53935).copy(alpha = bgAlpha)),
+                    .background(backgroundColor),
                 contentAlignment = alignment,
             ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete",
-                    tint = Color.White,
-                    modifier = Modifier
-                        .padding(horizontal = 22.dp)
-                        .graphicsLayer {
-                            scaleX = iconScale
-                            scaleY = iconScale
-                        },
-                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (isSnooze) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = label,
+                            tint = Color.White,
+                            modifier = Modifier.graphicsLayer {
+                                scaleX = iconScale
+                                scaleY = iconScale
+                            },
+                        )
+                        if (progress > 0.40f) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                ),
+                                color = Color.White,
+                            )
+                        }
+                    } else {
+                        if (progress > 0.40f) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                ),
+                                color = Color.White,
+                            )
+                        }
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = label,
+                            tint = Color.White,
+                            modifier = Modifier.graphicsLayer {
+                                scaleX = iconScale
+                                scaleY = iconScale
+                            },
+                        )
+                    }
+                }
             }
         },
         enableDismissFromStartToEnd = notification.isClearable,

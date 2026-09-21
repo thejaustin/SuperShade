@@ -45,6 +45,13 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.19" -> """
+        ✨ Predictive Scale Peek & Directional Notification Gestures
+        • Predictive Scale Rubber-Banding: Pulling up or initiating edge-back gestures now applies physical elastic scale compression (anchored at top-center), matching Android 15/16 and One UI 7 predictive back aesthetics
+        • Directional Notification Swiping: Swipe right (Start to End) to quickly Snooze notifications for 1 hour with a warm amber badge and haptic detent; swipe left (End to Start) to Dismiss
+        • Animated Action Badges: Notification swipe backgrounds dynamically show animated contextual text badges ("Snooze 1h" / "Dismiss") and scaling icons as the drag distance increases
+        • Bottom Grab Handle Refinement: 48dp ergonomic touch target with subtle haptic response for effortless one-handed dismissal
+        """.trimIndent()
         "1.9.18" -> """
         ✨ AOSP, Pixel & One UI Fluid Gestures Architecture
         • Universal Back & Side Swipes: Swiping inward from either the left or right screen edge (or pressing the back button) now triggers hierarchical back navigation — closes tile detail sheets, collapses full Quick Settings, or dismisses the shade cleanly

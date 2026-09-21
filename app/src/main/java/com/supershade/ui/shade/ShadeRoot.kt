@@ -36,6 +36,8 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -283,6 +285,7 @@ fun ShadeRoot(
                 val screenHeightPx = with(density) { screenHeightDp.toPx() }.coerceAtLeast(1f)
                 val dragFraction = (kotlin.math.abs(dragOffset.value) / screenHeightPx).coerceIn(0f, 1f)
                 val liveScrimAlpha = (baseScrimAlpha * (1f - dragFraction * 0.88f)).coerceAtLeast(0f)
+                val panelScale = (1f - dragFraction * 0.055f).coerceIn(0.92f, 1f)
 
                 Box(
                     modifier = Modifier
@@ -340,6 +343,11 @@ fun ShadeRoot(
                         modifier = Modifier
                             .fillMaxSize()
                             .offset { IntOffset(0, dragOffset.value.roundToInt()) }
+                            .graphicsLayer {
+                                scaleX = panelScale
+                                scaleY = panelScale
+                                transformOrigin = TransformOrigin(0.5f, 0f)
+                            }
                             .background(glassBackdrop)
                             .pointerInput(isQsExpanded, isEditingTiles) {
                                 if (isEditingTiles) return@pointerInput

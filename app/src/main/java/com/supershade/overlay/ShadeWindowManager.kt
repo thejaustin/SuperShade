@@ -5,6 +5,10 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.view.Gravity
 import android.view.WindowManager
+import android.view.KeyEvent
+import androidx.activity.OnBackPressedDispatcher
+import androidx.activity.OnBackPressedDispatcherOwner
+import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.content.getSystemService
 import androidx.lifecycle.Lifecycle
@@ -35,9 +39,9 @@ import kotlinx.coroutines.launch
  * that renders [ShadeRoot].
  *
  * Because this object lives inside a [android.app.Service] — not an Activity —
- * it provides its own [LifecycleOwner], [ViewModelStoreOwner], and
- * [SavedStateRegistryOwner] to the hosted [ComposeView] so that all Compose
- * APIs that depend on those owners work correctly.
+ * it provides its own [LifecycleOwner], [ViewModelStoreOwner], [SavedStateRegistryOwner],
+ * and [OnBackPressedDispatcherOwner] to the hosted [ComposeView] so that all Compose
+ * APIs (including [BackHandler]) and hardware/gesture back keys work seamlessly.
  *
  * API:
  *   [show]  — present the shade (no-op if already visible)
@@ -139,6 +143,22 @@ class ShadeWindowManager(
             setViewTreeLifecycleOwner(owner)
             setViewTreeViewModelStoreOwner(owner)
             setViewTreeSavedStateRegistryOwner(owner)
+            setViewTreeOnBackPressedDispatcherOwner(owner)
+            isFocusable = true
+            isFocusableInTouchMode = true
+            requestFocus()
+            setOnKeyListener { _, keyCode, event ->
+                if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+                    if (owner.onBackPressedDispatcher.hasEnabledCallbacks()) {
+                        owner.onBackPressedDispatcher.onBackPressed()
+                    } else {
+                        hide()
+                    }
+                    true
+                } else {
+                    false
+                }
+            }
             setContent {
                 androidx.compose.runtime.CompositionLocalProvider(
                     com.supershade.haptics.LocalSuperHaptics provides (haptics ?: com.supershade.haptics.SuperHaptics(context))
@@ -187,22 +207,26 @@ class ShadeWindowManager(
 }
 
 /**
- * A minimal LifecycleOwner / ViewModelStoreOwner / SavedStateRegistryOwner
+ * A LifecycleOwner / ViewModelStoreOwner / SavedStateRegistryOwner / OnBackPressedDispatcherOwner
  * for use with ComposeView displayed in a WindowManager overlay.
  */
 private class ShadeLifecycleOwner :
     LifecycleOwner,
     ViewModelStoreOwner,
-    SavedStateRegistryOwner {
+    SavedStateRegistryOwner,
+    OnBackPressedDispatcherOwner {
 
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
     private val viewModelStoreInstance = ViewModelStore()
+    private val onBackPressedDispatcherInstance = OnBackPressedDispatcher()
 
     override val lifecycle: Lifecycle get() = lifecycleRegistry
     override val savedStateRegistry: SavedStateRegistry
         get() = savedStateRegistryController.savedStateRegistry
     override val viewModelStore: ViewModelStore get() = viewModelStoreInstance
+    override val onBackPressedDispatcher: OnBackPressedDispatcher
+        get() = onBackPressedDispatcherInstance
 
     fun start() {
         savedStateRegistryController.performRestore(null)

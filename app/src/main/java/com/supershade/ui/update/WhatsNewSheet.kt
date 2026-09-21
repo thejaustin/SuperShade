@@ -45,6 +45,15 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.18" -> """
+        ✨ AOSP, Pixel & One UI Fluid Gestures Architecture
+        • Universal Back & Side Swipes: Swiping inward from either the left or right screen edge (or pressing the back button) now triggers hierarchical back navigation — closes tile detail sheets, collapses full Quick Settings, or dismisses the shade cleanly
+        • 1:1 Live Drag Tracking: The shade panel now tracks your finger in real time when dragging up to dismiss with authentic physical resistance, matching stock AOSP and One UI physics
+        • Dynamic Scrim Fade: The dark backdrop scrim smoothly fades in real time proportional to your pull-up distance, elegantly revealing the wallpaper or apps underneath before releasing
+        • Velocity-Driven Spring Fling: Flicking up fast or pulling past the dismiss threshold dismisses the shade with fluid spring physics; gentle releases bounce back with elastic snap
+        • Fluid Horizontal Panel Slide: Swiping left or right between Notifications and Quick Settings now animates with a fluid horizontal slide and crossfade transition inspired by One UI 8 & iOS Control Center
+        • Good Lock Quick Panel Shortcut: Added support for Good Lock One-Handed Operation+ "Quick Panel" gesture to open directly to expanded Quick Settings
+        """.trimIndent()
         "1.9.17" -> """
         ✨ Smarter Dismiss Gestures & Good Lock One-Handed Integration
         • Swipe Up Anywhere to Close: Swipe up from anywhere on the shade to dismiss — if Quick Settings is expanded it collapses first, then a second swipe closes the shade entirely

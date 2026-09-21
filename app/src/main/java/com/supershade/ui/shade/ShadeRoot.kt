@@ -5,8 +5,14 @@ import android.os.Build
 import androidx.compose.ui.platform.LocalContext
 import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.haptics.SuperHaptics
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -26,6 +32,8 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -241,6 +249,21 @@ fun ShadeRoot(
 
     val backdropTheme = state.backdropTheme
 
+    BackHandler(enabled = state.isOpen) {
+        if (state.activeTileDetail != null) {
+            viewModel.closeTileDetail()
+        } else if (state.isQsExpanded) {
+            haptics.sheetDetent()
+            viewModel.setQsExpanded(false)
+        } else {
+            haptics.sheetDetent()
+            coroutineScope.launch {
+                dragOffset.animateTo(-3000f, tween(180))
+                onDismiss()
+            }
+        }
+    }
+
     CompositionLocalProvider(
         LocalCardBorderWidth provides state.cardBorderWidth,
         LocalShadeShapeScheme provides shapeScheme,
@@ -249,16 +272,22 @@ fun ShadeRoot(
         themeWrapper {
             Box(modifier = Modifier.fillMaxSize()) {
                 // Dimmer scrim — tapping it dismisses the shade.
+                // In AOSP/OneUI, scrim smoothly fades out in real time as the shade is pulled up.
                 val opacity = state.backdropOpacity.coerceIn(0.20f, 1.00f)
-                val scrimAlpha = when {
+                val baseScrimAlpha = when {
                     opacity >= 0.99f -> 0.70f
                     Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> (opacity * 0.36f).coerceIn(0.12f, 0.45f)
                     else -> (opacity * 0.65f).coerceIn(0.25f, 0.75f)
                 }
+                val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
+                val screenHeightPx = with(density) { screenHeightDp.toPx() }.coerceAtLeast(1f)
+                val dragFraction = (kotlin.math.abs(dragOffset.value) / screenHeightPx).coerceIn(0f, 1f)
+                val liveScrimAlpha = (baseScrimAlpha * (1f - dragFraction * 0.88f)).coerceAtLeast(0f)
+
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = scrimAlpha))
+                        .background(Color.Black.copy(alpha = liveScrimAlpha))
                         .clickable(onClick = {
                             haptics.lightTap()
                             onDismiss()
@@ -312,46 +341,83 @@ fun ShadeRoot(
                             .fillMaxSize()
                             .offset { IntOffset(0, dragOffset.value.roundToInt()) }
                             .background(glassBackdrop)
-                            .pointerInput(isQsExpanded) {
-                                // Swipe-up from anywhere: collapse QS first, then dismiss.
-                                // Side edges (≤16dp from left or right): upward swipe also dismisses.
-                                // density here is PointerInputScope.density (a Float px/dp scalar).
-                                val px        = this.density      // Float: pixels per dp
-                                val edgeZonePx = (16f * px).toInt()
-                                val minSwipeUp = (80f * px).toInt()
-                                val slopeMin   = 0.55f            // must be ≥55% vertical
+                            .pointerInput(isQsExpanded, isEditingTiles) {
+                                if (isEditingTiles) return@pointerInput
+                                val px = this.density
+                                val edgeZonePx = (24f * px).toInt()
+                                val minSwipeUp = (48f * px).toInt()
+                                val slopeMin = 0.50f
 
                                 awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false)
                                     var consumed = false
+                                    var lastY = down.position.y
+                                    var totalDy = 0f
+                                    val tracker = VelocityTracker()
+                                    tracker.addPosition(down.uptimeMillis, down.position)
 
                                     while (true) {
                                         val event = awaitPointerEvent()
                                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                        tracker.addPosition(change.uptimeMillis, change.position)
 
                                         val dx = change.position.x - down.position.x
-                                        val dy = change.position.y - down.position.y // negative = up
+                                        val dy = change.position.y - down.position.y
+                                        val deltaY = change.position.y - lastY
+                                        lastY = change.position.y
 
-                                        // Edge zones: left ≤16dp or right ≤16dp from screen edge
-                                        val inEdge = down.position.x < edgeZonePx ||
-                                                     down.position.x > (size.width - edgeZonePx)
+                                        // Side edge inward swipe (predictive back gesture simulation)
+                                        val isInwardSwipe = (down.position.x < edgeZonePx && dx > (32f * px)) ||
+                                                            (down.position.x > (size.width - edgeZonePx) && dx < -(32f * px))
 
-                                        if (!consumed && !change.pressed) {
-                                            val isUpSwipe = -dy >= minSwipeUp &&
-                                                kotlin.math.abs(dy) > kotlin.math.abs(dx) * slopeMin
+                                        if (!consumed && isInwardSwipe) {
+                                            change.consume()
+                                            consumed = true
+                                            haptics.sheetDetent()
+                                            if (isQsExpanded) {
+                                                coroutineScope.launch { viewModel.setQsExpanded(false) }
+                                            } else {
+                                                coroutineScope.launch {
+                                                    dragOffset.animateTo(-screenHeightPx, tween(180))
+                                                    onDismiss()
+                                                }
+                                            }
+                                            break
+                                        }
 
-                                            if (isUpSwipe || (inEdge && -dy > (24f * px))) {
-                                                change.consume()
+                                        // 1:1 Live upward drag tracking
+                                        if (dy < -8f && kotlin.math.abs(dy) > kotlin.math.abs(dx) * slopeMin) {
+                                            totalDy = dy
+                                            coroutineScope.launch {
+                                                dragOffset.snapTo((dragOffset.value + deltaY * 0.92f).coerceAtMost(0f))
+                                            }
+                                        }
+
+                                        if (!change.pressed) {
+                                            val velocity = tracker.calculateVelocity().y
+                                            val isFlingUp = velocity < -velocityThresholdPxPerSec
+                                            val isPulledPastThreshold = dragOffset.value < -dismissThresholdPx || -totalDy >= minSwipeUp
+
+                                            if (isFlingUp || isPulledPastThreshold) {
                                                 consumed = true
-                                                if (isQsExpanded) {
+                                                change.consume()
+                                                // If QS expanded and gentle flick or partial drag: collapse QS
+                                                if (isQsExpanded && velocity > -1600f * px && dragOffset.value > -screenHeightPx * 0.35f) {
                                                     haptics.sheetDetent()
-                                                    coroutineScope.launch { viewModel.setQsExpanded(false) }
+                                                    coroutineScope.launch {
+                                                        viewModel.setQsExpanded(false)
+                                                        dragOffset.animateTo(0f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow))
+                                                    }
                                                 } else {
                                                     haptics.sheetDetent()
                                                     coroutineScope.launch {
-                                                        dragOffset.animateTo(-3000f, tween(200))
+                                                        dragOffset.animateTo(-screenHeightPx, tween(180))
                                                         onDismiss()
                                                     }
+                                                }
+                                            } else if (dragOffset.value < 0f) {
+                                                coroutineScope.launch {
+                                                    dragOffset.animateTo(0f, spring(Spring.DampingRatioLowBouncy, Spring.StiffnessMediumLow))
                                                 }
                                             }
                                             break
@@ -359,7 +425,8 @@ fun ShadeRoot(
                                     }
                                 }
                             },
-                    ) {
+                    )
+ {
                         if (backdropTheme == BackdropTheme.LIQUID_GLASS) {
                             Box(
                                 modifier = Modifier
@@ -425,51 +492,254 @@ fun ShadeRoot(
                             onLockScreen = { viewModel.lockScreen() },
                         )
 
-                        // Active View Content
-                        if (state.activePanel == ShadePanel.NOTIFICATIONS) {
-                            // Quick Controls section on Notifications panel
-                            AnimatedVisibility(
-                                visible = !state.isQuickControlsTucked,
-                                enter = expandVertically(spring(dampingRatio = 0.8f, stiffness = 400f)) + fadeIn(tween(150)),
-                                exit = shrinkVertically(tween(180)) + fadeOut(tween(150)),
-                            ) {
+                        // Active View Content (fluid horizontal slide like One UI 8 & Pixel)
+                        AnimatedContent(
+                            targetState = state.activePanel,
+                            transitionSpec = {
+                                if (targetState == ShadePanel.QUICK_SETTINGS) {
+                                    (slideInHorizontally(spring(dampingRatio = 0.82f, stiffness = 420f)) { it } + fadeIn(tween(160)))
+                                        .togetherWith(slideOutHorizontally(tween(160)) { -it / 2 } + fadeOut(tween(120)))
+                                } else {
+                                    (slideInHorizontally(spring(dampingRatio = 0.82f, stiffness = 420f)) { -it } + fadeIn(tween(160)))
+                                        .togetherWith(slideOutHorizontally(tween(160)) { it / 2 } + fadeOut(tween(120)))
+                                }
+                            },
+                            label = "panelTransition",
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                        ) { currentPanel ->
+                            if (currentPanel == ShadePanel.NOTIFICATIONS) {
+                                Column(modifier = Modifier.fillMaxSize()) {
+                                    // Quick Controls section on Notifications panel
+                                    AnimatedVisibility(
+                                        visible = !state.isQuickControlsTucked,
+                                        enter = expandVertically(spring(dampingRatio = 0.8f, stiffness = 400f)) + fadeIn(tween(150)),
+                                        exit = shrinkVertically(tween(180)) + fadeOut(tween(150)),
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .draggable(
+                                                    orientation = Orientation.Vertical,
+                                                    state = rememberDraggableState { delta ->
+                                                        if (delta < -8f) {
+                                                            haptics.sheetDetent()
+                                                            viewModel.setQuickControlsTucked(true)
+                                                        } else if (delta > 14f && isCombined) {
+                                                            haptics.sheetDetent()
+                                                            viewModel.setActivePanel(ShadePanel.QUICK_SETTINGS)
+                                                        } else if (delta < -4f) {
+                                                            coroutineScope.launch {
+                                                                dragOffset.snapTo((dragOffset.value + delta).coerceAtMost(0f))
+                                                            }
+                                                        }
+                                                    },
+                                                    onDragStopped = { velocity ->
+                                                        if (velocity < -velocityThresholdPxPerSec || dragOffset.value < -dismissThresholdPx) {
+                                                            coroutineScope.launch {
+                                                                dragOffset.animateTo(-3000f, tween(200))
+                                                                onDismiss()
+                                                            }
+                                                        } else {
+                                                            coroutineScope.launch {
+                                                                dragOffset.animateTo(0f, spring(0.55f, 450f))
+                                                            }
+                                                        }
+                                                    },
+                                                ),
+                                        ) {
+                                            QuickSettingsGrid(
+                                                tiles = state.tiles,
+                                                theme = state.theme,
+                                                isShizukuConnected = state.isShizukuConnected,
+                                                isExpanded = false,
+                                                tileShape = state.tileShape,
+                                                tileSize = state.tileSize,
+                                                tileColumns = state.tileColumns,
+                                                showWideCards = state.showWideCards,
+                                                isEditing = isEditingTiles,
+                                                onToggleEdit = { isEditingTiles = !isEditingTiles },
+                                                onMoveTile = { from, to -> viewModel.moveTile(from, to) },
+                                                onRemoveTile = { viewModel.removeTile(it) },
+                                                onAddTile = { viewModel.addTile(it) },
+                                                onResetTiles = { viewModel.resetTiles() },
+                                                onTileClick = { viewModel.toggleTile(it) },
+                                                onTileLongClick = { viewModel.openTileDetail(it) },
+                                            )
+
+                                            Surface(
+                                                shape = shapeScheme.container,
+                                                color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
+                                                border = getCardBorder(),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 14.dp, vertical = 2.dp),
+                                            ) {
+                                                Column(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 8.dp, vertical = 5.dp),
+                                                ) {
+                                                    BrightnessSlider(
+                                                        brightness = state.brightness,
+                                                        onBrightnessChange = { viewModel.setBrightness(it) },
+                                                        compact = false,
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                    )
+                                                }
+                                            }
+
+                                            // Pill handle to tuck quick controls
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(vertical = 1.dp),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(50),
+                                                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.40f),
+                                                    border = getCardBorder(),
+                                                    modifier = Modifier.clickable {
+                                                        haptics.sheetDetent()
+                                                        viewModel.setQuickControlsTucked(true)
+                                                    },
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                    ) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .width(24.dp)
+                                                                .height(3.dp)
+                                                                .clip(RoundedCornerShape(2.dp))
+                                                                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.40f)),
+                                                        )
+                                                        Icon(
+                                                            imageVector = Icons.Default.KeyboardArrowUp,
+                                                            contentDescription = "Tuck Quick Controls",
+                                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.60f),
+                                                            modifier = Modifier.size(16.dp),
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Minimal slim bar when quick controls are tucked
+                                    AnimatedVisibility(
+                                        visible = state.isQuickControlsTucked,
+                                        enter = expandVertically(spring(dampingRatio = 0.8f, stiffness = 400f)) + fadeIn(tween(150)),
+                                        exit = shrinkVertically(tween(180)) + fadeOut(tween(150)),
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(50),
+                                            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
+                                            border = getCardBorder(),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 14.dp, vertical = 3.dp)
+                                                .clickable {
+                                                    haptics.sheetDetent()
+                                                    viewModel.setQuickControlsTucked(false)
+                                                },
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Tune,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(15.dp),
+                                                    )
+                                                    Text(
+                                                        text = "Quick Controls tucked",
+                                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    )
+                                                }
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                ) {
+                                                    Text(
+                                                        text = "Swipe down to show",
+                                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                                    )
+                                                    Icon(
+                                                        imageVector = Icons.Default.KeyboardArrowDown,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.size(16.dp),
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Media playback card (if active)
+                                    state.media?.let { media ->
+                                        MediaCard(
+                                            media = media,
+                                            onPlayPause = { viewModel.mediaPlayPause() },
+                                            onSkipNext = { viewModel.mediaSkipNext() },
+                                            onSkipPrevious = { viewModel.mediaSkipPrevious() },
+                                            onSeek = { viewModel.mediaSeek(it) },
+                                        )
+                                    }
+
+                                    // Notification category bar
+                                    if (state.allNotifications.isNotEmpty()) {
+                                        CategoryBar(
+                                            categories = ShadeCategory.entries,
+                                            selected = state.selectedCategory,
+                                            onSelect = { viewModel.selectCategory(it) },
+                                            counts = categoryCounts,
+                                        )
+                                    }
+
+                                    // Notification feed with full remaining space and responsive nested-scroll coordination
+                                    NotificationFeed(
+                                        notifications = state.visibleNotifications,
+                                        onDismiss = { viewModel.dismissNotification(it) },
+                                        onClearAll = { viewModel.clearAllNotifications() },
+                                        onNotificationClick = { notification ->
+                                            viewModel.launchNotification(notification)
+                                            onDismiss()
+                                        },
+                                        onSnooze = { key, delayMs -> viewModel.snoozeNotification(key, delayMs) },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .nestedScroll(nestedScrollConnection),
+                                    )
+                                }
+                            } else {
+                                // QUICK SETTINGS PANEL (Full Control Center)
                                 Column(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .draggable(
-                                            orientation = Orientation.Vertical,
-                                            state = rememberDraggableState { delta ->
-                                                if (delta < -8f) {
-                                                    haptics.sheetDetent()
-                                                    viewModel.setQuickControlsTucked(true)
-                                                } else if (delta > 14f && isCombined) {
-                                                    haptics.sheetDetent()
-                                                    viewModel.setActivePanel(ShadePanel.QUICK_SETTINGS)
-                                                } else if (delta < -4f) {
-                                                    coroutineScope.launch {
-                                                        dragOffset.snapTo((dragOffset.value + delta).coerceAtMost(0f))
-                                                    }
-                                                }
-                                            },
-                                            onDragStopped = { velocity ->
-                                                if (velocity < -velocityThresholdPxPerSec || dragOffset.value < -dismissThresholdPx) {
-                                                    coroutineScope.launch {
-                                                        dragOffset.animateTo(-3000f, tween(200))
-                                                        onDismiss()
-                                                    }
-                                                } else {
-                                                    coroutineScope.launch {
-                                                        dragOffset.animateTo(0f, spring(0.55f, 450f))
-                                                    }
-                                                }
-                                            },
-                                        ),
+                                        .fillMaxSize()
+                                        .verticalScroll(rememberScrollState()),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
                                 ) {
                                     QuickSettingsGrid(
                                         tiles = state.tiles,
                                         theme = state.theme,
                                         isShizukuConnected = state.isShizukuConnected,
-                                        isExpanded = false,
+                                        isExpanded = true,
                                         tileShape = state.tileShape,
                                         tileSize = state.tileSize,
                                         tileColumns = state.tileColumns,
@@ -481,21 +751,23 @@ fun ShadeRoot(
                                         onAddTile = { viewModel.addTile(it) },
                                         onResetTiles = { viewModel.resetTiles() },
                                         onTileClick = { viewModel.toggleTile(it) },
-                                         onTileLongClick = { viewModel.openTileDetail(it) },
+                                        onTileLongClick = { viewModel.openTileDetail(it) },
                                     )
 
+                                    // Full tactile sliders island (Brightness & Volume)
                                     Surface(
                                         shape = shapeScheme.container,
                                         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
                                         border = getCardBorder(),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 14.dp, vertical = 2.dp),
+                                            .padding(horizontal = 14.dp, vertical = 3.dp),
                                     ) {
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 8.dp, vertical = 5.dp),
+                                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp),
                                         ) {
                                             BrightnessSlider(
                                                 brightness = state.brightness,
@@ -503,209 +775,23 @@ fun ShadeRoot(
                                                 compact = false,
                                                 modifier = Modifier.fillMaxWidth(),
                                             )
-                                        }
-                                    }
-
-                                    // Pill handle to tuck quick controls
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 1.dp),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Surface(
-                                            shape = RoundedCornerShape(50),
-                                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.40f),
-                                            border = getCardBorder(),
-                                            modifier = Modifier.clickable {
-                                                haptics.sheetDetent()
-                                                viewModel.setQuickControlsTucked(true)
-                                            },
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .width(24.dp)
-                                                        .height(3.dp)
-                                                        .clip(RoundedCornerShape(2.dp))
-                                                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.40f)),
-                                                )
-                                                Icon(
-                                                    imageVector = Icons.Default.KeyboardArrowUp,
-                                                    contentDescription = "Tuck Quick Controls",
-                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.60f),
-                                                    modifier = Modifier.size(16.dp),
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Minimal slim bar when quick controls are tucked
-                            AnimatedVisibility(
-                                visible = state.isQuickControlsTucked,
-                                enter = expandVertically(spring(dampingRatio = 0.8f, stiffness = 400f)) + fadeIn(tween(150)),
-                                exit = shrinkVertically(tween(180)) + fadeOut(tween(150)),
-                            ) {
-                                Surface(
-                                    shape = RoundedCornerShape(50),
-                                    color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
-                                    border = getCardBorder(),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 3.dp)
-                                        .clickable {
-                                            haptics.sheetDetent()
-                                            viewModel.setQuickControlsTucked(false)
-                                        },
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Tune,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(15.dp),
-                                            )
-                                            Text(
-                                                text = "Quick Controls tucked",
-                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        ) {
-                                            Text(
-                                                text = "Swipe down to show",
-                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                            )
-                                            Icon(
-                                                imageVector = Icons.Default.KeyboardArrowDown,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.size(16.dp),
+                                            VolumeSlider(
+                                                compact = false,
+                                                modifier = Modifier.fillMaxWidth(),
                                             )
                                         }
                                     }
-                                }
-                            }
 
-                            // Media playback card (if active)
-                            state.media?.let { media ->
-                                MediaCard(
-                                    media = media,
-                                    onPlayPause = { viewModel.mediaPlayPause() },
-                                    onSkipNext = { viewModel.mediaSkipNext() },
-                                    onSkipPrevious = { viewModel.mediaSkipPrevious() },
-                                    onSeek = { viewModel.mediaSeek(it) },
-                                )
-                            }
-
-                            // Notification category bar
-                            if (state.allNotifications.isNotEmpty()) {
-                                CategoryBar(
-                                    categories = ShadeCategory.entries,
-                                    selected = state.selectedCategory,
-                                    onSelect = { viewModel.selectCategory(it) },
-                                    counts = categoryCounts,
-                                )
-                            }
-
-                            // Notification feed with full remaining space and responsive nested-scroll coordination
-                            NotificationFeed(
-                                notifications = state.visibleNotifications,
-                                onDismiss = { viewModel.dismissNotification(it) },
-                                onClearAll = { viewModel.clearAllNotifications() },
-                                onNotificationClick = { notification ->
-                                    viewModel.launchNotification(notification)
-                                    onDismiss()
-                                },
-                                onSnooze = { key, delayMs -> viewModel.snoozeNotification(key, delayMs) },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .nestedScroll(nestedScrollConnection),
-                            )
-                        } else {
-                            // QUICK SETTINGS PANEL (Full Control Center)
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .verticalScroll(rememberScrollState()),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                QuickSettingsGrid(
-                                    tiles = state.tiles,
-                                    theme = state.theme,
-                                    isShizukuConnected = state.isShizukuConnected,
-                                    isExpanded = true,
-                                    tileShape = state.tileShape,
-                                    tileSize = state.tileSize,
-                                    tileColumns = state.tileColumns,
-                                    showWideCards = state.showWideCards,
-                                    isEditing = isEditingTiles,
-                                    onToggleEdit = { isEditingTiles = !isEditingTiles },
-                                    onMoveTile = { from, to -> viewModel.moveTile(from, to) },
-                                    onRemoveTile = { viewModel.removeTile(it) },
-                                    onAddTile = { viewModel.addTile(it) },
-                                    onResetTiles = { viewModel.resetTiles() },
-                                    onTileClick = { viewModel.toggleTile(it) },
-                                    onTileLongClick = { viewModel.openTileDetail(it) },
-                                )
-
-                                // Full tactile sliders island (Brightness & Volume)
-                                Surface(
-                                    shape = shapeScheme.container,
-                                    color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
-                                    border = getCardBorder(),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 3.dp),
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                                    ) {
-                                        BrightnessSlider(
-                                            brightness = state.brightness,
-                                            onBrightnessChange = { viewModel.setBrightness(it) },
-                                            compact = false,
-                                            modifier = Modifier.fillMaxWidth(),
-                                        )
-                                        VolumeSlider(
-                                            compact = false,
-                                            modifier = Modifier.fillMaxWidth(),
+                                    // Media playback card (if active)
+                                    state.media?.let { media ->
+                                        MediaCard(
+                                            media = media,
+                                            onPlayPause = { viewModel.mediaPlayPause() },
+                                            onSkipNext = { viewModel.mediaSkipNext() },
+                                            onSkipPrevious = { viewModel.mediaSkipPrevious() },
+                                            onSeek = { viewModel.mediaSeek(it) },
                                         )
                                     }
-                                }
-
-                                // Media playback card (if active)
-                                state.media?.let { media ->
-                                    MediaCard(
-                                        media = media,
-                                        onPlayPause = { viewModel.mediaPlayPause() },
-                                        onSkipNext = { viewModel.mediaSkipNext() },
-                                        onSkipPrevious = { viewModel.mediaSkipPrevious() },
-                                        onSeek = { viewModel.mediaSeek(it) },
-                                    )
                                 }
                             }
                         }

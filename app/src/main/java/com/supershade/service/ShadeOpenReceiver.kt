@@ -57,6 +57,12 @@ class ShadeOpenReceiver : BroadcastReceiver() {
         /** Samsung Edge Panel cocktail bar route */
         private const val EDGE_PANEL_OPEN = "com.samsung.android.cocktailbar.OPEN_NOTIFICATION_PANEL"
 
+        /** Good Lock One-handed operation — quick panel shortcut */
+        private const val GOODLOCK_OHO_QUICK_PANEL = "com.samsung.android.goodlock.oho.OPEN_QUICK_PANEL"
+        private const val GOODLOCK_ACTION_QUICK_PANEL = "com.samsung.android.goodlock.action.OPEN_QUICK_PANEL"
+        private const val ONE_HAND_QUICK_PANEL = "com.samsung.android.onehandedmode.OPEN_QUICK_PANEL"
+        private const val EDGE_PANEL_QUICK_PANEL = "com.samsung.android.cocktailbar.OPEN_QUICK_PANEL"
+
         /** CLOSE_SYSTEM_DIALOGS reason that some Samsung paths use to signal panel open failure */
         private const val CLOSE_DIALOGS = "android.intent.action.CLOSE_SYSTEM_DIALOGS"
         private const val REASON_NOTIF_BAR = "notificationbar"
@@ -68,14 +74,23 @@ class ShadeOpenReceiver : BroadcastReceiver() {
         val action = intent.action ?: return
         Log.d(TAG, "onReceive: action=$action")
 
-        val shouldOpen = when (action) {
-            ACTION_OPEN_SHADE,
-            GOODLOCK_OHO_OPEN,
-            GOODLOCK_ACTION_OPEN,
-            ONE_HAND_OPEN,
-            EDGE_PANEL_OPEN -> true
+        val isQuickPanelAction = when (action) {
+            GOODLOCK_OHO_QUICK_PANEL,
+            GOODLOCK_ACTION_QUICK_PANEL,
+            ONE_HAND_QUICK_PANEL,
+            EDGE_PANEL_QUICK_PANEL -> true
+            else -> false
+        }
 
-            CLOSE_DIALOGS -> {
+        val shouldOpen = when {
+            isQuickPanelAction -> true
+            action == ACTION_OPEN_SHADE ||
+            action == GOODLOCK_OHO_OPEN ||
+            action == GOODLOCK_ACTION_OPEN ||
+            action == ONE_HAND_OPEN ||
+            action == EDGE_PANEL_OPEN -> true
+
+            action == CLOSE_DIALOGS -> {
                 // Only trigger on the specific reason that indicates a panel-open attempt
                 val reason = intent.getStringExtra("reason") ?: ""
                 reason.equals(REASON_NOTIF_BAR, ignoreCase = true)
@@ -86,7 +101,11 @@ class ShadeOpenReceiver : BroadcastReceiver() {
 
         if (!shouldOpen) return
 
-        val expandQs = intent.getBooleanExtra(ShadeService.EXTRA_EXPAND_QS, false)
+        val expandQs = if (isQuickPanelAction) {
+            true
+        } else {
+            intent.getBooleanExtra(ShadeService.EXTRA_EXPAND_QS, false)
+        }
 
         // If the accessibility service is running, delegate to it (it handles shade interception)
         val a11yService = SuperShadeAccessibilityService.instance

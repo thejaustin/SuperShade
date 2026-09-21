@@ -112,10 +112,15 @@
                 <!-- Good Lock One-handed operation: notification panel gesture -->
                 <action android:name="com.samsung.android.goodlock.oho.OPEN_NOTIFICATION_PANEL" />
                 <action android:name="com.samsung.android.goodlock.action.OPEN_NOTIFICATION_PANEL" />
+                <!-- Good Lock One-handed operation: quick panel (QS) gesture -->
+                <action android:name="com.samsung.android.goodlock.oho.OPEN_QUICK_PANEL" />
+                <action android:name="com.samsung.android.goodlock.action.OPEN_QUICK_PANEL" />
                 <!-- Samsung One-handed mode panel shortcut -->
                 <action android:name="com.samsung.android.onehandedmode.OPEN_PANEL" />
+                <action android:name="com.samsung.android.onehandedmode.OPEN_QUICK_PANEL" />
                 <!-- Samsung Edge Panel / cocktail bar route -->
                 <action android:name="com.samsung.android.cocktailbar.OPEN_NOTIFICATION_PANEL" />
+                <action android:name="com.samsung.android.cocktailbar.OPEN_QUICK_PANEL" />
                 <!-- Catch panel-open failures signaled via CLOSE_SYSTEM_DIALOGS -->
                 <action android:name="android.intent.action.CLOSE_SYSTEM_DIALOGS" />
                 <category android:name="android.intent.category.DEFAULT" />

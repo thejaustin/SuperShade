@@ -96,6 +96,32 @@
             </intent-filter>
         </receiver>
 
+        <!--
+            ShadeOpenReceiver — opens SuperShade from:
+              • SuperShade public API  (com.supershade.action.OPEN_SHADE)
+              • Samsung Good Lock One-handed operation "Notification Panel" gesture
+              • Samsung Edge Panel / cocktail bar notification shortcut
+              • ADB, Tasker, Bixby Routines, or any broadcaster
+        -->
+        <receiver
+            android:name=".service.ShadeOpenReceiver"
+            android:exported="true">
+            <intent-filter>
+                <!-- SuperShade public API -->
+                <action android:name="com.supershade.action.OPEN_SHADE" />
+                <!-- Good Lock One-handed operation: notification panel gesture -->
+                <action android:name="com.samsung.android.goodlock.oho.OPEN_NOTIFICATION_PANEL" />
+                <action android:name="com.samsung.android.goodlock.action.OPEN_NOTIFICATION_PANEL" />
+                <!-- Samsung One-handed mode panel shortcut -->
+                <action android:name="com.samsung.android.onehandedmode.OPEN_PANEL" />
+                <!-- Samsung Edge Panel / cocktail bar route -->
+                <action android:name="com.samsung.android.cocktailbar.OPEN_NOTIFICATION_PANEL" />
+                <!-- Catch panel-open failures signaled via CLOSE_SYSTEM_DIALOGS -->
+                <action android:name="android.intent.action.CLOSE_SYSTEM_DIALOGS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
+
         <!-- Quick Settings Tile Service -->
         <service
             android:name=".service.SuperShadeTileService"

@@ -312,6 +312,16 @@ class SuperShadeAccessibilityService : AccessibilityService() {
         return result
     }
 
+    /**
+     * Called by [ShadeOpenReceiver] when an external broadcast (Good Lock,
+     * Tasker, Bixby, ADB, etc.) requests SuperShade to open.
+     */
+    fun openSuperShadeFromReceiver(expandQs: Boolean = false) {
+        if (!isSuperShadeActive) return
+        if (shadeViewModel.state.value.isOpen) return
+        openSuperShade(expandQs)
+    }
+
     override fun onInterrupt() {}
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {

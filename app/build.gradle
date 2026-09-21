@@ -6,8 +6,8 @@ plugins {
 }
 
 // Version can be overridden by CI via: -PversionCode=123 -PversionName=1.2.3
-def appVersionCode = project.findProperty("versionCode")?.toInteger() ?: 41
-def appVersionName = project.findProperty("versionName") ?: "1.9.16"
+def appVersionCode = project.findProperty("versionCode")?.toInteger() ?: 42
+def appVersionName = project.findProperty("versionName") ?: "1.9.17"
 
 android {
     namespace 'com.supershade'

@@ -21,8 +21,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -308,7 +311,54 @@ fun ShadeRoot(
                         modifier = Modifier
                             .fillMaxSize()
                             .offset { IntOffset(0, dragOffset.value.roundToInt()) }
-                            .background(glassBackdrop),
+                            .background(glassBackdrop)
+                            .pointerInput(isQsExpanded) {
+                                // Swipe-up from anywhere: collapse QS first, then dismiss.
+                                // Side edges (≤16dp from left or right): upward swipe also dismisses.
+                                // density here is PointerInputScope.density (a Float px/dp scalar).
+                                val px        = this.density      // Float: pixels per dp
+                                val edgeZonePx = (16f * px).toInt()
+                                val minSwipeUp = (80f * px).toInt()
+                                val slopeMin   = 0.55f            // must be ≥55% vertical
+
+                                awaitEachGesture {
+                                    val down = awaitFirstDown(requireUnconsumed = false)
+                                    var consumed = false
+
+                                    while (true) {
+                                        val event = awaitPointerEvent()
+                                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+
+                                        val dx = change.position.x - down.position.x
+                                        val dy = change.position.y - down.position.y // negative = up
+
+                                        // Edge zones: left ≤16dp or right ≤16dp from screen edge
+                                        val inEdge = down.position.x < edgeZonePx ||
+                                                     down.position.x > (size.width - edgeZonePx)
+
+                                        if (!consumed && !change.pressed) {
+                                            val isUpSwipe = -dy >= minSwipeUp &&
+                                                kotlin.math.abs(dy) > kotlin.math.abs(dx) * slopeMin
+
+                                            if (isUpSwipe || (inEdge && -dy > (24f * px))) {
+                                                change.consume()
+                                                consumed = true
+                                                if (isQsExpanded) {
+                                                    haptics.sheetDetent()
+                                                    coroutineScope.launch { viewModel.setQsExpanded(false) }
+                                                } else {
+                                                    haptics.sheetDetent()
+                                                    coroutineScope.launch {
+                                                        dragOffset.animateTo(-3000f, tween(200))
+                                                        onDismiss()
+                                                    }
+                                                }
+                                            }
+                                            break
+                                        }
+                                    }
+                                }
+                            },
                     ) {
                         if (backdropTheme == BackdropTheme.LIQUID_GLASS) {
                             Box(

@@ -45,6 +45,14 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.17" -> """
+        ✨ Smarter Dismiss Gestures & Good Lock One-Handed Integration
+        • Swipe Up Anywhere to Close: Swipe up from anywhere on the shade to dismiss — if Quick Settings is expanded it collapses first, then a second swipe closes the shade entirely
+        • Edge-Swipe to Dismiss: Short upward swipe along either the left or right screen edge instantly closes the shade, just like AOSP
+        • Good Lock One-Handed Operation: SuperShade now automatically opens when your Good Lock "Notification Panel" side gesture fires — no settings changes needed on your end, even with the system shade blocked
+        • Samsung Broadcasts Intercepted: All known Good Lock, One-handed mode, and Edge Panel broadcast paths are caught and redirected to SuperShade
+        • Public Open API: Any app (Tasker, Bixby Routines, ADB) can open SuperShade via broadcast: com.supershade.action.OPEN_SHADE
+        """.trimIndent()
         "1.9.16" -> """
         ✨ Freehand Tile Drag & Drop (AOSP / One UI Style)
         • Home Screen–Style Tile Reorder: Drag tiles freely anywhere in the Quick Settings grid, just like rearranging apps on a launcher home screen — no arrows, no sliders

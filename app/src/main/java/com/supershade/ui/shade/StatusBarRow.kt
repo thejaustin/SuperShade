@@ -158,21 +158,16 @@ fun StatusBarRow(
     var ampm by remember { mutableStateOf(SimpleDateFormat("a", Locale.getDefault()).format(Date())) }
     var date by remember { mutableStateOf(formatDate()) }
 
-    // Resolve initial battery state from sticky broadcast
-    val batteryIntent = remember(context) {
-        context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-    }
-    val initLevel = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-    val initScale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-    val initPct = if (initLevel >= 0 && initScale > 0) (initLevel * 100 / initScale) else statusBar.batteryPct
-    val initStatus = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+    // Reactive battery state from SystemStatusRepository
+    val systemStatusRepo = remember(context) { com.supershade.domain.system.SystemStatusRepository(context) }
+    var batteryPct by remember { mutableIntStateOf(statusBar.batteryPct) }
+    var isCharging by remember { mutableStateOf(false) }
 
-    var batteryPct by remember { mutableIntStateOf(initPct) }
-    var isCharging by remember {
-        mutableStateOf(
-            initStatus == BatteryManager.BATTERY_STATUS_CHARGING ||
-            initStatus == BatteryManager.BATTERY_STATUS_FULL
-        )
+    LaunchedEffect(systemStatusRepo) {
+        systemStatusRepo.batteryState.collect { bs ->
+            batteryPct = bs.levelPct
+            isCharging = bs.isCharging
+        }
     }
 
     // Network speed: computed from TrafficStats delta every second.
@@ -200,13 +195,6 @@ fun StatusBarRow(
             time = SimpleDateFormat("h:mm", Locale.getDefault()).format(Date())
             ampm = SimpleDateFormat("a", Locale.getDefault()).format(Date())
             date = formatDate()
-            val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-            val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-            val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-            if (level >= 0 && scale > 0) batteryPct = level * 100 / scale
-            val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-            isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                         status == BatteryManager.BATTERY_STATUS_FULL
         }
     }
 

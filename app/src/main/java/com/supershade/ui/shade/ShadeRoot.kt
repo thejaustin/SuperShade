@@ -6,6 +6,8 @@ import androidx.compose.ui.platform.LocalContext
 import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.haptics.SuperHaptics
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.togetherWith
@@ -169,6 +171,34 @@ fun ShadeRoot(
     val velocityThresholdPxPerSec = with(density) { 400.dp.toPx() }
     val maxHorizontalPanPx = with(density) { 60.dp.toPx() }
 
+    val pagerState = rememberPagerState(
+        initialPage = if (state.activePanel == ShadePanel.QUICK_SETTINGS) 1 else 0,
+        pageCount = { 2 }
+    )
+
+    val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
+
+    LaunchedEffect(state.activePanel) {
+        val targetPage = if (state.activePanel == ShadePanel.QUICK_SETTINGS) 1 else 0
+        if (pagerState.currentPage != targetPage) {
+            pagerState.animateScrollToPage(
+                targetPage,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioLowBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                )
+            )
+        }
+    }
+
+    LaunchedEffect(pagerState.currentPage) {
+        val targetPanel = if (pagerState.currentPage == 1) ShadePanel.QUICK_SETTINGS else ShadePanel.NOTIFICATIONS
+        if (state.activePanel != targetPanel) {
+            haptics.sheetDetent()
+            viewModel.setActivePanel(targetPanel)
+        }
+    }
+
     // Reset drag position and editing state whenever the shade re-opens or closes.
     LaunchedEffect(state.isOpen) {
         if (state.isOpen) {
@@ -178,8 +208,6 @@ fun ShadeRoot(
             isEditingTiles = false
         }
     }
-
-    val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
 
     val isTucked = state.isQuickControlsTucked
     val activePanel = state.activePanel
@@ -292,8 +320,10 @@ fun ShadeRoot(
                 val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
                 val screenHeightPx = with(density) { screenHeightDp.toPx() }.coerceAtLeast(1f)
                 val dragFraction = (kotlin.math.abs(dragOffset.value) / screenHeightPx).coerceIn(0f, 1f)
-                val liveScrimAlpha = (baseScrimAlpha * (1f - dragFraction * 0.88f)).coerceAtLeast(0f)
-                val panelScale = (1f - dragFraction * 0.055f).coerceIn(0.92f, 1f)
+                // One UI 9 cosine scrim attenuation curve: preserves visual focus before wallpaper reveal
+                val cosineFactor = kotlin.math.cos((Math.PI / 2.0) * Math.pow(dragFraction.toDouble(), 1.35)).toFloat()
+                val liveScrimAlpha = (baseScrimAlpha * cosineFactor * cosineFactor).coerceIn(0f, 1f)
+                val panelScale = (1f - 0.075f * Math.pow(dragFraction.toDouble(), 1.25).toFloat()).coerceIn(0.92f, 1f)
 
                 Box(
                     modifier = Modifier
@@ -382,6 +412,13 @@ fun ShadeRoot(
                                             coroutineScope.launch {
                                                 dragOffset.snapTo((dragOffset.value + deltaY * 0.92f).coerceAtMost(0f))
                                             }
+                                        } else if (dy > 8f && dragOffset.value >= 0f && kotlin.math.abs(dy) > kotlin.math.abs(dx) * slopeMin) {
+                                            // Downward rubber-band drag when pulling past resting position
+                                            val rubberDelta = deltaY * 0.28f
+                                            val rubberMax = 64f * px
+                                            coroutineScope.launch {
+                                                dragOffset.snapTo((dragOffset.value + rubberDelta).coerceIn(0f, rubberMax))
+                                            }
                                         }
 
                                         if (!change.pressed) {
@@ -402,9 +439,13 @@ fun ShadeRoot(
                                                 } else {
                                                     haptics.sheetDetent()
                                                     coroutineScope.launch {
-                                                        dragOffset.animateTo(-screenHeightPx, tween(180))
+                                                        dragOffset.animateTo(-screenHeightPx, spring(0.90f, 420f))
                                                         onDismiss()
                                                     }
+                                                }
+                                            } else if (dragOffset.value > 0f) {
+                                                coroutineScope.launch {
+                                                    dragOffset.animateTo(0f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow))
                                                 }
                                             } else if (dragOffset.value < 0f) {
                                                 coroutineScope.launch {
@@ -442,32 +483,7 @@ fun ShadeRoot(
                                 .fillMaxSize()
                                 .displayCutoutPadding()
                                 .statusBarsPadding()
-                                .navigationBarsPadding()
-                                .draggable(
-                                    orientation = Orientation.Horizontal,
-                                    enabled = !isCombined && !isEditingTiles,
-                                    state = rememberDraggableState { delta ->
-                                        coroutineScope.launch {
-                                            val current = horizontalPanOffset.value
-                                            val newOffset = (current + delta * 0.70f).coerceIn(-maxHorizontalPanPx, maxHorizontalPanPx)
-                                            horizontalPanOffset.snapTo(newOffset)
-                                        }
-                                    },
-                                    onDragStopped = { velocity ->
-                                        coroutineScope.launch {
-                                            val offset = horizontalPanOffset.value
-                                            val threshold = maxHorizontalPanPx * 0.40f
-                                            if ((offset < -threshold || velocity < -500f) && state.activePanel == ShadePanel.NOTIFICATIONS) {
-                                                haptics.sheetDetent()
-                                                viewModel.setActivePanel(ShadePanel.QUICK_SETTINGS)
-                                            } else if ((offset > threshold || velocity > 500f) && state.activePanel == ShadePanel.QUICK_SETTINGS) {
-                                                haptics.sheetDetent()
-                                                viewModel.setActivePanel(ShadePanel.NOTIFICATIONS)
-                                            }
-                                            horizontalPanOffset.animateTo(0f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow))
-                                        }
-                                    },
-                                ),
+                                .navigationBarsPadding(),
                         ) {
                         // Top Status Bar (Clock, Battery, Lock, Settings, Power, Edit)
                         StatusBarRow(
@@ -508,25 +524,43 @@ fun ShadeRoot(
                                     .verticalScroll(rememberScrollState()),
                                 verticalArrangement = Arrangement.spacedBy(2.dp),
                             ) {
-                                // Compact QS row (always visible at top, no wide cards)
-                                QuickSettingsGrid(
-                                    tiles = state.tiles,
-                                    theme = state.theme,
-                                    isShizukuConnected = state.isShizukuConnected,
-                                    isExpanded = isQsExpanded,
-                                    tileShape = state.tileShape,
-                                    tileSize = state.tileSize,
-                                    tileColumns = state.tileColumns,
-                                    showWideCards = isQsExpanded && state.showWideCards,
-                                    isEditing = isEditingTiles,
-                                    onToggleEdit = { isEditingTiles = !isEditingTiles },
-                                    onMoveTile = { from, to -> viewModel.moveTile(from, to) },
-                                    onRemoveTile = { viewModel.removeTile(it) },
-                                    onAddTile = { viewModel.addTile(it) },
-                                    onResetTiles = { viewModel.resetTiles() },
-                                    onTileClick = { viewModel.toggleTile(it) },
-                                    onTileLongClick = { viewModel.openTileDetail(it) },
-                                )
+                                // Compact QS row (always visible at top, draggable to expand/collapse with spring physics)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .draggable(
+                                            orientation = Orientation.Vertical,
+                                            enabled = !isEditingTiles,
+                                            state = rememberDraggableState { delta ->
+                                                if (delta > 10f && !isQsExpanded) {
+                                                    haptics.sheetDetent()
+                                                    viewModel.setQsExpanded(true)
+                                                } else if (delta < -10f && isQsExpanded) {
+                                                    haptics.sheetDetent()
+                                                    viewModel.setQsExpanded(false)
+                                                }
+                                            }
+                                        )
+                                ) {
+                                    QuickSettingsGrid(
+                                        tiles = state.tiles,
+                                        theme = state.theme,
+                                        isShizukuConnected = state.isShizukuConnected,
+                                        isExpanded = isQsExpanded,
+                                        tileShape = state.tileShape,
+                                        tileSize = state.tileSize,
+                                        tileColumns = state.tileColumns,
+                                        showWideCards = isQsExpanded && state.showWideCards,
+                                        isEditing = isEditingTiles,
+                                        onToggleEdit = { isEditingTiles = !isEditingTiles },
+                                        onMoveTile = { from, to -> viewModel.moveTile(from, to) },
+                                        onRemoveTile = { viewModel.removeTile(it) },
+                                        onAddTile = { viewModel.addTile(it) },
+                                        onResetTiles = { viewModel.resetTiles() },
+                                        onTileClick = { viewModel.toggleTile(it) },
+                                        onTileLongClick = { viewModel.openTileDetail(it) },
+                                    )
+                                }
 
                                 // Sliders (visible when QS is expanded, collapsed otherwise)
                                 AnimatedVisibility(
@@ -598,26 +632,28 @@ fun ShadeRoot(
                             }
                         } else {
 
-                        // Separate/Combined panels: fluid horizontal slide like One UI 8 & Pixel
-                        AnimatedContent(
-                            targetState = state.activePanel,
-                            transitionSpec = {
-                                if (targetState == ShadePanel.QUICK_SETTINGS) {
-                                    (slideInHorizontally(spring(dampingRatio = 0.82f, stiffness = 420f)) { it } + fadeIn(tween(160)))
-                                        .togetherWith(slideOutHorizontally(tween(160)) { -it / 2 } + fadeOut(tween(120)))
-                                } else {
-                                    (slideInHorizontally(spring(dampingRatio = 0.82f, stiffness = 420f)) { -it } + fadeIn(tween(160)))
-                                        .togetherWith(slideOutHorizontally(tween(160)) { it / 2 } + fadeOut(tween(120)))
-                                }
-                            },
-                            label = "panelTransition",
+                        // Separate/Combined panels: fluid continuous horizontal page tracking (One UI 9 style)
+                        HorizontalPager(
+                            state = pagerState,
                             modifier = Modifier
                                 .weight(1f)
-                                .fillMaxWidth()
-                                .offset { IntOffset(horizontalPanOffset.value.roundToInt(), 0) },
-                        ) { currentPanel ->
-                            if (currentPanel == ShadePanel.NOTIFICATIONS) {
-                                Column(modifier = Modifier.fillMaxSize()) {
+                                .fillMaxWidth(),
+                            userScrollEnabled = !isEditingTiles,
+                            beyondViewportPageCount = 1,
+                        ) { page ->
+                            val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                            val clampedOffset = pageOffset.coerceIn(-1f, 1f)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        alpha = 1f - kotlin.math.abs(clampedOffset) * 0.20f
+                                        scaleX = 1f - kotlin.math.abs(clampedOffset) * 0.025f
+                                        scaleY = 1f - kotlin.math.abs(clampedOffset) * 0.025f
+                                    }
+                            ) {
+                                if (page == 0) {
+                                    Column(modifier = Modifier.fillMaxSize()) {
                                     // Quick Controls section on Notifications panel
                                     AnimatedVisibility(
                                         visible = !state.isQuickControlsTucked,
@@ -902,7 +938,8 @@ fun ShadeRoot(
                                 }
                             }
                         }
-                        } // end else isTogether
+                    }
+                } // end else isTogether
 
                         // Bottom Panel Switcher Pill (accessibility and quick-switching dock)
                         if (state.showPanelSwitcherPill) {

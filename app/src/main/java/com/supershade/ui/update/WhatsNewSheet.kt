@@ -45,6 +45,16 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.23" -> """
+        ✨ One UI 9 Continuous Pager, Reactive System Services & Gesture Polish
+        • One UI 9 Continuous Horizontal Pager: Notifications and Quick Settings now transition with fluid 1:1 finger-following horizontal page tracking, edge parallax, and spring snapping
+        • One UI 9 Optical Scrim Dynamics: Smooth cosine scrim attenuation curve and scale decay anchored at top origin for authentic One UI 9 pull-to-dismiss feel
+        • Zero-Polling Reactive Architecture: Replaced polling loops with event-driven BroadcastReceivers and ContentObservers for Battery/Power, Audio Streams, and Screen Brightness
+        • Slider Shizuku IPC Throttling: Debounced brightness adjustments during slider dragging to eliminate IPC queue congestion
+        • Direct Top-Right QS Pull Fix: Resolved gesture race condition where pulling down the top-right Quick Settings region would occasionally reset to Notifications
+        • Edge Exclusion & Cutout Routing: Added 18dp edge safety margins to prevent conflicts with Samsung Edge panels / system back gestures, plus camera cutout touch handling
+        • Power Saving Mode & Sound Mode Cycling: Integrated battery saver toggle and 3-mode ringer cycling (Normal -> Vibrate -> Silent) with DND policy safety
+        """.trimIndent()
         "1.9.22" -> """
         ✨ Good Lock One Hand Operation+ Direct Interception & Enhanced Exit Gestures
         • Samsung Good Lock Hardware Key Interception: Automatically intercepts One Hand Operation+ diagonal swipe gestures at the accessibility framework level (Samsung keycodes 1003 & 1004) even when the native system shade is disabled via Shizuku

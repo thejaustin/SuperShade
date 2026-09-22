@@ -18,6 +18,7 @@ class TileToggler(
     private val governor: StatusBarGovernor,
     private val tileRepo: TileRepository? = null,
     private val settings: ShadeSettings? = null,
+    private val audioRepo: com.supershade.domain.audio.AudioRepository? = null,
 ) {
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
     @Volatile private var preferredTorchLevel: Int = 3
@@ -79,26 +80,43 @@ class TileToggler(
                     }
                 }
 
-                // Sound Mode / Mute: direct AudioManager
+                // Sound Mode / Mute: direct AudioRepository ringer cycling (Normal -> Vibrate -> Silent)
                 id.contains("mute") || id.contains("sound") -> {
-                    val am = context.getSystemService(android.media.AudioManager::class.java)
-                    try {
-                        when (am.ringerMode) {
-                            android.media.AudioManager.RINGER_MODE_NORMAL -> am.ringerMode = android.media.AudioManager.RINGER_MODE_VIBRATE
-                            android.media.AudioManager.RINGER_MODE_VIBRATE -> {
-                                val nm = context.getSystemService(android.app.NotificationManager::class.java)
-                                if (nm.isNotificationPolicyAccessGranted) {
-                                    am.ringerMode = android.media.AudioManager.RINGER_MODE_SILENT
-                                } else {
-                                    am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL
+                    if (audioRepo != null) {
+                        audioRepo.cycleRingerMode()
+                    } else {
+                        val am = context.getSystemService(android.media.AudioManager::class.java)
+                        val nm = context.getSystemService(android.app.NotificationManager::class.java)
+                        val hasDnd = nm?.isNotificationPolicyAccessGranted == true
+                        try {
+                            when (am.ringerMode) {
+                                android.media.AudioManager.RINGER_MODE_NORMAL -> am.ringerMode = android.media.AudioManager.RINGER_MODE_VIBRATE
+                                android.media.AudioManager.RINGER_MODE_VIBRATE -> {
+                                    if (hasDnd) {
+                                        am.ringerMode = android.media.AudioManager.RINGER_MODE_SILENT
+                                    } else {
+                                        am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL
+                                    }
                                 }
+                                else -> am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL
                             }
-                            else -> am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL
+                        } catch (_: Exception) {
+                            openSettings(tile)
                         }
-                        tileRepo?.reload()
-                    } catch (_: Exception) {
-                        openSettings(tile)
                     }
+                    tileRepo?.reload()
+                }
+
+                // Battery / Power Saver mode
+                id.contains("battery") || id.contains("batterymode") -> {
+                    if (governor.canRunPrivileged) {
+                        governor.runShell("cmd", "power", "set-mode", if (newState) "1" else "0")
+                    } else {
+                        val intent = Intent(Intent.ACTION_POWER_USAGE_SUMMARY)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        try { context.startActivity(intent) } catch (_: Exception) { openSettings(tile) }
+                    }
+                    tileRepo?.reload()
                 }
 
                 // Master Sync: direct ContentResolver

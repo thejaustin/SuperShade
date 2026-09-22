@@ -1,13 +1,47 @@
 package com.supershade.domain.brightness
 
 import android.content.Context
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import com.supershade.shizuku.StatusBarGovernor
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.conflate
 
 class BrightnessRepository(
     private val context: Context,
     private val governor: StatusBarGovernor,
 ) {
+
+    val brightness: Flow<Int> = callbackFlow {
+        fun emitCurrent() {
+            trySend(getCurrent())
+        }
+        emitCurrent()
+
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                emitCurrent()
+            }
+        }
+
+        try {
+            context.contentResolver.registerContentObserver(
+                Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS),
+                false,
+                observer
+            )
+        } catch (_: Exception) {}
+
+        awaitClose {
+            try {
+                context.contentResolver.unregisterContentObserver(observer)
+            } catch (_: Exception) {}
+        }
+    }.conflate()
 
     fun getCurrent(): Int = try {
         Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)

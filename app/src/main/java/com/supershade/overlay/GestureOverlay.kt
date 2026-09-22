@@ -72,10 +72,19 @@ class GestureOverlay(
                 if (isShadeOpen()) return@setOnTouchListener false
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
+                        if (com.supershade.service.SuperShadeAccessibilityService.isRunning()) {
+                            return@setOnTouchListener false
+                        }
                         startX = event.rawX
                         startY = event.rawY
                         startTime = System.currentTimeMillis()
                         triggered = false
+                        val density = context.resources.displayMetrics.density
+                        val edgeExclusionPx = 18f * density
+                        val screenWidth = context.resources.displayMetrics.widthPixels
+                        if (startX < edgeExclusionPx || startX > (screenWidth - edgeExclusionPx)) {
+                            return@setOnTouchListener false
+                        }
                         true
                     }
                     MotionEvent.ACTION_MOVE -> {
@@ -87,13 +96,26 @@ class GestureOverlay(
                             val screenWidth = context.resources.displayMetrics.widthPixels.coerceAtLeast(1)
                             val ratio = startX / screenWidth.toFloat()
                             val mode = splitGestureMode()
-                            val expandQs = when (mode) {
-                                SplitGestureMode.ALWAYS_NOTIFICATIONS -> false
-                                SplitGestureMode.ALWAYS_QUICK_SETTINGS -> true
-                                SplitGestureMode.SEPARATE_30_70 -> ratio < 0.30f
-                                SplitGestureMode.SEPARATE_50_50 -> ratio > 0.50f
-                                SplitGestureMode.SEPARATE_70_30 -> ratio > 0.70f
-                                SplitGestureMode.TOGETHER -> false
+
+                            val isCutoutDeadband = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                                val insets = windowManager?.currentWindowMetrics?.windowInsets
+                                val cutout = insets?.displayCutout
+                                val topRect = cutout?.boundingRectTop
+                                if (topRect != null && !topRect.isEmpty) {
+                                    val density = context.resources.displayMetrics.density
+                                    startX >= (topRect.left - 12 * density) && startX <= (topRect.right + 12 * density)
+                                } else false
+                            } else false
+
+                            val expandQs = when {
+                                mode == SplitGestureMode.ALWAYS_NOTIFICATIONS -> false
+                                mode == SplitGestureMode.ALWAYS_QUICK_SETTINGS -> true
+                                mode.isTogether -> false
+                                isCutoutDeadband -> false
+                                mode == SplitGestureMode.SEPARATE_30_70 -> ratio < 0.30f
+                                mode == SplitGestureMode.SEPARATE_50_50 -> ratio > 0.50f
+                                mode == SplitGestureMode.SEPARATE_70_30 -> ratio > 0.70f
+                                else -> false
                             }
                             onSwipeDown(expandQs)
                         }
@@ -109,13 +131,26 @@ class GestureOverlay(
                             val screenWidth = context.resources.displayMetrics.widthPixels.coerceAtLeast(1)
                             val ratio = startX / screenWidth.toFloat()
                             val mode = splitGestureMode()
-                            val expandQs = when (mode) {
-                                SplitGestureMode.ALWAYS_NOTIFICATIONS -> false
-                                SplitGestureMode.ALWAYS_QUICK_SETTINGS -> true
-                                SplitGestureMode.SEPARATE_30_70 -> ratio < 0.30f
-                                SplitGestureMode.SEPARATE_50_50 -> ratio > 0.50f
-                                SplitGestureMode.SEPARATE_70_30 -> ratio > 0.70f
-                                SplitGestureMode.TOGETHER -> false
+
+                            val isCutoutDeadband = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                                val insets = windowManager?.currentWindowMetrics?.windowInsets
+                                val cutout = insets?.displayCutout
+                                val topRect = cutout?.boundingRectTop
+                                if (topRect != null && !topRect.isEmpty) {
+                                    val density = context.resources.displayMetrics.density
+                                    startX >= (topRect.left - 12 * density) && startX <= (topRect.right + 12 * density)
+                                } else false
+                            } else false
+
+                            val expandQs = when {
+                                mode == SplitGestureMode.ALWAYS_NOTIFICATIONS -> false
+                                mode == SplitGestureMode.ALWAYS_QUICK_SETTINGS -> true
+                                mode.isTogether -> false
+                                isCutoutDeadband -> false
+                                mode == SplitGestureMode.SEPARATE_30_70 -> ratio < 0.30f
+                                mode == SplitGestureMode.SEPARATE_50_50 -> ratio > 0.50f
+                                mode == SplitGestureMode.SEPARATE_70_30 -> ratio > 0.70f
+                                else -> false
                             }
                             onSwipeDown(expandQs)
                         }

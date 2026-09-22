@@ -23,8 +23,10 @@ val appModule = module {
     single { ShizukuPlusConnector(androidContext()) }
     single { StatusBarGovernor(androidContext(), get()) }
     single { NotificationRepository() }
+    single { com.supershade.domain.system.SystemStatusRepository(androidContext()) }
+    single { com.supershade.domain.audio.AudioRepository(androidContext()) }
     single { TileRepository(androidContext(), get(), get()) }
-    single { TileToggler(androidContext(), get(), get(), get()) }
+    single { TileToggler(androidContext(), get(), get(), get(), get()) }
     single { MediaRepository(androidContext()) }
     single { BrightnessRepository(androidContext(), get()) }
     single { UpdateChecker() }
@@ -41,6 +43,8 @@ val appModule = module {
             brightnessRepo = get(),
             settings = get(),
             governor = get(),
+            audioRepo = get(),
+            systemStatusRepo = get(),
         )
     }
     single { ShadeWindowManager(androidContext(), get(), get(), get()) }

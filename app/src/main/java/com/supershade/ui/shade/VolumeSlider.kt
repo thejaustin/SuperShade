@@ -81,16 +81,14 @@ fun VolumeSlider(
     }
     var lastNonZeroVolume by remember { mutableFloatStateOf((maxVol / 2f).coerceAtLeast(1f)) }
 
-    // Poll for hardware-key volume changes (e.g. user adjusts while shade is open).
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(400L)
+    val audioRepo = remember(context) { com.supershade.domain.audio.AudioRepository(context) }
+
+    // Reactively receive hardware-key volume events without polling.
+    LaunchedEffect(audioRepo) {
+        audioRepo.musicVolume.collect { vs ->
             if (!isDragging) {
-                val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
-                if (kotlin.math.abs(current - localValue) >= 1f) {
-                    localValue = current
-                    if (current > 0f) lastNonZeroVolume = current
-                }
+                localValue = vs.current.toFloat()
+                if (vs.current > 0) lastNonZeroVolume = vs.current.toFloat()
             }
         }
     }

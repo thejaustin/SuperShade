@@ -131,7 +131,7 @@ class ShadeWindowManager(
     // ---------------------------------------------------------------------------
 
     /** Adds the shade overlay to the window stack and notifies the ViewModel. */
-    fun show() {
+    fun show(expandQs: Boolean = false) {
         hideJob?.cancel()
         hideJob = null
         if (overlayView != null) return
@@ -139,6 +139,7 @@ class ShadeWindowManager(
         owner.start()
         val s = viewModel.state.value
         applyBackdropTheme(s.backdropTheme, s.backdropOpacity)
+
         val view = ComposeView(context).apply {
             setViewTreeLifecycleOwner(owner)
             setViewTreeViewModelStoreOwner(owner)
@@ -175,7 +176,9 @@ class ShadeWindowManager(
         // Dispatch window insets to the ComposeView so statusBarsPadding() and
         // similar modifiers resolve to the correct values in an overlay window.
         view.requestApplyInsets()
-        viewModel.open()
+        if (!viewModel.state.value.isOpen) {
+            viewModel.open(expandQs = expandQs)
+        }
         scope.launch { governor?.collapse() }
     }
 

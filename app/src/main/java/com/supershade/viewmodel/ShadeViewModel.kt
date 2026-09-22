@@ -45,15 +45,31 @@ class ShadeViewModel(
     private val brightnessRepo: BrightnessRepository,
     private val settings: ShadeSettings,
     private val governor: StatusBarGovernor,
+    private val audioRepo: com.supershade.domain.audio.AudioRepository? = null,
+    private val systemStatusRepo: com.supershade.domain.system.SystemStatusRepository? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ShadeState())
     val state: StateFlow<ShadeState> = _state.asStateFlow()
 
     private var positionTickerJob: Job? = null
-    private var tileRefreshJob: Job? = null
+    private var brightnessJob: Job? = null
 
     init {
+        brightnessRepo.brightness
+            .onEach { b -> _state.update { it.copy(brightness = b) } }
+            .launchIn(viewModelScope)
+
+        systemStatusRepo?.batteryState
+            ?.onEach { bs ->
+                _state.update { current ->
+                    current.copy(
+                        statusBar = current.statusBar.copy(batteryPct = bs.levelPct)
+                    )
+                }
+            }
+            ?.launchIn(viewModelScope)
+
         notificationRepo.notifications
             .onEach { notifications ->
                 _state.update { current ->
@@ -130,7 +146,7 @@ class ShadeViewModel(
     }
 
     private fun updatePositionTicker(media: MediaState?) {
-        if (media == null || !media.isPlaying || media.duration <= 0) {
+        if (media == null || !media.isPlaying || media.duration <= 0 || !_state.value.isOpen) {
             positionTickerJob?.cancel()
             positionTickerJob = null
             return
@@ -140,6 +156,7 @@ class ShadeViewModel(
         positionTickerJob = viewModelScope.launch {
             while (isActive) {
                 delay(1000L)
+                if (!_state.value.isOpen) break
                 _state.update { s ->
                     val current = s.media ?: return@update s
                     if (!current.isPlaying) return@update s
@@ -163,13 +180,7 @@ class ShadeViewModel(
         mediaRepo.refresh()
         tileRepo.reload()
         notificationRepo.refresh()
-        tileRefreshJob?.cancel()
-        tileRefreshJob = viewModelScope.launch {
-            while (isActive) {
-                delay(5_000L)
-                tileRepo.reload()
-            }
-        }
+        updatePositionTicker(_state.value.media)
     }
 
     fun setQsExpanded(expanded: Boolean) {
@@ -196,8 +207,10 @@ class ShadeViewModel(
 
     fun close() {
         _state.update { it.copy(isOpen = false, isQsExpanded = false, isQuickControlsTucked = false) }
-        tileRefreshJob?.cancel()
-        tileRefreshJob = null
+        positionTickerJob?.cancel()
+        positionTickerJob = null
+        brightnessJob?.cancel()
+        brightnessJob = null
     }
 
     fun selectCategory(category: ShadeCategory) {
@@ -451,11 +464,23 @@ class ShadeViewModel(
     // --- Brightness ---
 
     fun setBrightness(value: Int) {
-        viewModelScope.launch {
+        _state.update { it.copy(brightness = value) }
+        brightnessJob?.cancel()
+        brightnessJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             brightnessRepo.set(value)
-            val actual = brightnessRepo.getCurrent()
-            _state.update { it.copy(brightness = actual) }
         }
+    }
+
+    // --- Audio & Volume ---
+
+    fun setMusicVolume(value: Int) {
+        audioRepo?.setMusicVolume(value)
+    }
+
+    fun cycleRingerMode(): Int {
+        val next = audioRepo?.cycleRingerMode() ?: 0
+        tileRepo.reload()
+        return next
     }
 
     // --- Power & Security actions ---

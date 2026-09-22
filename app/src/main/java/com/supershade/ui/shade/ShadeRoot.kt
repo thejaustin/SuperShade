@@ -28,6 +28,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.Orientation
@@ -112,6 +113,7 @@ import com.supershade.ui.theme.PixelShadeTheme
 import com.supershade.ui.theme.PureMaterialShadeTheme
 import com.supershade.ui.theme.ShadeTheme
 import com.supershade.viewmodel.ShadeViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -170,9 +172,12 @@ fun ShadeRoot(
     val density = LocalDensity.current
     val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
     val screenHeightPx = with(density) { screenHeightDp.toPx() }.coerceAtLeast(1f)
-    val dismissThresholdPx = with(density) { 72.dp.toPx() }
-    val velocityThresholdPxPerSec = with(density) { 400.dp.toPx() }
+    val dismissThresholdPx = with(density) { 96.dp.toPx() }
+    val velocityThresholdPxPerSec = with(density) { 850.dp.toPx() }
     val maxHorizontalPanPx = with(density) { 60.dp.toPx() }
+
+    var openTimeMs by remember { mutableStateOf(System.currentTimeMillis()) }
+    var isSettled by remember { mutableStateOf(false) }
 
     val pagerState = rememberPagerState(
         initialPage = if (state.activePanel == ShadePanel.QUICK_SETTINGS) 1 else 0,
@@ -205,9 +210,14 @@ fun ShadeRoot(
     // Reset drag position and editing state whenever the shade re-opens or closes.
     LaunchedEffect(state.isOpen) {
         if (state.isOpen) {
+            isSettled = false
+            openTimeMs = System.currentTimeMillis()
             dragOffset.snapTo(0f)
             horizontalPanOffset.snapTo(0f)
+            delay(400L)
+            isSettled = true
         } else {
+            isSettled = false
             isEditingTiles = false
         }
     }
@@ -281,6 +291,9 @@ fun ShadeRoot(
             haptics.sheetDetent()
             viewModel.setQsExpanded(false)
         } else {
+            // Swallow back presses during the initial 350ms settle window to avoid
+            // closing when system shade dismissal injects a back event.
+            if (System.currentTimeMillis() - openTimeMs < 350L) return@BackHandler
             haptics.sheetDetent()
             coroutineScope.launch {
                 dragOffset.animateTo(-screenHeightPx, tween(180))
@@ -314,10 +327,17 @@ fun ShadeRoot(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(Color.Black.copy(alpha = liveScrimAlpha))
-                        .clickable(onClick = {
-                            haptics.lightTap()
-                            onDismiss()
-                        }),
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            enabled = isSettled,
+                            onClick = {
+                                if (isSettled && dragOffset.value == 0f) {
+                                    haptics.lightTap()
+                                    onDismiss()
+                                }
+                            }
+                        ),
                 )
 
                 // Shade panel: expands down from the top, rounded bottom corners, frosted glass backdrop
@@ -358,6 +378,10 @@ fun ShadeRoot(
 
                                 awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false)
+                                    // Ignore touches that began during the initial 400ms settle window to avoid catching the opening swipe
+                                    if (System.currentTimeMillis() - openTimeMs < 400L) {
+                                        return@awaitEachGesture
+                                    }
                                     var consumed = false
                                     var lastY = down.position.y
                                     var totalDy = 0f
@@ -422,7 +446,7 @@ fun ShadeRoot(
 
                                             if (!change.pressed) {
                                                 val velocity = tracker.calculateVelocity().y
-                                                val isFlingUp = velocity < -velocityThresholdPxPerSec
+                                                val isFlingUp = velocity < -velocityThresholdPxPerSec && totalDy < -(32f * px)
                                                 val isPulledPastThreshold = dragOffset.value < -dismissThresholdPx || -totalDy >= minSwipeUp
 
                                                 if (isFlingUp || isPulledPastThreshold) {
@@ -491,31 +515,7 @@ fun ShadeRoot(
                         ) {
                         // Top Status Bar (Clock, Battery, Lock, Settings, Power, Edit)
                         Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .draggable(
-                                    orientation = Orientation.Vertical,
-                                    enabled = !isEditingTiles,
-                                    state = rememberDraggableState { delta ->
-                                        if (delta < 0f) {
-                                            coroutineScope.launch {
-                                                dragOffset.snapTo((dragOffset.value + delta).coerceAtMost(0f))
-                                            }
-                                        }
-                                    },
-                                    onDragStopped = { velocity ->
-                                        if (velocity < -velocityThresholdPxPerSec || dragOffset.value < -dismissThresholdPx) {
-                                            coroutineScope.launch {
-                                                dragOffset.animateTo(-screenHeightPx, tween(180))
-                                                onDismiss()
-                                            }
-                                        } else {
-                                            coroutineScope.launch {
-                                                dragOffset.animateTo(0f, spring(Spring.DampingRatioLowBouncy, Spring.StiffnessMediumLow))
-                                            }
-                                        }
-                                    },
-                                )
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             StatusBarRow(
                                 statusBar = state.statusBar,
@@ -711,36 +711,7 @@ fun ShadeRoot(
                                         exit = shrinkVertically(tween(180)) + fadeOut(tween(150)),
                                     ) {
                                         Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .draggable(
-                                                    orientation = Orientation.Vertical,
-                                                    state = rememberDraggableState { delta ->
-                                                        if (delta < -8f) {
-                                                            haptics.sheetDetent()
-                                                            viewModel.setQuickControlsTucked(true)
-                                                        } else if (delta > 14f && isCombined) {
-                                                            haptics.sheetDetent()
-                                                            viewModel.setActivePanel(ShadePanel.QUICK_SETTINGS)
-                                                        } else if (delta < -4f) {
-                                                            coroutineScope.launch {
-                                                                dragOffset.snapTo((dragOffset.value + delta).coerceAtMost(0f))
-                                                            }
-                                                        }
-                                                    },
-                                                    onDragStopped = { velocity ->
-                                                        if (velocity < -velocityThresholdPxPerSec || dragOffset.value < -dismissThresholdPx) {
-                                                            coroutineScope.launch {
-                                                                dragOffset.animateTo(-3000f, tween(200))
-                                                                onDismiss()
-                                                            }
-                                                        } else {
-                                                            coroutineScope.launch {
-                                                                dragOffset.animateTo(0f, spring(0.55f, 450f))
-                                                            }
-                                                        }
-                                                    },
-                                                ),
+                                            modifier = Modifier.fillMaxWidth(),
                                         ) {
                                             QuickSettingsGrid(
                                                 tiles = state.tiles,
@@ -1151,6 +1122,7 @@ fun ShadeRoot(
                                 .padding(vertical = 10.dp)
                                 .draggable(
                                     orientation = Orientation.Vertical,
+                                    enabled = isSettled && !isEditingTiles,
                                     state = rememberDraggableState { delta ->
                                         coroutineScope.launch {
                                             dragOffset.snapTo(
@@ -1161,7 +1133,7 @@ fun ShadeRoot(
                                     onDragStopped = { velocity ->
                                         coroutineScope.launch {
                                             if (dragOffset.value < -dismissThresholdPx ||
-                                                velocity < -velocityThresholdPxPerSec
+                                                (velocity < -velocityThresholdPxPerSec && dragOffset.value < -(16f * density.density))
                                             ) {
                                                 dragOffset.animateTo(
                                                     targetValue = -screenHeightPx,

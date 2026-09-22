@@ -130,8 +130,11 @@ class ShadeWindowManager(
     // Public API
     // ---------------------------------------------------------------------------
 
+    private var showTimestampMs = 0L
+
     /** Adds the shade overlay to the window stack and notifies the ViewModel. */
     fun show(expandQs: Boolean = false) {
+        showTimestampMs = System.currentTimeMillis()
         hideJob?.cancel()
         hideJob = null
         if (overlayView != null) return
@@ -150,6 +153,10 @@ class ShadeWindowManager(
             requestFocus()
             setOnKeyListener { _, keyCode, event ->
                 if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+                    // Swallow spurious or residual back key events dispatched during window opening
+                    if (System.currentTimeMillis() - showTimestampMs < 350L) {
+                        return@setOnKeyListener true
+                    }
                     if (owner.onBackPressedDispatcher.hasEnabledCallbacks()) {
                         owner.onBackPressedDispatcher.onBackPressed()
                     } else {

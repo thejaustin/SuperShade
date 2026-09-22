@@ -298,21 +298,6 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                     openSuperShade()
                 }
             }
-        } else if (eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
-            try {
-                val hasActiveSystemShade = windows.any { w ->
-                    val title = w.title?.toString().orEmpty()
-                    w.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_SYSTEM &&
-                        (title.contains("NotificationShade", ignoreCase = true) ||
-                         title.contains("StatusBar", ignoreCase = true) ||
-                         title.contains("Panel", ignoreCase = true))
-                }
-                if (hasActiveSystemShade && !shadeViewModel.state.value.isOpen) {
-                    android.util.Log.d("SuperShadeA11y", "System shade window active, suppressing and showing SuperShade")
-                    dismissSystemShade()
-                    openSuperShade()
-                }
-            } catch (_: Exception) {}
         }
     }
 
@@ -342,7 +327,7 @@ class SuperShadeAccessibilityService : AccessibilityService() {
     }
 
     private fun openSuperShade(expandQs: Boolean = false) {
-        dismissSystemShade()
+        // Safely collapse system panel without injecting global BACK keycodes that kill SuperShade
         scope.launch { governor.collapse() }
 
         val intent = Intent(this, ShadeService::class.java).apply {
@@ -355,15 +340,21 @@ class SuperShadeAccessibilityService : AccessibilityService() {
             try { startService(intent) } catch (_: Exception) {}
         }
         shadeViewModel.open(expandQs)
-        shadeWindowManager.show()
+        shadeWindowManager.show(expandQs)
     }
 
     fun dismissSystemShade(): Boolean {
+        // Never trigger system dismiss actions if SuperShade is already open or showing,
+        // as Android global actions can route KEYCODE_BACK directly into our overlay window.
+        if (shadeViewModel.state.value.isOpen || shadeWindowManager.isShowing()) {
+            scope.launch { governor.collapse() }
+            return true
+        }
         val result = try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
             } else {
-                performGlobalAction(GLOBAL_ACTION_BACK)
+                false
             }
         } catch (_: Exception) {
             false

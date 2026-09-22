@@ -1,39 +1,210 @@
 package com.supershade.ui.shade
 
+import android.content.Intent
+import android.provider.Settings
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.ClearAll
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import com.supershade.haptics.LocalSuperHaptics
-import com.supershade.domain.notification.model.ShadeNotification
-
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import android.content.Intent
-import androidx.compose.material.icons.filled.ClearAll
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material3.Surface
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
+import com.supershade.domain.notification.model.ShadeNotification
+import com.supershade.haptics.LocalSuperHaptics
+import com.supershade.ui.theme.LocalShadeShapeScheme
+import com.supershade.ui.theme.getCardBorder
+
+@Composable
+fun NotificationAccessCard(
+    modifier: Modifier = Modifier,
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val haptics = LocalSuperHaptics.current ?: remember(context) { com.supershade.haptics.SuperHaptics(context) }
+    val shapes = LocalShadeShapeScheme.current
+
+    Surface(
+        shape = shapes.card,
+        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.65f),
+        border = getCardBorder(alpha = 0.35f),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 20.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(54.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.60f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.NotificationsActive,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+            Text(
+                text = "Notification Access Required",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = "Grant notification listener permission so SuperShade can display, organize into categories, and manage incoming alerts.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Button(
+                onClick = {
+                    haptics.sheetDetent()
+                    try {
+                        val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(intent)
+                    } catch (_: Exception) {}
+                },
+                shape = RoundedCornerShape(50),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+            ) {
+                Text(
+                    text = "Grant Access",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun EmptyNotificationsView(
+    modifier: Modifier = Modifier,
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val haptics = LocalSuperHaptics.current ?: remember(context) { com.supershade.haptics.SuperHaptics(context) }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(60.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Default.NotificationsNone,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.size(30.dp),
+            )
+        }
+        Text(
+            text = "No notifications",
+            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+        )
+        Text(
+            text = "You're all caught up",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+        )
+        Surface(
+            onClick = {
+                haptics.lightTap()
+                try {
+                    val intent = Intent("android.settings.NOTIFICATION_HISTORY").apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                } catch (_: Exception) {
+                    try {
+                        val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(intent)
+                    } catch (_: Exception) {}
+                }
+            },
+            shape = RoundedCornerShape(50),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+            border = getCardBorder(alpha = 0.25f),
+            modifier = Modifier.padding(top = 4.dp),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.History,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(14.dp),
+                )
+                Text(
+                    text = "Notification history",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun NotificationFeed(
@@ -46,34 +217,14 @@ fun NotificationFeed(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { com.supershade.haptics.SuperHaptics(context) }
-    if (notifications.isEmpty()) {
-        Column(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(vertical = 48.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.NotificationsNone,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                    modifier = Modifier.size(32.dp),
-                )
-            }
-            Text(
-                text = "No notifications",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-            )
-        }
+    val isAccessGranted = remember(context) {
+        NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+    }
+
+    if (!isAccessGranted) {
+        NotificationAccessCard(modifier = modifier)
+    } else if (notifications.isEmpty()) {
+        EmptyNotificationsView(modifier = modifier)
     } else {
         val groups = notifications.toGroups()
         LazyColumn(
@@ -221,34 +372,14 @@ fun TogetherNotificationFeed(
     val context = androidx.compose.ui.platform.LocalContext.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { com.supershade.haptics.SuperHaptics(context) }
 
-    if (notifications.isEmpty()) {
-        Column(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(vertical = 36.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.NotificationsNone,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                    modifier = Modifier.size(28.dp),
-                )
-            }
-            Text(
-                text = "No notifications",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-            )
-        }
+    val isAccessGranted = remember(context) {
+        NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+    }
+
+    if (!isAccessGranted) {
+        NotificationAccessCard(modifier = modifier)
+    } else if (notifications.isEmpty()) {
+        EmptyNotificationsView(modifier = modifier)
     } else {
         val groups = remember(notifications) { notifications.toGroups() }
         Column(

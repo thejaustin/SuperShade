@@ -1,10 +1,12 @@
 package com.supershade.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -12,7 +14,34 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// Samsung OneUI 8 dark shade palette
+// Samsung One UI 9 crisp light frosted palette
+private val OneUiLightColors = lightColorScheme(
+    background             = Color(0xF2F4F7FB),   // Frosted cool-tinted glass
+    surface                = Color(0xFAF8FAFD),   // High legibility light frosted surface
+    surfaceVariant         = Color(0xFFE2E7EE),
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceContainerLow    = Color(0xFFF1F4F9),
+    surfaceContainer       = Color(0xFFE8EDF4),   // Island container cards in light mode
+    surfaceContainerHigh   = Color(0xFFDFE4EC),
+    surfaceContainerHighest = Color(0xFFD6DBE4),
+    primary                = Color(0xFF006495),   // Modern One UI 9 royal blue
+    primaryContainer       = Color(0xFFCCE5FF),
+    onPrimary              = Color.White,
+    onPrimaryContainer     = Color(0xFF001E30),
+    secondary              = Color(0xFF535F70),
+    secondaryContainer     = Color(0xFFD7E3F8),
+    onSecondary            = Color.White,
+    onSecondaryContainer   = Color(0xFF101C2B),
+    onBackground           = Color(0xFF191C20),
+    onSurface              = Color(0xFF191C20),
+    onSurfaceVariant       = Color(0xFF43474E),
+    outline                = Color(0xFF73777F),
+    outlineVariant         = Color(0xFFC4C7D0),
+    error                  = Color(0xFFBA1A1A),
+    onError                = Color.White,
+)
+
+// Samsung OneUI 8/9 dark shade palette
 private val OneUiColors = darkColorScheme(
     background        = Color(0xF5101114),   // 96% deep frosted
     surface           = Color(0xFA121418),   // 98% deep crisp frosted surface
@@ -108,17 +137,30 @@ private val OneUiShapes = Shapes(
 @Composable
 fun OneUiShadeTheme(
     isAmoled: Boolean = false,
+    darkThemeMode: DarkThemeMode = DarkThemeMode.SYSTEM,
     accentColor: com.supershade.settings.AccentColor = com.supershade.settings.AccentColor.GALAXY_BLUE,
     content: @Composable () -> Unit,
 ) {
-    val base = if (isAmoled) OneUiAmoledColors else OneUiColors
+    val isSystemInDark = isSystemInDarkTheme()
+    val isDark = when (darkThemeMode) {
+        DarkThemeMode.SYSTEM -> isSystemInDark
+        DarkThemeMode.DARK, DarkThemeMode.AMOLED -> true
+        DarkThemeMode.LIGHT -> false
+    }
+
+    val base = when {
+        isAmoled -> OneUiAmoledColors
+        isDark -> OneUiColors
+        else -> OneUiLightColors
+    }
+
     val colorScheme = if (accentColor != com.supershade.settings.AccentColor.MONET) {
         val c = Color(accentColor.hex)
         base.copy(
             primary = c,
-            primaryContainer = c.copy(alpha = 0.35f),
+            primaryContainer = c.copy(alpha = if (isDark) 0.35f else 0.20f),
             onPrimary = Color.White,
-            onPrimaryContainer = Color.White,
+            onPrimaryContainer = if (isDark) Color.White else c,
         )
     } else {
         base

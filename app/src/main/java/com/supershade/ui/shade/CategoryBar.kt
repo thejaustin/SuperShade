@@ -11,8 +11,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.AllInclusive
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.TaskAlt
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -20,13 +33,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.supershade.domain.notification.model.ShadeCategory
+import com.supershade.haptics.LocalSuperHaptics
+import com.supershade.haptics.SuperHaptics
 import com.supershade.ui.theme.LocalShadeShapeScheme
 import com.supershade.ui.theme.getCardBorder
+
+fun ShadeCategory.icon(): ImageVector = when (this) {
+    ShadeCategory.All -> Icons.Default.AllInclusive
+    ShadeCategory.Messages -> Icons.Default.ChatBubble
+    ShadeCategory.Social -> Icons.Default.People
+    ShadeCategory.Email -> Icons.Default.Email
+    ShadeCategory.Calls -> Icons.Default.Call
+    ShadeCategory.Productivity -> Icons.Default.TaskAlt
+    ShadeCategory.Media -> Icons.Default.MusicNote
+    ShadeCategory.Alarms -> Icons.Default.Alarm
+    ShadeCategory.System -> Icons.Default.Info
+    ShadeCategory.Apps -> Icons.Default.Apps
+}
 
 @Composable
 fun CategoryBar(
@@ -59,12 +91,12 @@ fun CategoryBar(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(scrollState)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         visibleCategories.forEach { category ->
             CategoryChip(
-                label = category.label,
+                category = category,
                 isSelected = category == selected,
                 count = counts[category] ?: 0,
                 onClick = { onSelect(category) },
@@ -75,17 +107,17 @@ fun CategoryBar(
 
 @Composable
 private fun CategoryChip(
-    label: String,
+    category: ShadeCategory,
     isSelected: Boolean,
     count: Int,
     onClick: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-
-    // Active chip: Samsung blue pill. Inactive: soft pill with subtle border.
+    // Active chip: Samsung blue/accent pill. Inactive: frosted container with subtle border.
     val containerColor by animateColorAsState(
         targetValue = if (isSelected)
             MaterialTheme.colorScheme.primary
@@ -123,7 +155,7 @@ private fun CategoryChip(
 
     Surface(
         onClick = {
-            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+            haptics.lightTap()
             onClick()
         },
         shape = LocalShadeShapeScheme.current.chip,
@@ -133,21 +165,39 @@ private fun CategoryChip(
         modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale },
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            Icon(
+                imageVector = category.icon(),
+                contentDescription = null,
+                tint = labelColor,
+                modifier = Modifier.size(15.dp),
+            )
             Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
+                text = category.label,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                ),
                 color = labelColor,
             )
             if (count > 0) {
-                Text(
-                    text = count.toString(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = labelColor.copy(alpha = if (isSelected) 0.85f else 0.55f),
-                )
+                Surface(
+                    shape = CircleShape,
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.22f)
+                    else MaterialTheme.colorScheme.surfaceVariant,
+                ) {
+                    Text(
+                        text = count.toString(),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                        ),
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                    )
+                }
             }
         }
     }

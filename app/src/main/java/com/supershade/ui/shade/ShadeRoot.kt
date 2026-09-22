@@ -157,6 +157,7 @@ fun ShadeRoot(
         else -> { content ->
             OneUiShadeTheme(
                 isAmoled = isAmoled,
+                darkThemeMode = state.darkThemeMode,
                 accentColor = state.accentColor,
                 content = content,
             )
@@ -625,16 +626,32 @@ fun ShadeRoot(
                                 }
 
                                 // In TOGETHER mode we use a non-lazy feed to stay inside the outer scroll
-                                TogetherNotificationFeed(
-                                    notifications = state.visibleNotifications,
-                                    onDismiss = { viewModel.dismissNotification(it) },
-                                    onClearAll = { viewModel.clearAllNotifications() },
-                                    onNotificationClick = { notification ->
-                                        viewModel.launchNotification(notification)
-                                        onDismiss()
+                                AnimatedContent(
+                                    targetState = state.selectedCategory,
+                                    transitionSpec = {
+                                        (fadeIn(animationSpec = tween(180)) + slideInHorizontally(
+                                            animationSpec = spring(dampingRatio = 0.85f, stiffness = 450f),
+                                            initialOffsetX = { fullWidth -> if (targetState.ordinal > initialState.ordinal) fullWidth / 4 else -fullWidth / 4 }
+                                        )).togetherWith(
+                                            fadeOut(animationSpec = tween(140)) + slideOutHorizontally(
+                                                animationSpec = spring(dampingRatio = 0.85f, stiffness = 450f),
+                                                targetOffsetX = { fullWidth -> if (targetState.ordinal > initialState.ordinal) -fullWidth / 4 else fullWidth / 4 }
+                                            )
+                                        )
                                     },
-                                    onSnooze = { key, delayMs -> viewModel.snoozeNotification(key, delayMs) },
-                                )
+                                    label = "togetherCategoryTransition",
+                                ) { _ ->
+                                    TogetherNotificationFeed(
+                                        notifications = state.visibleNotifications,
+                                        onDismiss = { viewModel.dismissNotification(it) },
+                                        onClearAll = { viewModel.clearAllNotifications() },
+                                        onNotificationClick = { notification ->
+                                            viewModel.launchNotification(notification)
+                                            onDismiss()
+                                        },
+                                        onSnooze = { key, delayMs -> viewModel.snoozeNotification(key, delayMs) },
+                                    )
+                                }
                             }
                         } else {
 
@@ -862,19 +879,36 @@ fun ShadeRoot(
                                     }
 
                                     // Notification feed with full remaining space and responsive nested-scroll coordination
-                                    NotificationFeed(
-                                        notifications = state.visibleNotifications,
-                                        onDismiss = { viewModel.dismissNotification(it) },
-                                        onClearAll = { viewModel.clearAllNotifications() },
-                                        onNotificationClick = { notification ->
-                                            viewModel.launchNotification(notification)
-                                            onDismiss()
+                                    AnimatedContent(
+                                        targetState = state.selectedCategory,
+                                        transitionSpec = {
+                                            (fadeIn(animationSpec = tween(180)) + slideInHorizontally(
+                                                animationSpec = spring(dampingRatio = 0.85f, stiffness = 450f),
+                                                initialOffsetX = { fullWidth -> if (targetState.ordinal > initialState.ordinal) fullWidth / 4 else -fullWidth / 4 }
+                                            )).togetherWith(
+                                                fadeOut(animationSpec = tween(140)) + slideOutHorizontally(
+                                                    animationSpec = spring(dampingRatio = 0.85f, stiffness = 450f),
+                                                    targetOffsetX = { fullWidth -> if (targetState.ordinal > initialState.ordinal) -fullWidth / 4 else fullWidth / 4 }
+                                                )
+                                            )
                                         },
-                                        onSnooze = { key, delayMs -> viewModel.snoozeNotification(key, delayMs) },
+                                        label = "separateCategoryTransition",
                                         modifier = Modifier
                                             .weight(1f)
                                             .nestedScroll(nestedScrollConnection),
-                                    )
+                                    ) { _ ->
+                                        NotificationFeed(
+                                            notifications = state.visibleNotifications,
+                                            onDismiss = { viewModel.dismissNotification(it) },
+                                            onClearAll = { viewModel.clearAllNotifications() },
+                                            onNotificationClick = { notification ->
+                                                viewModel.launchNotification(notification)
+                                                onDismiss()
+                                            },
+                                            onSnooze = { key, delayMs -> viewModel.snoozeNotification(key, delayMs) },
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    }
                                 }
                             } else {
                                 // QUICK SETTINGS PANEL (Full Control Center)

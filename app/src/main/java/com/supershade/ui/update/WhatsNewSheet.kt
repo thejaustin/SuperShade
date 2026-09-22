@@ -45,6 +45,14 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.25" -> """
+        ✨ Notification Access Onboarding, One UI 9 Categories & Crisp Light Theme
+        • Notification Access Onboarding Card: Beautiful frosted One UI 9 permission card with 1-tap grant action when notification listener permission is missing, replacing ambiguous empty states
+        • Enriched Notification Category Bar: Distinct contextual category icons, pill badges showing live counts, and tactile haptic micro-interactions for all categories
+        • Fluid Animated Category Transitions: Smooth horizontal spring slide and fade animations when switching between notification categories in both Together and Separate modes
+        • One UI 9 Crisp Frosted Light Theme: Introduced dedicated OneUiLightColors palette with cool-tinted frosted glass, crisp borders, and dynamic adaptation to system dark/light mode
+        • Notification History Shortcut: Quick access pill button to jump directly into Android's Notification History
+        """.trimIndent()
         "1.9.24" -> """
         ✨ One UI 9 Bidirectional Drag Physics & Together Mode Ergonomics
         • Continuous Bidirectional Tracking: Dragging up to dismiss or back down to resting position now tracks your finger 1:1 without stickiness, backed by fluid spring overshoot damping

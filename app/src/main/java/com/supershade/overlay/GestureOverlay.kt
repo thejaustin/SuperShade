@@ -72,10 +72,10 @@ class GestureOverlay(
                 if (isShadeOpen()) return@setOnTouchListener false
                 val wmCurrent = windowManager ?: return@setOnTouchListener false
 
-                // Do not intercept touches when status bar is hidden (immersive full-screen games/videos)
+                // Do not intercept touches when status bar is explicitly hidden in immersive mode
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                    val insets = wmCurrent.currentWindowMetrics.windowInsets
-                    if (!insets.isVisible(android.view.WindowInsets.Type.statusBars())) {
+                    val rootInsets = v.rootWindowInsets
+                    if (rootInsets != null && !rootInsets.isVisible(android.view.WindowInsets.Type.statusBars())) {
                         return@setOnTouchListener false
                     }
                 }

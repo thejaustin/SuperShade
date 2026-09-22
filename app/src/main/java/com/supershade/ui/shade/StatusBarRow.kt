@@ -17,8 +17,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -215,15 +217,6 @@ fun StatusBarRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {},
-                onDoubleClick = {
-                    haptics.heavyClick()
-                    onLockScreen()
-                },
-            )
             .padding(start = 22.dp, end = 16.dp, top = 16.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top,
@@ -295,6 +288,22 @@ fun StatusBarRow(
                 )
             }
         }
+
+        // Center space: double-tap to lock screen without interfering with buttons
+        Spacer(
+            modifier = Modifier
+                .weight(1f)
+                .height(64.dp)
+                .combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {},
+                    onDoubleClick = {
+                        haptics.heavyClick()
+                        onLockScreen()
+                    },
+                )
+        )
 
         // Right side: Header actions (Edit, Power & Settings) + Battery Status
         Column(

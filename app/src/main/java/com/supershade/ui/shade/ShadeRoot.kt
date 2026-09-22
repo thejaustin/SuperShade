@@ -127,11 +127,11 @@ fun ShadeRoot(
     onDismiss: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val isQsExpanded = state.isQsExpanded
+    var isEditingTiles by remember { mutableStateOf(false) }
+    val isQsExpanded = state.isQsExpanded || isEditingTiles
 
     val context = LocalContext.current
     var showPowerMenu by remember { mutableStateOf(false) }
-    var isEditingTiles by remember { mutableStateOf(false) }
 
     val categoryCounts by remember {
         derivedStateOf {
@@ -374,11 +374,11 @@ fun ShadeRoot(
                             .pointerInput(isQsExpanded, isEditingTiles, isTogether, state.activePanel, state.visibleNotifications.size) {
                                 if (isEditingTiles) return@pointerInput
                                 val px = this.density
-                                val edgeZonePx = (32f * px).toInt()
-                                val headerZonePx = (80f * px).toInt()
-                                val bottomZonePx = (72f * px).toInt()
-                                val minSwipeUp = (96f * px).toInt()
-                                val slopeMin = 0.45f
+                                val edgeZonePx = (28f * px).toInt()
+                                val headerZonePx = (72f * px).toInt()
+                                val bottomZonePx = (36f * px).toInt()
+                                val minSwipeUp = (110f * px).toInt()
+                                val slopeMin = 0.55f
 
                                 awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false)
@@ -393,7 +393,7 @@ fun ShadeRoot(
                                     tracker.addPosition(down.uptimeMillis, down.position)
 
                                     val hasNotifications = state.visibleNotifications.isNotEmpty()
-                                    // Touch is over the scrollable feed if it occurs between top header and bottom handle zones
+                                    // Touch is over the scrollable feed if it occurs between top header and slim bottom handle zone
                                     // and there are notifications to scroll (or together mode with compact QS).
                                     val isTouchOverScrollableFeed = down.position.y >= headerZonePx &&
                                                                     down.position.y <= (size.height - bottomZonePx) &&
@@ -410,8 +410,11 @@ fun ShadeRoot(
                                         lastY = change.position.y
 
                                         // Side edge inward swipe (AOSP / One UI predictive back navigation)
-                                        val isInwardSwipe = (down.position.x < edgeZonePx && dx > (22f * px)) ||
-                                                            (down.position.x > (size.width - edgeZonePx) && dx < -(22f * px))
+                                        // Strictly requires dominant horizontal swipe to prevent accidental trigger while scrolling
+                                        val isHorizontalDominant = kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.6f
+                                        val isEdgeInwardDist = (down.position.x < edgeZonePx && dx > (42f * px)) ||
+                                                               (down.position.x > (size.width - edgeZonePx) && dx < -(42f * px))
+                                        val isInwardSwipe = isHorizontalDominant && isEdgeInwardDist && kotlin.math.abs(dy) < (40f * px)
 
                                         if (!consumed && isInwardSwipe) {
                                             change.consume()

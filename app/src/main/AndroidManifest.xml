@@ -121,11 +121,44 @@
                 <!-- Samsung Edge Panel / cocktail bar route -->
                 <action android:name="com.samsung.android.cocktailbar.OPEN_NOTIFICATION_PANEL" />
                 <action android:name="com.samsung.android.cocktailbar.OPEN_QUICK_PANEL" />
-                <!-- Catch panel-open failures signaled via CLOSE_SYSTEM_DIALOGS -->
-                <action android:name="android.intent.action.CLOSE_SYSTEM_DIALOGS" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </receiver>
+
+        <!-- Good Lock OHO+ & Launcher Direct Triggers -->
+        <activity
+            android:name=".ui.shortcut.OpenNotificationShadeActivity"
+            android:exported="true"
+            android:label="SuperShade Notifications"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.CREATE_SHORTCUT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.shortcut.OpenQuickSettingsActivity"
+            android:exported="true"
+            android:label="SuperShade Quick Settings"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.CREATE_SHORTCUT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
 
         <!-- Quick Settings Tile Service -->
         <service

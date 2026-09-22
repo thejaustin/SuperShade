@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
@@ -432,6 +433,7 @@ private fun DraggableTileGrid(
     // Track each tile's position in the grid so we can hit-test during drag
     val tileRects = remember { mutableMapOf<Int, androidx.compose.ui.geometry.Rect>() }
     val density = LocalDensity.current.density
+    var gridCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
     // Drag state
     var dragIndex   by remember { mutableIntStateOf(-1) }
@@ -458,6 +460,9 @@ private fun DraggableTileGrid(
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .onGloballyPositioned { coords ->
+                gridCoordinates = coords
+            }
             .pointerInput(tiles.size, colCount) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
@@ -546,7 +551,12 @@ private fun DraggableTileGrid(
                             modifier = Modifier
                                 .weight(1f)
                                 .onGloballyPositioned { coords ->
-                                    val pos  = coords.positionInParent()
+                                    val grid = gridCoordinates
+                                    val pos = if (grid != null && grid.isAttached && coords.isAttached) {
+                                        grid.localPositionOf(coords, Offset.Zero)
+                                    } else {
+                                        coords.positionInParent()
+                                    }
                                     val size = coords.size
                                     tileRects[globalIndex] = androidx.compose.ui.geometry.Rect(
                                         offset = pos,

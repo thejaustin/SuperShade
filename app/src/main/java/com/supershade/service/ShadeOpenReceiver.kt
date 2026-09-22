@@ -89,13 +89,6 @@ class ShadeOpenReceiver : BroadcastReceiver() {
             action == GOODLOCK_ACTION_OPEN ||
             action == ONE_HAND_OPEN ||
             action == EDGE_PANEL_OPEN -> true
-
-            action == CLOSE_DIALOGS -> {
-                // Only trigger on the specific reason that indicates a panel-open attempt
-                val reason = intent.getStringExtra("reason") ?: ""
-                reason.equals(REASON_NOTIF_BAR, ignoreCase = true)
-            }
-
             else -> false
         }
 

@@ -5,6 +5,10 @@ import android.os.Build
 import androidx.compose.ui.platform.LocalContext
 import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.haptics.SuperHaptics
+import com.supershade.ui.shade.pixel.PixelHeader
+import com.supershade.ui.shade.pixel.PixelQuickSettingsGrid
+import com.supershade.ui.shade.pixel.PixelBrightnessSlider
+import com.supershade.ui.shade.pixel.PixelMediaCard
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -517,30 +521,57 @@ fun ShadeRoot(
                         Box(
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            StatusBarRow(
-                                statusBar = state.statusBar,
-                                isEditing = isEditingTiles,
-                                onOpenPowerMenu = { showPowerMenu = true },
-                                onOpenEdit = {
-                                    isEditingTiles = !isEditingTiles
-                                    if (isEditingTiles && state.activePanel != ShadePanel.QUICK_SETTINGS) {
+                            val onOpenEditAction: () -> Unit = {
+                                isEditingTiles = !isEditingTiles
+                                if (isEditingTiles) {
+                                    viewModel.setQsExpanded(true)
+                                    if (state.activePanel != ShadePanel.QUICK_SETTINGS) {
                                         viewModel.setActivePanel(ShadePanel.QUICK_SETTINGS)
                                     }
-                                },
-                                onOpenDeviceSettings = {
-                                    onDismiss()
-                                },
-                                onOpenSettings = {
-                                    try {
-                                        val intent = Intent(context, com.supershade.MainActivity::class.java).apply {
-                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        }
-                                        context.startActivity(intent)
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(1)
+                                    }
+                                }
+                            }
+
+                            if (state.theme == ShadeTheme.Pixel) {
+                                PixelHeader(
+                                    statusBar = state.statusBar,
+                                    isEditing = isEditingTiles,
+                                    onOpenPowerMenu = { showPowerMenu = true },
+                                    onOpenEdit = onOpenEditAction,
+                                    onOpenDeviceSettings = { onDismiss() },
+                                    onOpenSettings = {
+                                        try {
+                                            val intent = Intent(context, com.supershade.MainActivity::class.java).apply {
+                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            }
+                                            context.startActivity(intent)
+                                            onDismiss()
+                                        } catch (_: Exception) {}
+                                    },
+                                )
+                            } else {
+                                StatusBarRow(
+                                    statusBar = state.statusBar,
+                                    isEditing = isEditingTiles,
+                                    onOpenPowerMenu = { showPowerMenu = true },
+                                    onOpenEdit = onOpenEditAction,
+                                    onOpenDeviceSettings = {
                                         onDismiss()
-                                    } catch (_: Exception) {}
-                                },
-                                onLockScreen = { viewModel.lockScreen() },
-                            )
+                                    },
+                                    onOpenSettings = {
+                                        try {
+                                            val intent = Intent(context, com.supershade.MainActivity::class.java).apply {
+                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            }
+                                            context.startActivity(intent)
+                                            onDismiss()
+                                        } catch (_: Exception) {}
+                                    },
+                                    onLockScreen = { viewModel.lockScreen() },
+                                )
+                            }
                         }
 
                         // Active View Content
@@ -556,89 +587,139 @@ fun ShadeRoot(
                                     .verticalScroll(rememberScrollState()),
                                 verticalArrangement = Arrangement.spacedBy(2.dp),
                             ) {
-                                // Compact QS row (always visible at top, draggable to expand/collapse with spring physics)
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .draggable(
-                                            orientation = Orientation.Vertical,
-                                            enabled = !isEditingTiles,
-                                            state = rememberDraggableState { delta ->
-                                                if (delta > 10f && !isQsExpanded) {
-                                                    haptics.sheetDetent()
-                                                    viewModel.setQsExpanded(true)
-                                                } else if (delta < -10f && isQsExpanded) {
-                                                    haptics.sheetDetent()
-                                                    viewModel.setQsExpanded(false)
-                                                }
-                                            }
-                                        )
-                                ) {
-                                    QuickSettingsGrid(
-                                        tiles = state.tiles,
-                                        theme = state.theme,
-                                        isShizukuConnected = state.isShizukuConnected,
-                                        isExpanded = isQsExpanded,
-                                        tileShape = state.tileShape,
-                                        tileSize = state.tileSize,
-                                        tileColumns = state.tileColumns,
-                                        showWideCards = isQsExpanded && state.showWideCards,
-                                        isEditing = isEditingTiles,
-                                        onToggleEdit = { isEditingTiles = !isEditingTiles },
-                                        onMoveTile = { from, to -> viewModel.moveTile(from, to) },
-                                        onRemoveTile = { viewModel.removeTile(it) },
-                                        onAddTile = { viewModel.addTile(it) },
-                                        onResetTiles = { viewModel.resetTiles() },
-                                        onTileClick = { viewModel.toggleTile(it) },
-                                        onTileLongClick = { viewModel.openTileDetail(it) },
-                                    )
-                                }
-
-                                // Tactile Sliders Island in Together mode:
-                                // Brightness slider is always accessible at top (matching One UI compact quick panel);
-                                // Volume slider expands smoothly when QS is expanded.
-                                Surface(
-                                    shape = shapeScheme.container,
-                                    color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
-                                    border = getCardBorder(),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 3.dp),
-                                ) {
-                                    Column(
+                                if (state.theme == ShadeTheme.Pixel) {
+                                    // ── Pixel Material Expressive Layout in Together Mode ──
+                                    Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                                            .draggable(
+                                                orientation = Orientation.Vertical,
+                                                enabled = !isEditingTiles,
+                                                state = rememberDraggableState { delta ->
+                                                    if (delta > 10f && !isQsExpanded) {
+                                                        haptics.sheetDetent()
+                                                        viewModel.setQsExpanded(true)
+                                                    } else if (delta < -10f && isQsExpanded) {
+                                                        haptics.sheetDetent()
+                                                        viewModel.setQsExpanded(false)
+                                                    }
+                                                }
+                                            )
                                     ) {
-                                        BrightnessSlider(
-                                            brightness = state.brightness,
-                                            onBrightnessChange = { viewModel.setBrightness(it) },
-                                            compact = false,
-                                            modifier = Modifier.fillMaxWidth(),
+                                        PixelQuickSettingsGrid(
+                                            tiles = state.tiles,
+                                            isExpanded = isQsExpanded,
+                                            isEditing = isEditingTiles,
+                                            onToggleEdit = { isEditingTiles = !isEditingTiles },
+                                            onMoveTile = { from, to -> viewModel.moveTile(from, to) },
+                                            onRemoveTile = { viewModel.removeTile(it) },
+                                            onAddTile = { viewModel.addTile(it) },
+                                            onResetTiles = { viewModel.resetTiles() },
+                                            onTileClick = { viewModel.toggleTile(it) },
+                                            onTileLongClick = { viewModel.openTileDetail(it) },
                                         )
-                                        AnimatedVisibility(
-                                            visible = isQsExpanded,
-                                            enter = expandVertically(spring(0.8f, 380f)) + fadeIn(tween(140)),
-                                            exit = shrinkVertically(tween(160)) + fadeOut(tween(120)),
+                                    }
+
+                                    PixelBrightnessSlider(
+                                        brightness = state.brightness,
+                                        onBrightnessChange = { viewModel.setBrightness(it) },
+                                    )
+
+                                    state.media?.let { media ->
+                                        PixelMediaCard(
+                                            media = media,
+                                            onPlayPause = { viewModel.mediaPlayPause() },
+                                            onSkipNext = { viewModel.mediaSkipNext() },
+                                            onSkipPrevious = { viewModel.mediaSkipPrevious() },
+                                            onSeek = { viewModel.mediaSeek(it) },
+                                        )
+                                    }
+                                } else {
+                                    // ── One UI Layout in Together Mode ──
+                                    // Compact QS row (always visible at top, draggable to expand/collapse with spring physics)
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .draggable(
+                                                orientation = Orientation.Vertical,
+                                                enabled = !isEditingTiles,
+                                                state = rememberDraggableState { delta ->
+                                                    if (delta > 10f && !isQsExpanded) {
+                                                        haptics.sheetDetent()
+                                                        viewModel.setQsExpanded(true)
+                                                    } else if (delta < -10f && isQsExpanded) {
+                                                        haptics.sheetDetent()
+                                                        viewModel.setQsExpanded(false)
+                                                    }
+                                                }
+                                            )
+                                    ) {
+                                        QuickSettingsGrid(
+                                            tiles = state.tiles,
+                                            theme = state.theme,
+                                            isShizukuConnected = state.isShizukuConnected,
+                                            isExpanded = isQsExpanded,
+                                            tileShape = state.tileShape,
+                                            tileSize = state.tileSize,
+                                            tileColumns = state.tileColumns,
+                                            showWideCards = isQsExpanded && state.showWideCards,
+                                            isEditing = isEditingTiles,
+                                            onToggleEdit = { isEditingTiles = !isEditingTiles },
+                                            onMoveTile = { from, to -> viewModel.moveTile(from, to) },
+                                            onRemoveTile = { viewModel.removeTile(it) },
+                                            onAddTile = { viewModel.addTile(it) },
+                                            onResetTiles = { viewModel.resetTiles() },
+                                            onTileClick = { viewModel.toggleTile(it) },
+                                            onTileLongClick = { viewModel.openTileDetail(it) },
+                                        )
+                                    }
+
+                                    // Tactile Sliders Island in Together mode:
+                                    // Brightness slider is always accessible at top (matching One UI compact quick panel);
+                                    // Volume slider expands smoothly when QS is expanded.
+                                    Surface(
+                                        shape = shapeScheme.container,
+                                        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
+                                        border = getCardBorder(),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 3.dp),
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp),
                                         ) {
-                                            VolumeSlider(
+                                            BrightnessSlider(
+                                                brightness = state.brightness,
+                                                onBrightnessChange = { viewModel.setBrightness(it) },
                                                 compact = false,
                                                 modifier = Modifier.fillMaxWidth(),
                                             )
+                                            AnimatedVisibility(
+                                                visible = isQsExpanded,
+                                                enter = expandVertically(spring(0.8f, 380f)) + fadeIn(tween(140)),
+                                                exit = shrinkVertically(tween(160)) + fadeOut(tween(120)),
+                                            ) {
+                                                VolumeSlider(
+                                                    compact = false,
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                )
+                                            }
                                         }
                                     }
-                                }
 
-                                // Media card
-                                state.media?.let { media ->
-                                    MediaCard(
-                                        media = media,
-                                        onPlayPause = { viewModel.mediaPlayPause() },
-                                        onSkipNext = { viewModel.mediaSkipNext() },
-                                        onSkipPrevious = { viewModel.mediaSkipPrevious() },
-                                        onSeek = { viewModel.mediaSeek(it) },
-                                    )
+                                    // Media card
+                                    state.media?.let { media ->
+                                        MediaCard(
+                                            media = media,
+                                            onPlayPause = { viewModel.mediaPlayPause() },
+                                            onSkipNext = { viewModel.mediaSkipNext() },
+                                            onSkipPrevious = { viewModel.mediaSkipPrevious() },
+                                            onSeek = { viewModel.mediaSeek(it) },
+                                        )
+                                    }
                                 }
 
                                 // Category bar + notification feed (inline, not in a nested LazyColumn
@@ -713,44 +794,64 @@ fun ShadeRoot(
                                         Column(
                                             modifier = Modifier.fillMaxWidth(),
                                         ) {
-                                            QuickSettingsGrid(
-                                                tiles = state.tiles,
-                                                theme = state.theme,
-                                                isShizukuConnected = state.isShizukuConnected,
-                                                isExpanded = false,
-                                                tileShape = state.tileShape,
-                                                tileSize = state.tileSize,
-                                                tileColumns = state.tileColumns,
-                                                showWideCards = state.showWideCards,
-                                                isEditing = isEditingTiles,
-                                                onToggleEdit = { isEditingTiles = !isEditingTiles },
-                                                onMoveTile = { from, to -> viewModel.moveTile(from, to) },
-                                                onRemoveTile = { viewModel.removeTile(it) },
-                                                onAddTile = { viewModel.addTile(it) },
-                                                onResetTiles = { viewModel.resetTiles() },
-                                                onTileClick = { viewModel.toggleTile(it) },
-                                                onTileLongClick = { viewModel.openTileDetail(it) },
-                                            )
+                                            if (state.theme == ShadeTheme.Pixel) {
+                                                PixelQuickSettingsGrid(
+                                                    tiles = state.tiles,
+                                                    isExpanded = false,
+                                                    isEditing = false,
+                                                    onToggleEdit = {},
+                                                    onMoveTile = { _, _ -> },
+                                                    onRemoveTile = {},
+                                                    onAddTile = {},
+                                                    onResetTiles = {},
+                                                    onTileClick = { viewModel.toggleTile(it) },
+                                                    onTileLongClick = { viewModel.openTileDetail(it) },
+                                                )
 
-                                            Surface(
-                                                shape = shapeScheme.container,
-                                                color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
-                                                border = getCardBorder(),
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 14.dp, vertical = 2.dp),
-                                            ) {
-                                                Column(
+                                                PixelBrightnessSlider(
+                                                    brightness = state.brightness,
+                                                    onBrightnessChange = { viewModel.setBrightness(it) },
+                                                )
+                                            } else {
+                                                QuickSettingsGrid(
+                                                    tiles = state.tiles,
+                                                    theme = state.theme,
+                                                    isShizukuConnected = state.isShizukuConnected,
+                                                    isExpanded = false,
+                                                    tileShape = state.tileShape,
+                                                    tileSize = state.tileSize,
+                                                    tileColumns = state.tileColumns,
+                                                    showWideCards = state.showWideCards,
+                                                    isEditing = false,
+                                                    onToggleEdit = {},
+                                                    onMoveTile = { _, _ -> },
+                                                    onRemoveTile = {},
+                                                    onAddTile = {},
+                                                    onResetTiles = {},
+                                                    onTileClick = { viewModel.toggleTile(it) },
+                                                    onTileLongClick = { viewModel.openTileDetail(it) },
+                                                )
+
+                                                Surface(
+                                                    shape = shapeScheme.container,
+                                                    color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
+                                                    border = getCardBorder(),
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .padding(horizontal = 8.dp, vertical = 5.dp),
+                                                        .padding(horizontal = 14.dp, vertical = 2.dp),
                                                 ) {
-                                                    BrightnessSlider(
-                                                        brightness = state.brightness,
-                                                        onBrightnessChange = { viewModel.setBrightness(it) },
-                                                        compact = false,
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                    )
+                                                    Column(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(horizontal = 8.dp, vertical = 5.dp),
+                                                    ) {
+                                                        BrightnessSlider(
+                                                            brightness = state.brightness,
+                                                            onBrightnessChange = { viewModel.setBrightness(it) },
+                                                            compact = false,
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                        )
+                                                    }
                                                 }
                                             }
 
@@ -857,13 +958,23 @@ fun ShadeRoot(
 
                                     // Media playback card (if active)
                                     state.media?.let { media ->
-                                        MediaCard(
-                                            media = media,
-                                            onPlayPause = { viewModel.mediaPlayPause() },
-                                            onSkipNext = { viewModel.mediaSkipNext() },
-                                            onSkipPrevious = { viewModel.mediaSkipPrevious() },
-                                            onSeek = { viewModel.mediaSeek(it) },
-                                        )
+                                        if (state.theme == ShadeTheme.Pixel) {
+                                            PixelMediaCard(
+                                                media = media,
+                                                onPlayPause = { viewModel.mediaPlayPause() },
+                                                onSkipNext = { viewModel.mediaSkipNext() },
+                                                onSkipPrevious = { viewModel.mediaSkipPrevious() },
+                                                onSeek = { viewModel.mediaSeek(it) },
+                                            )
+                                        } else {
+                                            MediaCard(
+                                                media = media,
+                                                onPlayPause = { viewModel.mediaPlayPause() },
+                                                onSkipNext = { viewModel.mediaSkipNext() },
+                                                onSkipPrevious = { viewModel.mediaSkipPrevious() },
+                                                onSeek = { viewModel.mediaSeek(it) },
+                                            )
+                                        }
                                     }
 
                                     // Notification category bar
@@ -917,62 +1028,92 @@ fun ShadeRoot(
                                         .verticalScroll(rememberScrollState()),
                                     verticalArrangement = Arrangement.spacedBy(4.dp),
                                 ) {
-                                    QuickSettingsGrid(
-                                        tiles = state.tiles,
-                                        theme = state.theme,
-                                        isShizukuConnected = state.isShizukuConnected,
-                                        isExpanded = true,
-                                        tileShape = state.tileShape,
-                                        tileSize = state.tileSize,
-                                        tileColumns = state.tileColumns,
-                                        showWideCards = state.showWideCards,
-                                        isEditing = isEditingTiles,
-                                        onToggleEdit = { isEditingTiles = !isEditingTiles },
-                                        onMoveTile = { from, to -> viewModel.moveTile(from, to) },
-                                        onRemoveTile = { viewModel.removeTile(it) },
-                                        onAddTile = { viewModel.addTile(it) },
-                                        onResetTiles = { viewModel.resetTiles() },
-                                        onTileClick = { viewModel.toggleTile(it) },
-                                        onTileLongClick = { viewModel.openTileDetail(it) },
-                                    )
+                                    if (state.theme == ShadeTheme.Pixel) {
+                                        PixelQuickSettingsGrid(
+                                            tiles = state.tiles,
+                                            isExpanded = true,
+                                            isEditing = isEditingTiles,
+                                            onToggleEdit = { isEditingTiles = !isEditingTiles },
+                                            onMoveTile = { from, to -> viewModel.moveTile(from, to) },
+                                            onRemoveTile = { viewModel.removeTile(it) },
+                                            onAddTile = { viewModel.addTile(it) },
+                                            onResetTiles = { viewModel.resetTiles() },
+                                            onTileClick = { viewModel.toggleTile(it) },
+                                            onTileLongClick = { viewModel.openTileDetail(it) },
+                                        )
 
-                                    // Full tactile sliders island (Brightness & Volume)
-                                    Surface(
-                                        shape = shapeScheme.container,
-                                        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
-                                        border = getCardBorder(),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 14.dp, vertical = 3.dp),
-                                    ) {
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                                        ) {
-                                            BrightnessSlider(
-                                                brightness = state.brightness,
-                                                onBrightnessChange = { viewModel.setBrightness(it) },
-                                                compact = false,
-                                                modifier = Modifier.fillMaxWidth(),
-                                            )
-                                            VolumeSlider(
-                                                compact = false,
-                                                modifier = Modifier.fillMaxWidth(),
+                                        PixelBrightnessSlider(
+                                            brightness = state.brightness,
+                                            onBrightnessChange = { viewModel.setBrightness(it) },
+                                        )
+
+                                        state.media?.let { media ->
+                                            PixelMediaCard(
+                                                media = media,
+                                                onPlayPause = { viewModel.mediaPlayPause() },
+                                                onSkipNext = { viewModel.mediaSkipNext() },
+                                                onSkipPrevious = { viewModel.mediaSkipPrevious() },
+                                                onSeek = { viewModel.mediaSeek(it) },
                                             )
                                         }
-                                    }
-
-                                    // Media playback card (if active)
-                                    state.media?.let { media ->
-                                        MediaCard(
-                                            media = media,
-                                            onPlayPause = { viewModel.mediaPlayPause() },
-                                            onSkipNext = { viewModel.mediaSkipNext() },
-                                            onSkipPrevious = { viewModel.mediaSkipPrevious() },
-                                            onSeek = { viewModel.mediaSeek(it) },
+                                    } else {
+                                        QuickSettingsGrid(
+                                            tiles = state.tiles,
+                                            theme = state.theme,
+                                            isShizukuConnected = state.isShizukuConnected,
+                                            isExpanded = true,
+                                            tileShape = state.tileShape,
+                                            tileSize = state.tileSize,
+                                            tileColumns = state.tileColumns,
+                                            showWideCards = state.showWideCards,
+                                            isEditing = isEditingTiles,
+                                            onToggleEdit = { isEditingTiles = !isEditingTiles },
+                                            onMoveTile = { from, to -> viewModel.moveTile(from, to) },
+                                            onRemoveTile = { viewModel.removeTile(it) },
+                                            onAddTile = { viewModel.addTile(it) },
+                                            onResetTiles = { viewModel.resetTiles() },
+                                            onTileClick = { viewModel.toggleTile(it) },
+                                            onTileLongClick = { viewModel.openTileDetail(it) },
                                         )
+
+                                        // Full tactile sliders island (Brightness & Volume)
+                                        Surface(
+                                            shape = shapeScheme.container,
+                                            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
+                                            border = getCardBorder(),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 14.dp, vertical = 3.dp),
+                                        ) {
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                            ) {
+                                                BrightnessSlider(
+                                                    brightness = state.brightness,
+                                                    onBrightnessChange = { viewModel.setBrightness(it) },
+                                                    compact = false,
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                )
+                                                VolumeSlider(
+                                                    compact = false,
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                )
+                                            }
+                                        }
+
+                                        // Media playback card (if active)
+                                        state.media?.let { media ->
+                                            MediaCard(
+                                                media = media,
+                                                onPlayPause = { viewModel.mediaPlayPause() },
+                                                onSkipNext = { viewModel.mediaSkipNext() },
+                                                onSkipPrevious = { viewModel.mediaSkipPrevious() },
+                                                onSeek = { viewModel.mediaSeek(it) },
+                                            )
+                                        }
                                     }
                                 }
                             }

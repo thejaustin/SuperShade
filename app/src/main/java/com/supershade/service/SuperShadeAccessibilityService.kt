@@ -155,20 +155,29 @@ class SuperShadeAccessibilityService : AccessibilityService() {
 
         var startX = 0f
         var startY = 0f
-        var startTime = 0L
         var triggered = false
-        val dragThreshold = (16f * resources.displayMetrics.density).coerceAtLeast(22f)
+        val density = resources.displayMetrics.density
+        // Robust threshold: at least 28dp (never hair-trigger 10-16dp)
+        val dragThreshold = (28f * density).coerceAtLeast(40f)
 
         val view = View(this).apply {
             setOnTouchListener { v, event ->
                 if (shadeViewModel.state.value.isOpen) return@setOnTouchListener false
+                val wmCurrent = windowManager ?: return@setOnTouchListener false
+
+                // Do not intercept touches when status bar is hidden (immersive full-screen games/videos)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val insets = wmCurrent.currentWindowMetrics.windowInsets
+                    if (!insets.isVisible(android.view.WindowInsets.Type.statusBars())) {
+                        return@setOnTouchListener false
+                    }
+                }
+
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         startX = event.rawX
                         startY = event.rawY
-                        startTime = System.currentTimeMillis()
                         triggered = false
-                        val density = resources.displayMetrics.density
                         val edgeExclusionPx = 18f * density
                         val screenWidth = resources.displayMetrics.widthPixels
                         if (startX < edgeExclusionPx || startX > (screenWidth - edgeExclusionPx)) {
@@ -179,7 +188,8 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                     MotionEvent.ACTION_MOVE -> {
                         val deltaX = kotlin.math.abs(event.rawX - startX)
                         val deltaY = event.rawY - startY
-                        if (!triggered && deltaY > dragThreshold && deltaY > deltaX * 0.70f) {
+                        // Require deliberate downward pull (at least 28dp, predominantly vertical > 52 degrees)
+                        if (!triggered && deltaY > dragThreshold && deltaY > deltaX * 1.30f) {
                             triggered = true
                             v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
                             val screenWidth = resources.displayMetrics.widthPixels.coerceAtLeast(1)
@@ -187,11 +197,10 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                             val mode = currentSplitGestureMode
 
                             val isCutoutDeadband = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                                val insets = windowManager?.currentWindowMetrics?.windowInsets
+                                val insets = wmCurrent.currentWindowMetrics.windowInsets
                                 val cutout = insets?.displayCutout
                                 val topRect = cutout?.boundingRectTop
                                 if (topRect != null && !topRect.isEmpty) {
-                                    val density = resources.displayMetrics.density
                                     startX >= (topRect.left - 12 * density) && startX <= (topRect.right + 12 * density)
                                 } else false
                             } else false
@@ -210,42 +219,9 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                         }
                         true
                     }
-                    MotionEvent.ACTION_UP -> {
-                        val deltaX = kotlin.math.abs(event.rawX - startX)
-                        val deltaY = event.rawY - startY
-                        val duration = System.currentTimeMillis() - startTime
-                        if (!triggered && deltaY > (dragThreshold * 0.65f) && deltaY > deltaX * 0.70f && duration < 750) {
-                            triggered = true
-                            v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
-                            val screenWidth = resources.displayMetrics.widthPixels.coerceAtLeast(1)
-                            val ratio = startX / screenWidth.toFloat()
-                            val mode = currentSplitGestureMode
-
-                            val isCutoutDeadband = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                                val insets = windowManager?.currentWindowMetrics?.windowInsets
-                                val cutout = insets?.displayCutout
-                                val topRect = cutout?.boundingRectTop
-                                if (topRect != null && !topRect.isEmpty) {
-                                    val density = resources.displayMetrics.density
-                                    startX >= (topRect.left - 12 * density) && startX <= (topRect.right + 12 * density)
-                                } else false
-                            } else false
-
-                            val expandQs = when {
-                                mode == com.supershade.settings.SplitGestureMode.ALWAYS_NOTIFICATIONS -> false
-                                mode == com.supershade.settings.SplitGestureMode.ALWAYS_QUICK_SETTINGS -> true
-                                mode.isTogether -> false
-                                isCutoutDeadband -> false
-                                mode == com.supershade.settings.SplitGestureMode.SEPARATE_30_70 -> ratio < 0.30f
-                                mode == com.supershade.settings.SplitGestureMode.SEPARATE_50_50 -> ratio > 0.50f
-                                mode == com.supershade.settings.SplitGestureMode.SEPARATE_70_30 -> ratio > 0.70f
-                                else -> false
-                            }
-                            openSuperShade(expandQs)
-                        }
-                        true
-                    }
-                    MotionEvent.ACTION_CANCEL -> {
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        // Never trigger on ACTION_UP. If the drag didn't reach 28dp during
+                        // ACTION_MOVE, lifting the finger is a tap, NOT a shade pull gesture!
                         triggered = false
                         true
                     }
@@ -275,27 +251,54 @@ class SuperShadeAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (!isSuperShadeActive) return
-        if (event == null) return
-        val eventType = event.eventType
+        if (!isSuperShadeActive || event == null) return
 
-        if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            val pkg = event.packageName?.toString().orEmpty()
-            val cls = event.className?.toString().orEmpty()
+        when (event.eventType) {
+            // Real system shade expansion updates the window list
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
+                if (shadeViewModel.state.value.isOpen) return
+                try {
+                    val currentWindows = windows
+                    val isSystemShadeVisible = currentWindows.any { w ->
+                        w.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_SYSTEM &&
+                            w.title?.toString() == "NotificationShade" &&
+                            (w.isActive || w.layer > 0)
+                    }
+                    if (isSystemShadeVisible) {
+                        android.util.Log.d("SuperShadeA11y", "Intercepted native NotificationShade window expansion")
+                        openSuperShade(expandQs = false)
+                    }
+                } catch (_: Exception) {}
+            }
 
-            val isSystemUi = pkg == "com.android.systemui" || pkg.isEmpty()
-            val isShadeClass = cls.contains("Notification", ignoreCase = true) ||
-                cls.contains("Shade", ignoreCase = true) ||
-                cls.contains("Panel", ignoreCase = true) ||
-                cls.contains("StatusBar", ignoreCase = true) ||
-                cls.contains("CentralSurfaces", ignoreCase = true) ||
-                cls.contains("SecPanel", ignoreCase = true) ||
-                cls.contains("SecQuick", ignoreCase = true)
+            // Strictly filter TYPE_WINDOW_STATE_CHANGED to genuine shade controllers
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                val pkg = event.packageName?.toString().orEmpty()
+                val cls = event.className?.toString().orEmpty()
 
-            if (isSystemUi && isShadeClass) {
-                android.util.Log.d("SuperShadeA11y", "System shade expansion intercepted: pkg=$pkg cls=$cls")
-                if (!shadeViewModel.state.value.isOpen) {
-                    openSuperShade()
+                if (pkg != "com.android.systemui") return
+
+                // Explicitly ignore volume panels, heads up, edge panels, keyguard, clipboard, toasts
+                if (cls.contains("Volume", ignoreCase = true) ||
+                    cls.contains("HeadsUp", ignoreCase = true) ||
+                    cls.contains("Keyguard", ignoreCase = true) ||
+                    cls.contains("Edge", ignoreCase = true) ||
+                    cls.contains("Clipboard", ignoreCase = true) ||
+                    cls.contains("NavigationBar", ignoreCase = true) ||
+                    cls.contains("Biometric", ignoreCase = true) ||
+                    cls.contains("Toast", ignoreCase = true)
+                ) {
+                    return
+                }
+
+                val isExactShadeController = cls == "com.android.systemui.shade.NotificationShadeWindowView" ||
+                    cls == "com.android.systemui.shade.SecNotificationShadeWindowView" ||
+                    cls == "com.android.systemui.shade.NotificationPanelViewController" ||
+                    cls == "com.android.systemui.shade.SecNotificationPanelViewController"
+
+                if (isExactShadeController && !shadeViewModel.state.value.isOpen) {
+                    android.util.Log.d("SuperShadeA11y", "Intercepted exact shade controller: $cls")
+                    openSuperShade(expandQs = false)
                 }
             }
         }

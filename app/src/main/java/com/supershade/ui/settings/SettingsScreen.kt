@@ -581,317 +581,436 @@ fun SettingsScreen(
                 modifier = Modifier.padding(18.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                // Split status bar visual guide
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "Status Bar Pull Split",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                    )
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    ) {
-                        Text(
-                            text = splitGestureMode.label,
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                        )
-                    }
-                }
-
-                // Dynamic visual split diagram
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                ) {
-                    when (splitGestureMode) {
-                        SplitGestureMode.ALWAYS_NOTIFICATIONS -> {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.70f))
-                                    .padding(horizontal = 12.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.SwipeDown,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                    Text(
-                                        text = "Entire Status Bar: Notifications & Full Shade",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.primary,
-                                    )
-                                }
-                            }
-                        }
-                        SplitGestureMode.ALWAYS_QUICK_SETTINGS -> {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.70f))
-                                    .padding(horizontal = 12.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.SwipeDown,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.tertiary,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                    Text(
-                                        text = "Entire Status Bar: Quick Settings Expanded",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.tertiary,
-                                    )
-                                }
-                            }
-                        }
-                        SplitGestureMode.SEPARATE_30_70 -> {
-                            Box(
-                                modifier = Modifier
-                                    .weight(0.30f)
-                                    .fillMaxHeight()
-                                    .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.65f))
-                                    .padding(horizontal = 6.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    text = "QS (30%)",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 10.sp,
-                                    ),
-                                    color = MaterialTheme.colorScheme.tertiary,
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .width(2.dp)
-                                    .fillMaxHeight()
-                                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .weight(0.70f)
-                                    .fillMaxHeight()
-                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f))
-                                    .padding(horizontal = 10.dp),
-                                contentAlignment = Alignment.CenterStart,
-                            ) {
-                                Text(
-                                    text = "Notifications (Right 70%)",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp,
-                                    ),
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                        }
-                        SplitGestureMode.SEPARATE_50_50 -> {
-                            Box(
-                                modifier = Modifier
-                                    .weight(0.50f)
-                                    .fillMaxHeight()
-                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f))
-                                    .padding(horizontal = 8.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    text = "Notifications (50%)",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp,
-                                    ),
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .width(2.dp)
-                                    .fillMaxHeight()
-                                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .weight(0.50f)
-                                    .fillMaxHeight()
-                                    .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.65f))
-                                    .padding(horizontal = 8.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    text = "Quick Settings (50%)",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp,
-                                    ),
-                                    color = MaterialTheme.colorScheme.tertiary,
-                                )
-                            }
-                        }
-                        SplitGestureMode.SEPARATE_70_30 -> {
-                            Box(
-                                modifier = Modifier
-                                    .weight(0.70f)
-                                    .fillMaxHeight()
-                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f))
-                                    .padding(horizontal = 10.dp),
-                                contentAlignment = Alignment.CenterStart,
-                            ) {
-                                Text(
-                                    text = "Notifications (Left 70%)",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp,
-                                    ),
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .width(2.dp)
-                                    .fillMaxHeight()
-                                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .weight(0.30f)
-                                    .fillMaxHeight()
-                                    .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.65f))
-                                    .padding(horizontal = 6.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    text = "QS (30%)",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 10.sp,
-                                    ),
-                                    color = MaterialTheme.colorScheme.tertiary,
-                                )
-                            }
-                        }
-                        SplitGestureMode.TOGETHER -> {
-                            // Visual: One feed — QS tiles stacked above notifications
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.50f))
-                                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                                verticalArrangement = Arrangement.spacedBy(2.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .weight(1f)
-                                        .background(
-                                            MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.70f),
-                                            RoundedCornerShape(4.dp),
-                                        ),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text(
-                                        text = "⚡ QS Tiles",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 9.sp),
-                                        color = MaterialTheme.colorScheme.tertiary,
-                                    )
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .weight(1f)
-                                        .background(
-                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.70f),
-                                            RoundedCornerShape(4.dp),
-                                        ),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text(
-                                        text = "🔔 Notifications",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 9.sp),
-                                        color = MaterialTheme.colorScheme.primary,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                // Primary Layout Mode Header & 2-Card Mode Selector (Together vs Separate)
+                val isTogether = splitGestureMode.isTogether
 
                 Text(
-                    text = splitGestureMode.subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = "Panel Layout Mode",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 )
 
-                // Selectable Split Presets
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SplitGestureMode.entries.forEach { mode ->
-                        val isSelected = splitGestureMode == mode
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f) else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSplitGestureModeChange(mode) },
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    // Card 1: Together (Combined)
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isTogether) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                        else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        border = if (isTogether) BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                        else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable {
+                                haptics?.sheetDetent()
+                                onSplitGestureModeChange(SplitGestureMode.TOGETHER)
+                            },
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = mode.label,
-                                        style = MaterialTheme.typography.titleSmall.copy(
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            fontSize = 13.sp,
-                                        ),
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                    )
-                                    Text(
-                                        text = mode.subtitle,
-                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                                if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Layers,
+                                    contentDescription = null,
+                                    tint = if (isTogether) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                                if (isTogether) {
                                     Box(
                                         modifier = Modifier
-                                            .size(20.dp)
+                                            .size(18.dp)
                                             .clip(CircleShape)
                                             .background(MaterialTheme.colorScheme.primary),
                                         contentAlignment = Alignment.Center,
                                     ) {
-                                        Text(
-                                            text = "✓",
-                                            color = MaterialTheme.colorScheme.onPrimary,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
+                                        Text("✓", color = MaterialTheme.colorScheme.onPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                            Text(
+                                text = "Together",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp),
+                                color = if (isTogether) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = "One UI unified feed. Compact QS tiles on top, notifications below. Drag down expands QS.",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+
+                    // Card 2: Separate (Split)
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (!isTogether) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                        else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        border = if (!isTogether) BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                        else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable {
+                                haptics?.sheetDetent()
+                                if (isTogether) {
+                                    onSplitGestureModeChange(SplitGestureMode.SEPARATE_70_30)
+                                }
+                            },
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DashboardCustomize,
+                                    contentDescription = null,
+                                    tint = if (!isTogether) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                                if (!isTogether) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(18.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Text("✓", color = MaterialTheme.colorScheme.onPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                            Text(
+                                text = "Separate",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp),
+                                color = if (!isTogether) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = "Open panels independently from top right or left. Swipe horizontally between pages.",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+
+                if (isTogether) {
+                    // Together Mode Gesture Guide
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SwipeDown,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Text(
+                                    text = "Together Gestures (Swipe Down Anywhere)",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                            Text(
+                                text = "• Swiping down anywhere along status bar opens the combined panel.\n" +
+                                    "• Pulling down on compact Quick Settings tiles expands full Quick Settings.\n" +
+                                    "• Swiping up when QS is expanded smoothly collapses it back to compact.\n" +
+                                    "• Swiping up on notifications or bottom handle dismisses the shade.",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                } else {
+                    // Split status bar visual guide
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "Status Bar Pull Split",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        ) {
+                            Text(
+                                text = splitGestureMode.label,
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            )
+                        }
+                    }
+
+                    // Dynamic visual split diagram
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                    ) {
+                        when (splitGestureMode) {
+                            SplitGestureMode.ALWAYS_NOTIFICATIONS -> {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.70f))
+                                        .padding(horizontal = 12.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.SwipeDown,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(16.dp),
                                         )
+                                        Text(
+                                            text = "Entire Status Bar: Notifications & Full Shade",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                }
+                            }
+                            SplitGestureMode.ALWAYS_QUICK_SETTINGS -> {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.70f))
+                                        .padding(horizontal = 12.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.SwipeDown,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.tertiary,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                        Text(
+                                            text = "Entire Status Bar: Quick Settings Expanded",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.tertiary,
+                                        )
+                                    }
+                                }
+                            }
+                            SplitGestureMode.SEPARATE_30_70 -> {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(0.30f)
+                                        .fillMaxHeight()
+                                        .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.65f))
+                                        .padding(horizontal = 6.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        text = "QS (30%)",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 10.sp,
+                                        ),
+                                        color = MaterialTheme.colorScheme.tertiary,
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .width(2.dp)
+                                        .fillMaxHeight()
+                                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .weight(0.70f)
+                                        .fillMaxHeight()
+                                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f))
+                                        .padding(horizontal = 10.dp),
+                                    contentAlignment = Alignment.CenterStart,
+                                ) {
+                                    Text(
+                                        text = "Notifications (Right 70%)",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp,
+                                        ),
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            }
+                            SplitGestureMode.SEPARATE_50_50 -> {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(0.50f)
+                                        .fillMaxHeight()
+                                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f))
+                                        .padding(horizontal = 8.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        text = "Notifications (50%)",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp,
+                                        ),
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .width(2.dp)
+                                        .fillMaxHeight()
+                                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .weight(0.50f)
+                                        .fillMaxHeight()
+                                        .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.65f))
+                                        .padding(horizontal = 8.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        text = "Quick Settings (50%)",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp,
+                                        ),
+                                        color = MaterialTheme.colorScheme.tertiary,
+                                    )
+                                }
+                            }
+                            SplitGestureMode.SEPARATE_70_30, SplitGestureMode.TOGETHER -> {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(0.70f)
+                                        .fillMaxHeight()
+                                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f))
+                                        .padding(horizontal = 10.dp),
+                                    contentAlignment = Alignment.CenterStart,
+                                ) {
+                                    Text(
+                                        text = "Notifications (Left 70%)",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp,
+                                        ),
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .width(2.dp)
+                                        .fillMaxHeight()
+                                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .weight(0.30f)
+                                        .fillMaxHeight()
+                                        .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.65f))
+                                        .padding(horizontal = 6.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        text = "QS (30%)",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 10.sp,
+                                        ),
+                                        color = MaterialTheme.colorScheme.tertiary,
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = splitGestureMode.subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    // Selectable Split Presets
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SplitGestureMode.entries.filter { !it.isTogether }.forEach { mode ->
+                            val isSelected = splitGestureMode == mode
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onSplitGestureModeChange(mode) },
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = mode.label,
+                                            style = MaterialTheme.typography.titleSmall.copy(
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                fontSize = 13.sp,
+                                            ),
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                        )
+                                        Text(
+                                            text = mode.subtitle,
+                                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    if (isSelected) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(20.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.primary),
+                                            contentAlignment = Alignment.Center,
+                                        ) {
+                                            Text(
+                                                text = "✓",
+                                                color = MaterialTheme.colorScheme.onPrimary,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -1155,208 +1274,373 @@ fun SettingsScreen(
                                 }
                             }
 
-                            // Mini Quick Settings Tiles Row (Interactive tap toggles)
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                // Tile 1: Wi-Fi
-                                Surface(
-                                    shape = previewTileShape,
-                                    color = if (previewWifiActive) activeAccent else MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(38.dp)
-                                        .clickable {
-                                            if (!previewWifiActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
-                                            previewWifiActive = !previewWifiActive
-                                        },
+                            // Mini Quick Settings Preview — Adapts based on selected theme
+                            if (selectedTheme is ShadeTheme.Pixel) {
+                                // Pixel 2-column wide stadium pills
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Wifi,
-                                            contentDescription = null,
-                                            tint = if (previewWifiActive) Color.White else MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.size(14.dp),
-                                        )
-                                        Text(
-                                            text = "Wi-Fi",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontSize = 9.sp,
-                                                fontWeight = if (previewWifiActive) FontWeight.Bold else FontWeight.Medium,
-                                            ),
-                                            color = if (previewWifiActive) Color.White else MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1,
-                                        )
-                                    }
-                                }
-
-                                // Tile 2: Bluetooth
-                                Surface(
-                                    shape = previewTileShape,
-                                    color = if (previewBtActive) activeAccent else MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(38.dp)
-                                        .clickable {
-                                            if (!previewBtActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
-                                            previewBtActive = !previewBtActive
-                                        },
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Bluetooth,
-                                            contentDescription = null,
-                                            tint = if (previewBtActive) Color.White else MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.size(14.dp),
-                                        )
-                                        Text(
-                                            text = "BT",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontSize = 9.sp,
-                                                fontWeight = if (previewBtActive) FontWeight.Bold else FontWeight.Medium,
-                                            ),
-                                            color = if (previewBtActive) Color.White else MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1,
-                                        )
-                                    }
-                                }
-
-                                // Tile 3: Sound
-                                Surface(
-                                    shape = previewTileShape,
-                                    color = if (previewSoundActive) activeAccent else MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(38.dp)
-                                        .clickable {
-                                            if (!previewSoundActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
-                                            previewSoundActive = !previewSoundActive
-                                        },
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.VolumeUp,
-                                            contentDescription = null,
-                                            tint = if (previewSoundActive) Color.White else MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.size(14.dp),
-                                        )
-                                        Text(
-                                            text = "Sound",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontSize = 9.sp,
-                                                fontWeight = if (previewSoundActive) FontWeight.Bold else FontWeight.Medium,
-                                            ),
-                                            color = if (previewSoundActive) Color.White else MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1,
-                                        )
-                                    }
-                                }
-
-                                // Tile 4: Portrait
-                                Surface(
-                                    shape = previewTileShape,
-                                    color = if (previewPortraitActive) activeAccent else MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(38.dp)
-                                        .clickable {
-                                            if (!previewPortraitActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
-                                            previewPortraitActive = !previewPortraitActive
-                                        },
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.ScreenLockPortrait,
-                                            contentDescription = null,
-                                            tint = if (previewPortraitActive) Color.White else MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.size(14.dp),
-                                        )
-                                        Text(
-                                            text = "Portrait",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontSize = 9.sp,
-                                                fontWeight = if (previewPortraitActive) FontWeight.Bold else FontWeight.Medium,
-                                            ),
-                                            color = if (previewPortraitActive) Color.White else MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1,
-                                        )
-                                    }
-                                }
-                            }
-
-                            // Mini Brightness Slider (Tactile scrub/tap)
-                            Surface(
-                                shape = previewShapeScheme.slider,
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(24.dp)
-                                    .pointerInput(Unit) {
-                                        detectTapGestures { offset ->
-                                            haptics?.sliderTick()
-                                            previewBrightnessFraction = (offset.x / size.width).coerceIn(0.08f, 1.0f)
-                                        }
-                                    }
-                                    .pointerInput(Unit) {
-                                        detectHorizontalDragGestures { change, _ ->
-                                            change.consume()
-                                            val newFrac = (change.position.x / size.width).coerceIn(0.08f, 1.0f)
-                                            if ((previewBrightnessFraction * 12).roundToInt() != (newFrac * 12).roundToInt()) {
-                                                haptics?.sliderTick()
-                                            }
-                                            previewBrightnessFraction = newFrac
-                                        }
-                                    },
-                            ) {
-                                Box(modifier = Modifier.fillMaxSize()) {
-                                    Box(
+                                    // Pill 1: Internet
+                                    Surface(
+                                        shape = RoundedCornerShape(20.dp),
+                                        color = if (previewWifiActive) activeAccent else MaterialTheme.colorScheme.surfaceContainerHighest,
                                         modifier = Modifier
-                                            .fillMaxHeight()
-                                            .fillMaxWidth(previewBrightnessFraction)
-                                            .background(
-                                                Brush.horizontalGradient(
-                                                    listOf(
-                                                        Color(0xFFFFA000),
-                                                        Color(0xFFFFD54F),
+                                            .weight(1f)
+                                            .height(42.dp)
+                                            .clickable {
+                                                if (!previewWifiActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                                                previewWifiActive = !previewWifiActive
+                                            },
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(28.dp)
+                                                    .clip(CircleShape)
+                                                    .background(
+                                                        if (previewWifiActive) Color.White.copy(alpha = 0.20f)
+                                                        else MaterialTheme.colorScheme.surfaceContainerHigh
+                                                    ),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Wifi,
+                                                    contentDescription = null,
+                                                    tint = if (previewWifiActive) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                    modifier = Modifier.size(15.dp),
+                                                )
+                                            }
+                                            Column {
+                                                Text(
+                                                    text = "Internet",
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                                                    color = if (previewWifiActive) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                    maxLines = 1,
+                                                )
+                                                Text(
+                                                    text = if (previewWifiActive) "Connected" else "Off",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 8.sp),
+                                                    color = (if (previewWifiActive) Color.White else MaterialTheme.colorScheme.onSurface).copy(alpha = 0.7f),
+                                                    maxLines = 1,
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // Pill 2: Bluetooth
+                                    Surface(
+                                        shape = RoundedCornerShape(20.dp),
+                                        color = if (previewBtActive) activeAccent else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(42.dp)
+                                            .clickable {
+                                                if (!previewBtActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                                                previewBtActive = !previewBtActive
+                                            },
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(28.dp)
+                                                    .clip(CircleShape)
+                                                    .background(
+                                                        if (previewBtActive) Color.White.copy(alpha = 0.20f)
+                                                        else MaterialTheme.colorScheme.surfaceContainerHigh
+                                                    ),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Bluetooth,
+                                                    contentDescription = null,
+                                                    tint = if (previewBtActive) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                    modifier = Modifier.size(15.dp),
+                                                )
+                                            }
+                                            Column {
+                                                Text(
+                                                    text = "Bluetooth",
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                                                    color = if (previewBtActive) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                    maxLines = 1,
+                                                )
+                                                Text(
+                                                    text = if (previewBtActive) "Active" else "Off",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 8.sp),
+                                                    color = (if (previewBtActive) Color.White else MaterialTheme.colorScheme.onSurface).copy(alpha = 0.7f),
+                                                    maxLines = 1,
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Pixel Brightness Slider: Thick 28dp stadium pill with Sun icon embedded inside the track
+                                Surface(
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(26.dp)
+                                        .pointerInput(Unit) {
+                                            detectTapGestures { offset ->
+                                                haptics?.sliderTick()
+                                                previewBrightnessFraction = (offset.x / size.width).coerceIn(0.08f, 1.0f)
+                                            }
+                                        }
+                                        .pointerInput(Unit) {
+                                            detectHorizontalDragGestures { change, _ ->
+                                                change.consume()
+                                                val newFrac = (change.position.x / size.width).coerceIn(0.08f, 1.0f)
+                                                if ((previewBrightnessFraction * 12).roundToInt() != (newFrac * 12).roundToInt()) {
+                                                    haptics?.sliderTick()
+                                                }
+                                                previewBrightnessFraction = newFrac
+                                            }
+                                        },
+                                ) {
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxHeight()
+                                                .fillMaxWidth(previewBrightnessFraction)
+                                                .clip(RoundedCornerShape(20.dp))
+                                                .background(activeAccent),
+                                        )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(horizontal = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.BrightnessMedium,
+                                                contentDescription = null,
+                                                tint = if (previewBrightnessFraction > 0.15f) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.size(13.dp),
+                                            )
+                                            Text(
+                                                text = "${(previewBrightnessFraction * 100).roundToInt()}%",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                                                color = if (previewBrightnessFraction > 0.85f) Color.White else MaterialTheme.colorScheme.onSurface,
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                // One UI 4-toggle row
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    // Tile 1: Wi-Fi
+                                    Surface(
+                                        shape = previewTileShape,
+                                        color = if (previewWifiActive) activeAccent else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(38.dp)
+                                            .clickable {
+                                                if (!previewWifiActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                                                previewWifiActive = !previewWifiActive
+                                            },
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Wifi,
+                                                contentDescription = null,
+                                                tint = if (previewWifiActive) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.size(14.dp),
+                                            )
+                                            Text(
+                                                text = "Wi-Fi",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontSize = 9.sp,
+                                                    fontWeight = if (previewWifiActive) FontWeight.Bold else FontWeight.Medium,
+                                                ),
+                                                color = if (previewWifiActive) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                maxLines = 1,
+                                            )
+                                        }
+                                    }
+
+                                    // Tile 2: Bluetooth
+                                    Surface(
+                                        shape = previewTileShape,
+                                        color = if (previewBtActive) activeAccent else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(38.dp)
+                                            .clickable {
+                                                if (!previewBtActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                                                previewBtActive = !previewBtActive
+                                            },
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Bluetooth,
+                                                contentDescription = null,
+                                                tint = if (previewBtActive) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.size(14.dp),
+                                            )
+                                            Text(
+                                                text = "BT",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontSize = 9.sp,
+                                                    fontWeight = if (previewBtActive) FontWeight.Bold else FontWeight.Medium,
+                                                ),
+                                                color = if (previewBtActive) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                maxLines = 1,
+                                            )
+                                        }
+                                    }
+
+                                    // Tile 3: Sound
+                                    Surface(
+                                        shape = previewTileShape,
+                                        color = if (previewSoundActive) activeAccent else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(38.dp)
+                                            .clickable {
+                                                if (!previewSoundActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                                                previewSoundActive = !previewSoundActive
+                                            },
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                                                contentDescription = null,
+                                                tint = if (previewSoundActive) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.size(14.dp),
+                                            )
+                                            Text(
+                                                text = "Sound",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontSize = 9.sp,
+                                                    fontWeight = if (previewSoundActive) FontWeight.Bold else FontWeight.Medium,
+                                                ),
+                                                color = if (previewSoundActive) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                maxLines = 1,
+                                            )
+                                        }
+                                    }
+
+                                    // Tile 4: Portrait
+                                    Surface(
+                                        shape = previewTileShape,
+                                        color = if (previewPortraitActive) activeAccent else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(38.dp)
+                                            .clickable {
+                                                if (!previewPortraitActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                                                previewPortraitActive = !previewPortraitActive
+                                            },
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.ScreenLockPortrait,
+                                                contentDescription = null,
+                                                tint = if (previewPortraitActive) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.size(14.dp),
+                                            )
+                                            Text(
+                                                text = "Portrait",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontSize = 9.sp,
+                                                    fontWeight = if (previewPortraitActive) FontWeight.Bold else FontWeight.Medium,
+                                                ),
+                                                color = if (previewPortraitActive) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                maxLines = 1,
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Mini Brightness Slider (Tactile scrub/tap)
+                                Surface(
+                                    shape = previewShapeScheme.slider,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(24.dp)
+                                        .pointerInput(Unit) {
+                                            detectTapGestures { offset ->
+                                                haptics?.sliderTick()
+                                                previewBrightnessFraction = (offset.x / size.width).coerceIn(0.08f, 1.0f)
+                                            }
+                                        }
+                                        .pointerInput(Unit) {
+                                            detectHorizontalDragGestures { change, _ ->
+                                                change.consume()
+                                                val newFrac = (change.position.x / size.width).coerceIn(0.08f, 1.0f)
+                                                if ((previewBrightnessFraction * 12).roundToInt() != (newFrac * 12).roundToInt()) {
+                                                    haptics?.sliderTick()
+                                                }
+                                                previewBrightnessFraction = newFrac
+                                            }
+                                        },
+                                ) {
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxHeight()
+                                                .fillMaxWidth(previewBrightnessFraction)
+                                                .background(
+                                                    Brush.horizontalGradient(
+                                                        listOf(
+                                                            Color(0xFFFFA000),
+                                                            Color(0xFFFFD54F),
+                                                        )
                                                     )
                                                 )
+                                        )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(horizontal = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.BrightnessMedium,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(12.dp),
                                             )
-                                    )
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(horizontal = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.BrightnessMedium,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(12.dp),
-                                        )
-                                        Text(
-                                            text = "${(previewBrightnessFraction * 100).roundToInt()}%",
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                        )
+                                            Text(
+                                                text = "${(previewBrightnessFraction * 100).roundToInt()}%",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                            )
+                                        }
                                     }
                                 }
                             }

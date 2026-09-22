@@ -63,13 +63,23 @@ class GestureOverlay(
         if (overlayView != null) return
         var startX = 0f
         var startY = 0f
-        var startTime = 0L
         var triggered = false
-        val dragThreshold = (16f * context.resources.displayMetrics.density).coerceAtLeast(22f)
+        val density = context.resources.displayMetrics.density
+        val dragThreshold = (28f * density).coerceAtLeast(40f)
 
         val view = View(context).apply {
             setOnTouchListener { v, event ->
                 if (isShadeOpen()) return@setOnTouchListener false
+                val wmCurrent = windowManager ?: return@setOnTouchListener false
+
+                // Do not intercept touches when status bar is hidden (immersive full-screen games/videos)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                    val insets = wmCurrent.currentWindowMetrics.windowInsets
+                    if (!insets.isVisible(android.view.WindowInsets.Type.statusBars())) {
+                        return@setOnTouchListener false
+                    }
+                }
+
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         if (com.supershade.service.SuperShadeAccessibilityService.isRunning()) {
@@ -77,9 +87,7 @@ class GestureOverlay(
                         }
                         startX = event.rawX
                         startY = event.rawY
-                        startTime = System.currentTimeMillis()
                         triggered = false
-                        val density = context.resources.displayMetrics.density
                         val edgeExclusionPx = 18f * density
                         val screenWidth = context.resources.displayMetrics.widthPixels
                         if (startX < edgeExclusionPx || startX > (screenWidth - edgeExclusionPx)) {
@@ -90,7 +98,7 @@ class GestureOverlay(
                     MotionEvent.ACTION_MOVE -> {
                         val deltaX = kotlin.math.abs(event.rawX - startX)
                         val deltaY = event.rawY - startY
-                        if (!triggered && deltaY > dragThreshold && deltaY > deltaX * 0.70f) {
+                        if (!triggered && deltaY > dragThreshold && deltaY > deltaX * 1.30f) {
                             triggered = true
                             v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
                             val screenWidth = context.resources.displayMetrics.widthPixels.coerceAtLeast(1)
@@ -98,12 +106,12 @@ class GestureOverlay(
                             val mode = splitGestureMode()
 
                             val isCutoutDeadband = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                                val insets = windowManager?.currentWindowMetrics?.windowInsets
+                                val insets = wmCurrent.currentWindowMetrics.windowInsets
                                 val cutout = insets?.displayCutout
                                 val topRect = cutout?.boundingRectTop
                                 if (topRect != null && !topRect.isEmpty) {
-                                    val density = context.resources.displayMetrics.density
-                                    startX >= (topRect.left - 12 * density) && startX <= (topRect.right + 12 * density)
+                                    val d = context.resources.displayMetrics.density
+                                    startX >= (topRect.left - 12 * d) && startX <= (topRect.right + 12 * d)
                                 } else false
                             } else false
 
@@ -121,42 +129,7 @@ class GestureOverlay(
                         }
                         true
                     }
-                    MotionEvent.ACTION_UP -> {
-                        val deltaX = kotlin.math.abs(event.rawX - startX)
-                        val deltaY = event.rawY - startY
-                        val duration = System.currentTimeMillis() - startTime
-                        if (!triggered && deltaY > (dragThreshold * 0.65f) && deltaY > deltaX * 0.70f && duration < 750) {
-                            triggered = true
-                            v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
-                            val screenWidth = context.resources.displayMetrics.widthPixels.coerceAtLeast(1)
-                            val ratio = startX / screenWidth.toFloat()
-                            val mode = splitGestureMode()
-
-                            val isCutoutDeadband = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                                val insets = windowManager?.currentWindowMetrics?.windowInsets
-                                val cutout = insets?.displayCutout
-                                val topRect = cutout?.boundingRectTop
-                                if (topRect != null && !topRect.isEmpty) {
-                                    val density = context.resources.displayMetrics.density
-                                    startX >= (topRect.left - 12 * density) && startX <= (topRect.right + 12 * density)
-                                } else false
-                            } else false
-
-                            val expandQs = when {
-                                mode == SplitGestureMode.ALWAYS_NOTIFICATIONS -> false
-                                mode == SplitGestureMode.ALWAYS_QUICK_SETTINGS -> true
-                                mode.isTogether -> false
-                                isCutoutDeadband -> false
-                                mode == SplitGestureMode.SEPARATE_30_70 -> ratio < 0.30f
-                                mode == SplitGestureMode.SEPARATE_50_50 -> ratio > 0.50f
-                                mode == SplitGestureMode.SEPARATE_70_30 -> ratio > 0.70f
-                                else -> false
-                            }
-                            onSwipeDown(expandQs)
-                        }
-                        true
-                    }
-                    MotionEvent.ACTION_CANCEL -> {
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                         triggered = false
                         true
                     }

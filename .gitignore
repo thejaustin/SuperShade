@@ -5,6 +5,7 @@ app/build/
 local.properties
 *.jks
 *.keystore
+!app/debug.keystore
 
 # IDE
 .idea/

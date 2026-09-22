@@ -45,6 +45,14 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.26" -> """
+        ✨ Notification Scroll Protection & Enhanced Gesture Disambiguation
+        • Uninterrupted Notification Scrolling: Completely decoupled vertical list scrolling from shade dismissal, allowing you to scroll and fling through long lists of notifications without the status bar closing
+        • Zone-Aware Gesture Disambiguation: Reserved vertical pull-to-dismiss gestures strictly for the Top Status Bar Header, Bottom Drag Handle, and empty areas, eliminating false dismiss triggers
+        • Fling Velocity Safety: Removed accidental fling-to-dismiss triggers from nested scrolling so fast notification browsing stops cleanly at list edges
+        • Generous Bottom Clearance: Added comfortable 68dp bottom padding to notification feeds so the bottom-most notification is always completely visible and easy to tap
+        • Dedicated Header Pull-Up: Swiping up on the top clock and status bar row now provides a smooth, reliable gesture to pull up and close the shade
+        """.trimIndent()
         "1.9.25" -> """
         ✨ Notification Access Onboarding, One UI 9 Categories & Crisp Light Theme
         • Notification Access Onboarding Card: Beautiful frosted One UI 9 permission card with 1-tap grant action when notification listener permission is missing, replacing ambiguous empty states

@@ -221,13 +221,13 @@ fun ShadeRoot(
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val dy = available.y
                 // Swiping UP while on notifications panel and quick controls are untucked:
-                if (dy < -14f && activePanel == ShadePanel.NOTIFICATIONS && !isTucked && !isTogether) {
+                // Tucks quick controls on deliberate swipe without swallowing scroll delta
+                if (dy < -24f && activePanel == ShadePanel.NOTIFICATIONS && !isTucked && !isTogether) {
                     haptics.sheetDetent()
                     viewModel.setQuickControlsTucked(true)
-                    return Offset(0f, dy * 0.35f)
                 }
                 // Swiping UP in Together mode while Quick Settings is expanded:
-                if (dy < -8f && isTogether && isQsExpanded) {
+                if (dy < -12f && isTogether && isQsExpanded) {
                     haptics.sheetDetent()
                     viewModel.setQsExpanded(false)
                     return Offset(0f, dy)
@@ -238,44 +238,26 @@ fun ShadeRoot(
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
                 val dy = available.y
                 // Pulled down at top of notifications list (available.y > 0):
-                if (dy > 12f && activePanel == ShadePanel.NOTIFICATIONS && isTucked && !isTogether) {
+                if (dy > 16f && activePanel == ShadePanel.NOTIFICATIONS && isTucked && !isTogether) {
                     haptics.sheetDetent()
                     viewModel.setQuickControlsTucked(false)
                     return Offset(0f, dy)
                 }
                 // Pulled down in Together mode: expand Quick Settings
-                if (dy > 16f && isTogether && !isQsExpanded) {
+                if (dy > 20f && isTogether && !isQsExpanded) {
                     haptics.sheetDetent()
                     viewModel.setQsExpanded(true)
-                    return Offset(0f, dy)
-                }
-                // Swiping up when feed cannot scroll further up: track upward dismiss drag
-                if (dy < -6f && !(isTogether && isQsExpanded)) {
-                    coroutineScope.launch {
-                        dragOffset.snapTo((dragOffset.value + dy * 0.75f).coerceAtMost(0f))
-                    }
                     return Offset(0f, dy)
                 }
                 return Offset.Zero
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (available.y < -velocityThresholdPxPerSec && !(isTogether && isQsExpanded) && dragOffset.value < -20f) {
-                    dragOffset.animateTo(-screenHeightPx, tween(180))
-                    onDismiss()
-                    return available
-                }
                 return Velocity.Zero
             }
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                if (dragOffset.value < -dismissThresholdPx || available.y < -velocityThresholdPxPerSec) {
-                    if (!(isTogether && isQsExpanded)) {
-                        dragOffset.animateTo(-screenHeightPx, tween(180))
-                        onDismiss()
-                        return available
-                    }
-                } else if (dragOffset.value < 0f) {
+                if (dragOffset.value < 0f) {
                     dragOffset.animateTo(0f, spring(Spring.DampingRatioLowBouncy, Spring.StiffnessMediumLow))
                 }
                 return Velocity.Zero
@@ -365,11 +347,13 @@ fun ShadeRoot(
                                 transformOrigin = TransformOrigin(0.5f, 0f)
                             }
                             .background(glassBackdrop)
-                            .pointerInput(isQsExpanded, isEditingTiles) {
+                            .pointerInput(isQsExpanded, isEditingTiles, isTogether, state.activePanel, state.visibleNotifications.size) {
                                 if (isEditingTiles) return@pointerInput
                                 val px = this.density
-                                val edgeZonePx = (38f * px).toInt()
-                                val minSwipeUp = (38f * px).toInt()
+                                val edgeZonePx = (32f * px).toInt()
+                                val headerZonePx = (80f * px).toInt()
+                                val bottomZonePx = (72f * px).toInt()
+                                val minSwipeUp = (96f * px).toInt()
                                 val slopeMin = 0.45f
 
                                 awaitEachGesture {
@@ -379,6 +363,13 @@ fun ShadeRoot(
                                     var totalDy = 0f
                                     val tracker = VelocityTracker()
                                     tracker.addPosition(down.uptimeMillis, down.position)
+
+                                    val hasNotifications = state.visibleNotifications.isNotEmpty()
+                                    // Touch is over the scrollable feed if it occurs between top header and bottom handle zones
+                                    // and there are notifications to scroll (or together mode with compact QS).
+                                    val isTouchOverScrollableFeed = down.position.y >= headerZonePx &&
+                                                                    down.position.y <= (size.height - bottomZonePx) &&
+                                                                    (hasNotifications || (isTogether && !isQsExpanded))
 
                                     while (true) {
                                         val event = awaitPointerEvent()
@@ -409,55 +400,63 @@ fun ShadeRoot(
                                             break
                                         }
 
-                                        // 1:1 Continuous bidirectional live drag tracking
-                                        val isDominantVertical = kotlin.math.abs(dy) > kotlin.math.abs(dx) * slopeMin
-                                        if (isDominantVertical && (dy < -6f || dy > 6f || dragOffset.value != 0f)) {
-                                            totalDy = dy
-                                            val currentVal = dragOffset.value
-                                            val nextVal = if (deltaY > 0f && currentVal >= 0f) {
-                                                // Downward rubber-banding when pulled past resting position
-                                                (currentVal + deltaY * 0.32f).coerceIn(0f, 64f * px)
-                                            } else {
-                                                // Live 1:1 tracking upward towards dismiss or returning down
-                                                (currentVal + deltaY).coerceAtMost(64f * px)
+                                        // Vertical dismiss drag tracking:
+                                        // ONLY active when the touch started outside scrollable notification feed
+                                        // (e.g. Header zone, Bottom handle zone, or Empty notifications state)
+                                        if (!isTouchOverScrollableFeed) {
+                                            val isDominantVertical = kotlin.math.abs(dy) > kotlin.math.abs(dx) * slopeMin
+                                            if (isDominantVertical && (dy < -6f || dy > 6f || dragOffset.value != 0f)) {
+                                                totalDy = dy
+                                                val currentVal = dragOffset.value
+                                                val nextVal = if (deltaY > 0f && currentVal >= 0f) {
+                                                    // Downward rubber-banding when pulled past resting position
+                                                    (currentVal + deltaY * 0.32f).coerceIn(0f, 64f * px)
+                                                } else {
+                                                    // Live 1:1 tracking upward towards dismiss or returning down
+                                                    (currentVal + deltaY).coerceAtMost(64f * px)
+                                                }
+                                                coroutineScope.launch {
+                                                    dragOffset.snapTo(nextVal)
+                                                }
                                             }
-                                            coroutineScope.launch {
-                                                dragOffset.snapTo(nextVal)
-                                            }
-                                        }
 
-                                        if (!change.pressed) {
-                                            val velocity = tracker.calculateVelocity().y
-                                            val isFlingUp = velocity < -velocityThresholdPxPerSec
-                                            val isPulledPastThreshold = dragOffset.value < -dismissThresholdPx || -totalDy >= minSwipeUp
+                                            if (!change.pressed) {
+                                                val velocity = tracker.calculateVelocity().y
+                                                val isFlingUp = velocity < -velocityThresholdPxPerSec
+                                                val isPulledPastThreshold = dragOffset.value < -dismissThresholdPx || -totalDy >= minSwipeUp
 
-                                            if (isFlingUp || isPulledPastThreshold) {
-                                                consumed = true
-                                                change.consume()
-                                                // If Together QS expanded and gentle flick or partial drag: collapse QS
-                                                if (isTogether && isQsExpanded && velocity > -1600f * px && dragOffset.value > -screenHeightPx * 0.35f) {
-                                                    haptics.sheetDetent()
+                                                if (isFlingUp || isPulledPastThreshold) {
+                                                    consumed = true
+                                                    change.consume()
+                                                    if (isTogether && isQsExpanded && velocity > -1600f * px && dragOffset.value > -screenHeightPx * 0.35f) {
+                                                        haptics.sheetDetent()
+                                                        coroutineScope.launch {
+                                                            viewModel.setQsExpanded(false)
+                                                            dragOffset.animateTo(0f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow))
+                                                        }
+                                                    } else {
+                                                        haptics.sheetDetent()
+                                                        coroutineScope.launch {
+                                                            dragOffset.animateTo(-screenHeightPx, spring(0.90f, 420f))
+                                                            onDismiss()
+                                                        }
+                                                    }
+                                                } else if (dragOffset.value > 0f) {
                                                     coroutineScope.launch {
-                                                        viewModel.setQsExpanded(false)
                                                         dragOffset.animateTo(0f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow))
                                                     }
-                                                } else {
-                                                    haptics.sheetDetent()
+                                                } else if (dragOffset.value < 0f) {
                                                     coroutineScope.launch {
-                                                        dragOffset.animateTo(-screenHeightPx, spring(0.90f, 420f))
-                                                        onDismiss()
+                                                        dragOffset.animateTo(0f, spring(Spring.DampingRatioLowBouncy, Spring.StiffnessMediumLow))
                                                     }
                                                 }
-                                            } else if (dragOffset.value > 0f) {
-                                                coroutineScope.launch {
-                                                    dragOffset.animateTo(0f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow))
-                                                }
-                                            } else if (dragOffset.value < 0f) {
-                                                coroutineScope.launch {
-                                                    dragOffset.animateTo(0f, spring(Spring.DampingRatioLowBouncy, Spring.StiffnessMediumLow))
-                                                }
+                                                break
                                             }
-                                            break
+                                        } else {
+                                            // When touching inside scrollable feed, allow child views to handle scroll entirely
+                                            if (!change.pressed) {
+                                                break
+                                            }
                                         }
                                     }
                                 }
@@ -491,30 +490,58 @@ fun ShadeRoot(
                                 .navigationBarsPadding(),
                         ) {
                         // Top Status Bar (Clock, Battery, Lock, Settings, Power, Edit)
-                        StatusBarRow(
-                            statusBar = state.statusBar,
-                            isEditing = isEditingTiles,
-                            onOpenPowerMenu = { showPowerMenu = true },
-                            onOpenEdit = {
-                                isEditingTiles = !isEditingTiles
-                                if (isEditingTiles && state.activePanel != ShadePanel.QUICK_SETTINGS) {
-                                    viewModel.setActivePanel(ShadePanel.QUICK_SETTINGS)
-                                }
-                            },
-                            onOpenDeviceSettings = {
-                                onDismiss()
-                            },
-                            onOpenSettings = {
-                                try {
-                                    val intent = Intent(context, com.supershade.MainActivity::class.java).apply {
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .draggable(
+                                    orientation = Orientation.Vertical,
+                                    enabled = !isEditingTiles,
+                                    state = rememberDraggableState { delta ->
+                                        if (delta < 0f) {
+                                            coroutineScope.launch {
+                                                dragOffset.snapTo((dragOffset.value + delta).coerceAtMost(0f))
+                                            }
+                                        }
+                                    },
+                                    onDragStopped = { velocity ->
+                                        if (velocity < -velocityThresholdPxPerSec || dragOffset.value < -dismissThresholdPx) {
+                                            coroutineScope.launch {
+                                                dragOffset.animateTo(-screenHeightPx, tween(180))
+                                                onDismiss()
+                                            }
+                                        } else {
+                                            coroutineScope.launch {
+                                                dragOffset.animateTo(0f, spring(Spring.DampingRatioLowBouncy, Spring.StiffnessMediumLow))
+                                            }
+                                        }
+                                    },
+                                )
+                        ) {
+                            StatusBarRow(
+                                statusBar = state.statusBar,
+                                isEditing = isEditingTiles,
+                                onOpenPowerMenu = { showPowerMenu = true },
+                                onOpenEdit = {
+                                    isEditingTiles = !isEditingTiles
+                                    if (isEditingTiles && state.activePanel != ShadePanel.QUICK_SETTINGS) {
+                                        viewModel.setActivePanel(ShadePanel.QUICK_SETTINGS)
                                     }
-                                    context.startActivity(intent)
+                                },
+                                onOpenDeviceSettings = {
                                     onDismiss()
-                                } catch (_: Exception) {}
-                            },
-                            onLockScreen = { viewModel.lockScreen() },
-                        )
+                                },
+                                onOpenSettings = {
+                                    try {
+                                        val intent = Intent(context, com.supershade.MainActivity::class.java).apply {
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        }
+                                        context.startActivity(intent)
+                                        onDismiss()
+                                    } catch (_: Exception) {}
+                                },
+                                onLockScreen = { viewModel.lockScreen() },
+                            )
+                        }
 
                         // Active View Content
                         // TOGETHER mode: single unified vertical feed (One UI 8/9 style)
@@ -1113,11 +1140,11 @@ fun ShadeRoot(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .defaultMinSize(minHeight = 46.dp)
+                                .defaultMinSize(minHeight = 52.dp)
                                 .clickable {
                                     haptics.sheetDetent()
                                     coroutineScope.launch {
-                                        dragOffset.animateTo(-3000f, tween(180))
+                                        dragOffset.animateTo(-screenHeightPx, tween(180))
                                         onDismiss()
                                     }
                                 }
@@ -1137,8 +1164,8 @@ fun ShadeRoot(
                                                 velocity < -velocityThresholdPxPerSec
                                             ) {
                                                 dragOffset.animateTo(
-                                                    targetValue = -3000f,
-                                                    animationSpec = tween(durationMillis = 200),
+                                                    targetValue = -screenHeightPx,
+                                                    animationSpec = tween(durationMillis = 180),
                                                 )
                                                 onDismiss()
                                             } else {

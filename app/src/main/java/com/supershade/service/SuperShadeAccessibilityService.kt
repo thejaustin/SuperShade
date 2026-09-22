@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
@@ -281,6 +282,31 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                 }
             } catch (_: Exception) {}
         }
+    }
+
+    override fun onKeyEvent(event: KeyEvent?): Boolean {
+        if (!isSuperShadeActive || event == null) return super.onKeyEvent(event)
+        val keyCode = event.keyCode
+
+        // Samsung Good Lock One Hand Operation+ and Knox inject keycodes:
+        // - 1003: Samsung One UI SEM_KEYCODE_EXPAND_NOTI_PANEL
+        // - 1004: Samsung One UI SEM_KEYCODE_EXPAND_QUICK_PANEL
+        // - 83:   KeyEvent.KEYCODE_NOTIFICATION (Stock AOSP notification panel key)
+        if (keyCode == 1003 || keyCode == 83) {
+            if (event.action == KeyEvent.ACTION_UP) {
+                android.util.Log.d("SuperShadeA11y", "Intercepted notification panel keyevent ($keyCode) from Good Lock / System")
+                openSuperShade(expandQs = false)
+            }
+            return true
+        } else if (keyCode == 1004) {
+            if (event.action == KeyEvent.ACTION_UP) {
+                android.util.Log.d("SuperShadeA11y", "Intercepted quick panel keyevent ($keyCode) from Good Lock / System")
+                openSuperShade(expandQs = true)
+            }
+            return true
+        }
+
+        return super.onKeyEvent(event)
     }
 
     private fun openSuperShade(expandQs: Boolean = false) {

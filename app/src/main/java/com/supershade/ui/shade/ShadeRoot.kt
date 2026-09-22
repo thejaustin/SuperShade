@@ -335,9 +335,9 @@ fun ShadeRoot(
                             .pointerInput(isQsExpanded, isEditingTiles) {
                                 if (isEditingTiles) return@pointerInput
                                 val px = this.density
-                                val edgeZonePx = (24f * px).toInt()
-                                val minSwipeUp = (48f * px).toInt()
-                                val slopeMin = 0.50f
+                                val edgeZonePx = (38f * px).toInt()
+                                val minSwipeUp = (38f * px).toInt()
+                                val slopeMin = 0.45f
 
                                 awaitEachGesture {
                                     val down = awaitFirstDown(requireUnconsumed = false)
@@ -357,9 +357,9 @@ fun ShadeRoot(
                                         val deltaY = change.position.y - lastY
                                         lastY = change.position.y
 
-                                        // Side edge inward swipe (predictive back gesture simulation)
-                                        val isInwardSwipe = (down.position.x < edgeZonePx && dx > (32f * px)) ||
-                                                            (down.position.x > (size.width - edgeZonePx) && dx < -(32f * px))
+                                        // Side edge inward swipe (AOSP / One UI predictive back navigation)
+                                        val isInwardSwipe = (down.position.x < edgeZonePx && dx > (22f * px)) ||
+                                                            (down.position.x > (size.width - edgeZonePx) && dx < -(22f * px))
 
                                         if (!consumed && isInwardSwipe) {
                                             change.consume()

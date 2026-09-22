@@ -45,6 +45,12 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.22" -> """
+        ✨ Good Lock One Hand Operation+ Direct Interception & Enhanced Exit Gestures
+        • Samsung Good Lock Hardware Key Interception: Automatically intercepts One Hand Operation+ diagonal swipe gestures at the accessibility framework level (Samsung keycodes 1003 & 1004) even when the native system shade is disabled via Shizuku
+        • Ergonomic Side-Edge Dismissal: Expanded inward edge swipe detection zone from 24dp to 38dp to match modern high-DPI curved/flat screens and phone cases
+        • Fluid Multi-Layer Dismissal: Swiping up while Quick Settings is expanded collapses QS first with bouncy spring damping; swiping up when collapsed seamlessly dismisses the shade
+        """.trimIndent()
         "1.9.21" -> """
         ✨ One UI 8/9 "Together" Mode, 2×2 Connectivity Cluster & Crash Elimination
         • BadTokenException Crash Fix: Completely eliminated WindowManager crashes when opening the Power Menu or Tile Details (e.g. Flashlight/Wi-Fi/BT) by transitioning modals to in-overlay Compose layers with zero Android Dialog token dependencies

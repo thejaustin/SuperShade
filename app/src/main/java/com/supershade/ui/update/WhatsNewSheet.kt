@@ -45,6 +45,13 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.24" -> """
+        ✨ One UI 9 Bidirectional Drag Physics & Together Mode Ergonomics
+        • Continuous Bidirectional Tracking: Dragging up to dismiss or back down to resting position now tracks your finger 1:1 without stickiness, backed by fluid spring overshoot damping
+        • Together Mode Quick Brightness: Brightness slider is now always accessible directly beneath compact tiles in Together mode, with the Volume slider expanding dynamically when QS expands
+        • Quick Settings Panel Exit Swipe: Swiping up on the Quick Settings panel in Separate mode now seamlessly tracks dismiss gestures and flings away the shade
+        • Multi-Layer Hierarchy Polish: In Together mode, swiping up collapses full QS to compact mode with tactile detent; swiping up in compact mode dismisses the shade
+        """.trimIndent()
         "1.9.23" -> """
         ✨ One UI 9 Continuous Pager, Reactive System Services & Gesture Polish
         • One UI 9 Continuous Horizontal Pager: Notifications and Quick Settings now transition with fluid 1:1 finger-following horizontal page tracking, edge parallax, and spring snapping

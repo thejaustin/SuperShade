@@ -167,6 +167,8 @@ fun ShadeRoot(
     val dragOffset = remember { Animatable(0f) }
     val horizontalPanOffset = remember { Animatable(0f) }
     val density = LocalDensity.current
+    val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
+    val screenHeightPx = with(density) { screenHeightDp.toPx() }.coerceAtLeast(1f)
     val dismissThresholdPx = with(density) { 72.dp.toPx() }
     val velocityThresholdPxPerSec = with(density) { 400.dp.toPx() }
     val maxHorizontalPanPx = with(density) { 60.dp.toPx() }
@@ -209,21 +211,22 @@ fun ShadeRoot(
         }
     }
 
+    val isTogether = state.splitGestureMode.isTogether
     val isTucked = state.isQuickControlsTucked
     val activePanel = state.activePanel
 
-    val nestedScrollConnection = remember(isQsExpanded, isTucked, activePanel) {
+    val nestedScrollConnection = remember(isTogether, isQsExpanded, isTucked, activePanel) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val dy = available.y
-                // Swiping UP while on notifications panel: tuck quick controls to maximize notification room
-                if (dy < -10f && activePanel == ShadePanel.NOTIFICATIONS && !isTucked) {
+                // Swiping UP while on notifications panel and quick controls are untucked:
+                if (dy < -14f && activePanel == ShadePanel.NOTIFICATIONS && !isTucked && !isTogether) {
                     haptics.sheetDetent()
                     viewModel.setQuickControlsTucked(true)
-                    return Offset(0f, dy * 0.4f)
+                    return Offset(0f, dy * 0.35f)
                 }
-                // Swiping UP while Quick Settings is expanded:
-                if (dy < -8f && isQsExpanded) {
+                // Swiping UP in Together mode while Quick Settings is expanded:
+                if (dy < -8f && isTogether && isQsExpanded) {
                     haptics.sheetDetent()
                     viewModel.setQsExpanded(false)
                     return Offset(0f, dy)
@@ -234,20 +237,21 @@ fun ShadeRoot(
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
                 val dy = available.y
                 // Pulled down at top of notifications list (available.y > 0):
-                if (dy > 12f && activePanel == ShadePanel.NOTIFICATIONS && isTucked) {
+                if (dy > 12f && activePanel == ShadePanel.NOTIFICATIONS && isTucked && !isTogether) {
                     haptics.sheetDetent()
                     viewModel.setQuickControlsTucked(false)
                     return Offset(0f, dy)
                 }
-                if (dy > 16f && !isQsExpanded && !isTucked) {
+                // Pulled down in Together mode: expand Quick Settings
+                if (dy > 16f && isTogether && !isQsExpanded) {
                     haptics.sheetDetent()
                     viewModel.setQsExpanded(true)
                     return Offset(0f, dy)
                 }
-                // Swiping up when feed cannot scroll further up:
-                if (dy < -10f && !isQsExpanded) {
+                // Swiping up when feed cannot scroll further up: track upward dismiss drag
+                if (dy < -6f && !(isTogether && isQsExpanded)) {
                     coroutineScope.launch {
-                        dragOffset.snapTo((dragOffset.value + dy * 0.45f).coerceAtMost(0f))
+                        dragOffset.snapTo((dragOffset.value + dy * 0.75f).coerceAtMost(0f))
                     }
                     return Offset(0f, dy)
                 }
@@ -255,8 +259,8 @@ fun ShadeRoot(
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (available.y < -velocityThresholdPxPerSec && !isQsExpanded && dragOffset.value < -20f) {
-                    dragOffset.animateTo(-3000f, tween(200))
+                if (available.y < -velocityThresholdPxPerSec && !(isTogether && isQsExpanded) && dragOffset.value < -20f) {
+                    dragOffset.animateTo(-screenHeightPx, tween(180))
                     onDismiss()
                     return available
                 }
@@ -265,13 +269,13 @@ fun ShadeRoot(
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
                 if (dragOffset.value < -dismissThresholdPx || available.y < -velocityThresholdPxPerSec) {
-                    if (!isQsExpanded) {
-                        dragOffset.animateTo(-3000f, tween(200))
+                    if (!(isTogether && isQsExpanded)) {
+                        dragOffset.animateTo(-screenHeightPx, tween(180))
                         onDismiss()
                         return available
                     }
                 } else if (dragOffset.value < 0f) {
-                    dragOffset.animateTo(0f, spring(0.55f, 450f))
+                    dragOffset.animateTo(0f, spring(Spring.DampingRatioLowBouncy, Spring.StiffnessMediumLow))
                 }
                 return Velocity.Zero
             }
@@ -290,13 +294,13 @@ fun ShadeRoot(
             showPowerMenu = false
         } else if (state.activeTileDetail != null) {
             viewModel.closeTileDetail()
-        } else if (state.isQsExpanded) {
+        } else if (isTogether && state.isQsExpanded) {
             haptics.sheetDetent()
             viewModel.setQsExpanded(false)
         } else {
             haptics.sheetDetent()
             coroutineScope.launch {
-                dragOffset.animateTo(-3000f, tween(180))
+                dragOffset.animateTo(-screenHeightPx, tween(180))
                 onDismiss()
             }
         }
@@ -317,8 +321,6 @@ fun ShadeRoot(
                     Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> (opacity * 0.36f).coerceIn(0.12f, 0.45f)
                     else -> (opacity * 0.65f).coerceIn(0.25f, 0.75f)
                 }
-                val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
-                val screenHeightPx = with(density) { screenHeightDp.toPx() }.coerceAtLeast(1f)
                 val dragFraction = (kotlin.math.abs(dragOffset.value) / screenHeightPx).coerceIn(0f, 1f)
                 // One UI 9 cosine scrim attenuation curve: preserves visual focus before wallpaper reveal
                 val cosineFactor = kotlin.math.cos((Math.PI / 2.0) * Math.pow(dragFraction.toDouble(), 1.35)).toFloat()
@@ -395,7 +397,7 @@ fun ShadeRoot(
                                             change.consume()
                                             consumed = true
                                             haptics.sheetDetent()
-                                            if (isQsExpanded) {
+                                            if (isTogether && isQsExpanded) {
                                                 coroutineScope.launch { viewModel.setQsExpanded(false) }
                                             } else {
                                                 coroutineScope.launch {
@@ -406,18 +408,20 @@ fun ShadeRoot(
                                             break
                                         }
 
-                                        // 1:1 Live upward drag tracking
-                                        if (dy < -8f && kotlin.math.abs(dy) > kotlin.math.abs(dx) * slopeMin) {
+                                        // 1:1 Continuous bidirectional live drag tracking
+                                        val isDominantVertical = kotlin.math.abs(dy) > kotlin.math.abs(dx) * slopeMin
+                                        if (isDominantVertical && (dy < -6f || dy > 6f || dragOffset.value != 0f)) {
                                             totalDy = dy
-                                            coroutineScope.launch {
-                                                dragOffset.snapTo((dragOffset.value + deltaY * 0.92f).coerceAtMost(0f))
+                                            val currentVal = dragOffset.value
+                                            val nextVal = if (deltaY > 0f && currentVal >= 0f) {
+                                                // Downward rubber-banding when pulled past resting position
+                                                (currentVal + deltaY * 0.32f).coerceIn(0f, 64f * px)
+                                            } else {
+                                                // Live 1:1 tracking upward towards dismiss or returning down
+                                                (currentVal + deltaY).coerceAtMost(64f * px)
                                             }
-                                        } else if (dy > 8f && dragOffset.value >= 0f && kotlin.math.abs(dy) > kotlin.math.abs(dx) * slopeMin) {
-                                            // Downward rubber-band drag when pulling past resting position
-                                            val rubberDelta = deltaY * 0.28f
-                                            val rubberMax = 64f * px
                                             coroutineScope.launch {
-                                                dragOffset.snapTo((dragOffset.value + rubberDelta).coerceIn(0f, rubberMax))
+                                                dragOffset.snapTo(nextVal)
                                             }
                                         }
 
@@ -429,8 +433,8 @@ fun ShadeRoot(
                                             if (isFlingUp || isPulledPastThreshold) {
                                                 consumed = true
                                                 change.consume()
-                                                // If QS expanded and gentle flick or partial drag: collapse QS
-                                                if (isQsExpanded && velocity > -1600f * px && dragOffset.value > -screenHeightPx * 0.35f) {
+                                                // If Together QS expanded and gentle flick or partial drag: collapse QS
+                                                if (isTogether && isQsExpanded && velocity > -1600f * px && dragOffset.value > -screenHeightPx * 0.35f) {
                                                     haptics.sheetDetent()
                                                     coroutineScope.launch {
                                                         viewModel.setQsExpanded(false)
@@ -562,32 +566,34 @@ fun ShadeRoot(
                                     )
                                 }
 
-                                // Sliders (visible when QS is expanded, collapsed otherwise)
-                                AnimatedVisibility(
-                                    visible = isQsExpanded,
-                                    enter = expandVertically(spring(0.8f, 380f)) + fadeIn(tween(140)),
-                                    exit = shrinkVertically(tween(160)) + fadeOut(tween(120)),
+                                // Tactile Sliders Island in Together mode:
+                                // Brightness slider is always accessible at top (matching One UI compact quick panel);
+                                // Volume slider expands smoothly when QS is expanded.
+                                Surface(
+                                    shape = shapeScheme.container,
+                                    color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
+                                    border = getCardBorder(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 3.dp),
                                 ) {
-                                    Surface(
-                                        shape = shapeScheme.container,
-                                        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
-                                        border = getCardBorder(),
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 14.dp, vertical = 3.dp),
+                                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                                        verticalArrangement = Arrangement.spacedBy(6.dp),
                                     ) {
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                                        BrightnessSlider(
+                                            brightness = state.brightness,
+                                            onBrightnessChange = { viewModel.setBrightness(it) },
+                                            compact = false,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                        AnimatedVisibility(
+                                            visible = isQsExpanded,
+                                            enter = expandVertically(spring(0.8f, 380f)) + fadeIn(tween(140)),
+                                            exit = shrinkVertically(tween(160)) + fadeOut(tween(120)),
                                         ) {
-                                            BrightnessSlider(
-                                                brightness = state.brightness,
-                                                onBrightnessChange = { viewModel.setBrightness(it) },
-                                                compact = false,
-                                                modifier = Modifier.fillMaxWidth(),
-                                            )
                                             VolumeSlider(
                                                 compact = false,
                                                 modifier = Modifier.fillMaxWidth(),
@@ -875,6 +881,7 @@ fun ShadeRoot(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxSize()
+                                        .nestedScroll(nestedScrollConnection)
                                         .verticalScroll(rememberScrollState()),
                                     verticalArrangement = Arrangement.spacedBy(4.dp),
                                 ) {

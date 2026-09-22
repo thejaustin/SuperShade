@@ -45,6 +45,13 @@ import kotlinx.coroutines.launch
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.21" -> """
+        ✨ One UI 8/9 "Together" Mode, 2×2 Connectivity Cluster & Crash Elimination
+        • BadTokenException Crash Fix: Completely eliminated WindowManager crashes when opening the Power Menu or Tile Details (e.g. Flashlight/Wi-Fi/BT) by transitioning modals to in-overlay Compose layers with zero Android Dialog token dependencies
+        • One UI "Together" Mode: Added unified vertical feed mode inspired by Samsung One UI 8/9 — compact QS tiles sit at the top of a single scrollable feed with notifications directly below
+        • 2×2 Connectivity Cluster: Grouped Wi-Fi, Bluetooth, Airplane Mode, and Hotspot into a unified 2×2 connectivity cluster island matching One UI 7/8 and iOS Control Center
+        • Notification Channel Sub-Headers: Expanded notification groups now clearly divide into sub-channel headers (e.g. Messages, Alerts) with direct "Manage" channel shortcuts
+        """.trimIndent()
         "1.9.20" -> """
         ✨ Continuous Finger-Following Panel Pan
         • Interactive Horizontal Pan: Swiping between Notifications and Quick Settings now physically tracks your finger 1:1 with elastic resistance before committing

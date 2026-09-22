@@ -125,13 +125,18 @@ fun QuickSettingsGrid(
     val showOneUiIslandCards = !isEditing && isExpanded && showWideCards
     val wifiTile = if (showOneUiIslandCards) tiles.firstOrNull { it.id == "wifi" || it.id == "internet" } else null
     val btTile   = if (showOneUiIslandCards) tiles.firstOrNull { it.id == "bt"   || it.id == "bluetooth" } else null
-    val hasWideCards = wifiTile != null && btTile != null
+    val airplaneTile = if (showOneUiIslandCards) tiles.firstOrNull { it.id == "airplane" } else null
+    val hotspotTile = if (showOneUiIslandCards) tiles.firstOrNull { it.id == "hotspot" || it.id.contains("tether") } else null
+    val hasCluster = wifiTile != null && btTile != null
 
     val displayedTiles = when {
-        isEditing    -> tiles
-        hasWideCards -> tiles.filter { it != wifiTile && it != btTile }.take(colCount * 2)
-        isExpanded   -> tiles.take(colCount * 3)
-        else         -> tiles.take(colCount)
+        isEditing  -> tiles
+        hasCluster -> {
+            val clusterIds = setOfNotNull(wifiTile?.id, btTile?.id, airplaneTile?.id, hotspotTile?.id)
+            tiles.filter { it.id !in clusterIds }.take(colCount * 2)
+        }
+        isExpanded -> tiles.take(colCount * 3)
+        else       -> tiles.take(colCount)
     }
 
     Surface(
@@ -226,28 +231,74 @@ fun QuickSettingsGrid(
                 }
             }
 
-            // ── Wide connectivity cards (Wi-Fi / BT) ──────────────────────────
+            // ── Connectivity Cluster (Wi-Fi, BT, Hotspot, Airplane) ───────────
             if (!isEditing && wifiTile != null && btTile != null) {
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    ConnectivityWideCard(
-                        tile = wifiTile,
-                        theme = theme,
-                        tileShape = tileShape,
-                        onClick = { onTileClick(wifiTile) },
-                        onLongClick = onTileLongClick?.let { cb -> { cb(wifiTile) } },
-                        modifier = Modifier.weight(1f),
-                    )
-                    ConnectivityWideCard(
-                        tile = btTile,
-                        theme = theme,
-                        tileShape = tileShape,
-                        onClick = { onTileClick(btTile) },
-                        onLongClick = onTileLongClick?.let { cb -> { cb(btTile) } },
-                        modifier = Modifier.weight(1f),
-                    )
+                    // Row 1: Wi-Fi & Bluetooth
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        ConnectivityWideCard(
+                            tile = wifiTile,
+                            theme = theme,
+                            tileShape = tileShape,
+                            onClick = { onTileClick(wifiTile) },
+                            onLongClick = onTileLongClick?.let { cb -> { cb(wifiTile) } },
+                            modifier = Modifier.weight(1f),
+                        )
+                        ConnectivityWideCard(
+                            tile = btTile,
+                            theme = theme,
+                            tileShape = tileShape,
+                            onClick = { onTileClick(btTile) },
+                            onLongClick = onTileLongClick?.let { cb -> { cb(btTile) } },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+
+                    // Row 2: Hotspot & Airplane (2x2 cluster)
+                    if (airplaneTile != null && hotspotTile != null) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            ConnectivityWideCard(
+                                tile = airplaneTile,
+                                theme = theme,
+                                tileShape = tileShape,
+                                onClick = { onTileClick(airplaneTile) },
+                                onLongClick = onTileLongClick?.let { cb -> { cb(airplaneTile) } },
+                                modifier = Modifier.weight(1f),
+                            )
+                            ConnectivityWideCard(
+                                tile = hotspotTile,
+                                theme = theme,
+                                tileShape = tileShape,
+                                onClick = { onTileClick(hotspotTile) },
+                                onLongClick = onTileLongClick?.let { cb -> { cb(hotspotTile) } },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    } else if (airplaneTile != null || hotspotTile != null) {
+                        val secondary = airplaneTile ?: hotspotTile!!
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            ConnectivityWideCard(
+                                tile = secondary,
+                                theme = theme,
+                                tileShape = tileShape,
+                                onClick = { onTileClick(secondary) },
+                                onLongClick = onTileLongClick?.let { cb -> { cb(secondary) } },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
                 }
             }
 
@@ -725,10 +776,7 @@ private fun ConnectivityWideCard(
                         ),
                 ) {
                     Icon(
-                        imageVector = if (tile.id.contains("bt") || tile.id.contains("bluetooth"))
-                            Icons.Default.Bluetooth
-                        else
-                            Icons.Default.Wifi,
+                        imageVector = tileIcon(tile.id, tile.isActive, null),
                         contentDescription = null,
                         tint = contentColor,
                         modifier = Modifier.size(20.dp),

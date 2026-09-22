@@ -19,6 +19,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
@@ -255,7 +257,10 @@ fun ShadeRoot(
     val backdropTheme = state.backdropTheme
 
     BackHandler(enabled = state.isOpen) {
-        if (state.activeTileDetail != null) {
+        if (showPowerMenu) {
+            haptics.sheetDetent()
+            showPowerMenu = false
+        } else if (state.activeTileDetail != null) {
             viewModel.closeTileDetail()
         } else if (state.isQsExpanded) {
             haptics.sheetDetent()
@@ -300,33 +305,6 @@ fun ShadeRoot(
                         }),
                 )
 
-                // Quick Power Menu Dialog
-                if (showPowerMenu) {
-                    PowerMenuDialog(
-                        onDismiss = { showPowerMenu = false },
-                        onLockScreen = {
-                            showPowerMenu = false
-                            viewModel.lockScreen()
-                            onDismiss()
-                        },
-                        onRestart = {
-                            showPowerMenu = false
-                            viewModel.restartDevice()
-                            onDismiss()
-                        },
-                        onPowerOff = {
-                            showPowerMenu = false
-                            viewModel.powerOffDevice()
-                            onDismiss()
-                        },
-                        onSystemPowerDialog = {
-                            showPowerMenu = false
-                            viewModel.openSystemPowerDialog()
-                            onDismiss()
-                        },
-                    )
-                }
-
                 // Shade panel: expands down from the top, rounded bottom corners, frosted glass backdrop
                 AnimatedVisibility(
                     visible = state.isOpen,
@@ -340,7 +318,9 @@ fun ShadeRoot(
                         isAmoled -> Color(0xFF05070A).copy(alpha = opacity)
                         else -> MaterialTheme.colorScheme.surface.copy(alpha = opacity)
                     }
-                    val isCombined = state.splitGestureMode == SplitGestureMode.ALWAYS_NOTIFICATIONS ||
+                    val isTogether = state.splitGestureMode.isTogether
+                    val isCombined = isTogether ||
+                                     state.splitGestureMode == SplitGestureMode.ALWAYS_NOTIFICATIONS ||
                                      state.splitGestureMode == SplitGestureMode.ALWAYS_QUICK_SETTINGS
                     Box(
                         modifier = Modifier
@@ -515,7 +495,110 @@ fun ShadeRoot(
                             onLockScreen = { viewModel.lockScreen() },
                         )
 
-                        // Active View Content (fluid horizontal slide like One UI 8 & Pixel)
+                        // Active View Content
+                        // TOGETHER mode: single unified vertical feed (One UI 8/9 style)
+                        // Separate modes: fluid horizontal panel slide
+                        if (isTogether) {
+                            // ── TOGETHER MODE: QS tiles on top, notifications below, one scrollable feed ──
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth()
+                                    .nestedScroll(nestedScrollConnection)
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                // Compact QS row (always visible at top, no wide cards)
+                                QuickSettingsGrid(
+                                    tiles = state.tiles,
+                                    theme = state.theme,
+                                    isShizukuConnected = state.isShizukuConnected,
+                                    isExpanded = isQsExpanded,
+                                    tileShape = state.tileShape,
+                                    tileSize = state.tileSize,
+                                    tileColumns = state.tileColumns,
+                                    showWideCards = isQsExpanded && state.showWideCards,
+                                    isEditing = isEditingTiles,
+                                    onToggleEdit = { isEditingTiles = !isEditingTiles },
+                                    onMoveTile = { from, to -> viewModel.moveTile(from, to) },
+                                    onRemoveTile = { viewModel.removeTile(it) },
+                                    onAddTile = { viewModel.addTile(it) },
+                                    onResetTiles = { viewModel.resetTiles() },
+                                    onTileClick = { viewModel.toggleTile(it) },
+                                    onTileLongClick = { viewModel.openTileDetail(it) },
+                                )
+
+                                // Sliders (visible when QS is expanded, collapsed otherwise)
+                                AnimatedVisibility(
+                                    visible = isQsExpanded,
+                                    enter = expandVertically(spring(0.8f, 380f)) + fadeIn(tween(140)),
+                                    exit = shrinkVertically(tween(160)) + fadeOut(tween(120)),
+                                ) {
+                                    Surface(
+                                        shape = shapeScheme.container,
+                                        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
+                                        border = getCardBorder(),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 3.dp),
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                                        ) {
+                                            BrightnessSlider(
+                                                brightness = state.brightness,
+                                                onBrightnessChange = { viewModel.setBrightness(it) },
+                                                compact = false,
+                                                modifier = Modifier.fillMaxWidth(),
+                                            )
+                                            VolumeSlider(
+                                                compact = false,
+                                                modifier = Modifier.fillMaxWidth(),
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Media card
+                                state.media?.let { media ->
+                                    MediaCard(
+                                        media = media,
+                                        onPlayPause = { viewModel.mediaPlayPause() },
+                                        onSkipNext = { viewModel.mediaSkipNext() },
+                                        onSkipPrevious = { viewModel.mediaSkipPrevious() },
+                                        onSeek = { viewModel.mediaSeek(it) },
+                                    )
+                                }
+
+                                // Category bar + notification feed (inline, not in a nested LazyColumn
+                                // since we're inside verticalScroll — so we expand the list inline)
+                                if (state.allNotifications.isNotEmpty()) {
+                                    CategoryBar(
+                                        categories = ShadeCategory.entries,
+                                        selected = state.selectedCategory,
+                                        onSelect = { viewModel.selectCategory(it) },
+                                        counts = categoryCounts,
+                                    )
+                                }
+
+                                // In TOGETHER mode we use a non-lazy feed to stay inside the outer scroll
+                                TogetherNotificationFeed(
+                                    notifications = state.visibleNotifications,
+                                    onDismiss = { viewModel.dismissNotification(it) },
+                                    onClearAll = { viewModel.clearAllNotifications() },
+                                    onNotificationClick = { notification ->
+                                        viewModel.launchNotification(notification)
+                                        onDismiss()
+                                    },
+                                    onSnooze = { key, delayMs -> viewModel.snoozeNotification(key, delayMs) },
+                                )
+                            }
+                        } else {
+
+                        // Separate/Combined panels: fluid horizontal slide like One UI 8 & Pixel
                         AnimatedContent(
                             targetState = state.activePanel,
                             transitionSpec = {
@@ -819,6 +902,7 @@ fun ShadeRoot(
                                 }
                             }
                         }
+                        } // end else isTogether
 
                         // Bottom Panel Switcher Pill (accessibility and quick-switching dock)
                         if (state.showPanelSwitcherPill) {
@@ -1007,12 +1091,49 @@ fun ShadeRoot(
             }
 
             // In-shade Tile Detail Sheet (Flashlight multi-level control, Wi-Fi details, Bluetooth devices)
-            state.activeTileDetail?.let { detail ->
-                QuickTileDetailSheet(
-                    detailState = detail,
-                    onDismiss = { viewModel.closeTileDetail() },
-                    onSetTorchStrength = { viewModel.setTorchStrength(it) },
-                    onToggleTorch = { viewModel.toggleTorchInDetail() },
+            AnimatedVisibility(
+                visible = state.activeTileDetail != null,
+                enter = slideInVertically(spring(dampingRatio = 0.82f, stiffness = 420f)) { it } + fadeIn(tween(160)),
+                exit = slideOutVertically(tween(180)) { it } + fadeOut(tween(140)),
+            ) {
+                state.activeTileDetail?.let { detail ->
+                    QuickTileDetailSheet(
+                        detailState = detail,
+                        onDismiss = { viewModel.closeTileDetail() },
+                        onSetTorchStrength = { viewModel.setTorchStrength(it) },
+                        onToggleTorch = { viewModel.toggleTorchInDetail() },
+                    )
+                }
+            }
+
+            // Quick Power Menu Dialog (Overlaid on top of shade panel)
+            AnimatedVisibility(
+                visible = showPowerMenu,
+                enter = fadeIn(tween(160)) + scaleIn(spring(dampingRatio = 0.82f, stiffness = 420f), initialScale = 0.92f),
+                exit = fadeOut(tween(140)) + scaleOut(tween(140), targetScale = 0.92f),
+            ) {
+                PowerMenuDialog(
+                    onDismiss = { showPowerMenu = false },
+                    onLockScreen = {
+                        showPowerMenu = false
+                        viewModel.lockScreen()
+                        onDismiss()
+                    },
+                    onRestart = {
+                        showPowerMenu = false
+                        viewModel.restartDevice()
+                        onDismiss()
+                    },
+                    onPowerOff = {
+                        showPowerMenu = false
+                        viewModel.powerOffDevice()
+                        onDismiss()
+                    },
+                    onSystemPowerDialog = {
+                        showPowerMenu = false
+                        viewModel.openSystemPowerDialog()
+                        onDismiss()
+                    },
                 )
             }
         }

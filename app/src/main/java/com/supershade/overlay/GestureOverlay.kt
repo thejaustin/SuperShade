@@ -93,6 +93,7 @@ class GestureOverlay(
                                 SplitGestureMode.SEPARATE_30_70 -> ratio < 0.30f
                                 SplitGestureMode.SEPARATE_50_50 -> ratio > 0.50f
                                 SplitGestureMode.SEPARATE_70_30 -> ratio > 0.70f
+                                SplitGestureMode.TOGETHER -> false
                             }
                             onSwipeDown(expandQs)
                         }
@@ -114,6 +115,7 @@ class GestureOverlay(
                                 SplitGestureMode.SEPARATE_30_70 -> ratio < 0.30f
                                 SplitGestureMode.SEPARATE_50_50 -> ratio > 0.50f
                                 SplitGestureMode.SEPARATE_70_30 -> ratio > 0.70f
+                                SplitGestureMode.TOGETHER -> false
                             }
                             onSwipeDown(expandQs)
                         }

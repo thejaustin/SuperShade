@@ -47,6 +47,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
@@ -64,6 +65,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.supershade.domain.notification.model.ShadeNotification
 import kotlinx.coroutines.Dispatchers
@@ -409,7 +411,7 @@ fun GroupedNotificationCard(
                     }
                 }
 
-                // Expanded: individual cards separated by subtle dividers
+                // Expanded: individual cards grouped by notification channel
                 AnimatedVisibility(
                     visible = expanded,
                     enter = expandVertically(spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium)),
@@ -417,20 +419,86 @@ fun GroupedNotificationCard(
                 ) {
                     Column {
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 14.dp))
-                        group.notifications.forEachIndexed { index, notification ->
-                            NotificationCard(
-                                notification = notification,
-                                onDismiss = { onDismiss(notification.key) },
-                                onClick = { onNotificationClick(notification) },
-                                onSnooze = { delayMs -> onSnooze(notification.key, delayMs) },
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
-                            )
-                            if (index < group.notifications.lastIndex) {
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(horizontal = 14.dp),
-                                    thickness = 0.5.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+
+                        // Group notifications by channelId so we can show channel sub-headers
+                        val byChannel = remember(group.notifications) {
+                            group.notifications
+                                .groupBy { it.channelId ?: "" }
+                                .entries.toList()
+                        }
+                        val multiChannel = byChannel.size > 1
+
+                        byChannel.forEachIndexed { channelIdx, (channelId, channelNotifs) ->
+                            // ── Channel sub-header (only shown when > 1 channel present) ──────
+                            if (multiChannel) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Text(
+                                        text = channelId.ifBlank { "Default" }.let { id ->
+                                            // Format snake_case or dot.separated channel IDs into Title Case
+                                            id.replace(Regex("[_.]"), " ")
+                                              .split(" ")
+                                              .joinToString(" ") { word ->
+                                                  word.replaceFirstChar { it.uppercase() }
+                                              }
+                                        },
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.80f),
+                                    )
+                                    HorizontalDivider(
+                                        modifier = Modifier.weight(1f),
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                                        thickness = 0.5.dp,
+                                    )
+                                    // "Manage" chip taps to channel settings
+                                    Surface(
+                                        onClick = {
+                                            if (channelId.isNotBlank()) {
+                                                try {
+                                                    val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+                                                        putExtra(Settings.EXTRA_APP_PACKAGE, group.packageName)
+                                                        putExtra(Settings.EXTRA_CHANNEL_ID, channelId)
+                                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                    }
+                                                    context.startActivity(intent)
+                                                } catch (_: Exception) {}
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(50),
+                                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.60f),
+                                        modifier = Modifier,
+                                    ) {
+                                        Text(
+                                            text = "Manage",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                        )
+                                    }
+                                }
+                            }
+
+                            channelNotifs.forEachIndexed { index, notification ->
+                                NotificationCard(
+                                    notification = notification,
+                                    onDismiss = { onDismiss(notification.key) },
+                                    onClick = { onNotificationClick(notification) },
+                                    onSnooze = { delayMs -> onSnooze(notification.key, delayMs) },
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
                                 )
+                                val isLast = channelIdx == byChannel.lastIndex && index == channelNotifs.lastIndex
+                                if (!isLast) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(horizontal = 14.dp),
+                                        thickness = 0.5.dp,
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                                    )
+                                }
                             }
                         }
                         Spacer(Modifier.height(4.dp))

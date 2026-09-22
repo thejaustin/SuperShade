@@ -184,6 +184,7 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                                 com.supershade.settings.SplitGestureMode.SEPARATE_30_70 -> ratio < 0.30f
                                 com.supershade.settings.SplitGestureMode.SEPARATE_50_50 -> ratio > 0.50f
                                 com.supershade.settings.SplitGestureMode.SEPARATE_70_30 -> ratio > 0.70f
+                                com.supershade.settings.SplitGestureMode.TOGETHER -> false
                             }
                             openSuperShade(expandQs)
                         }
@@ -205,6 +206,7 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                                 com.supershade.settings.SplitGestureMode.SEPARATE_30_70 -> ratio < 0.30f
                                 com.supershade.settings.SplitGestureMode.SEPARATE_50_50 -> ratio > 0.50f
                                 com.supershade.settings.SplitGestureMode.SEPARATE_70_30 -> ratio > 0.70f
+                                com.supershade.settings.SplitGestureMode.TOGETHER -> false
                             }
                             openSuperShade(expandQs)
                         }

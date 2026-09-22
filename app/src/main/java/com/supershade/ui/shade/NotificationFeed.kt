@@ -204,3 +204,125 @@ fun NotificationFeed(
         }
     }
 }
+
+/**
+ * Non-lazy version of [NotificationFeed] for use inside the TOGETHER mode vertical scroll.
+ * Uses [Column] instead of [LazyColumn] to avoid nested scroll conflicts.
+ */
+@Composable
+fun TogetherNotificationFeed(
+    notifications: List<ShadeNotification>,
+    onDismiss: (String) -> Unit,
+    onClearAll: () -> Unit,
+    modifier: Modifier = Modifier,
+    onNotificationClick: (ShadeNotification) -> Unit = {},
+    onSnooze: (String, Long) -> Unit = { _, _ -> },
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val haptics = LocalSuperHaptics.current ?: remember(context) { com.supershade.haptics.SuperHaptics(context) }
+
+    if (notifications.isEmpty()) {
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(vertical = 36.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.NotificationsNone,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+            Text(
+                text = "No notifications",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            )
+        }
+    } else {
+        val groups = remember(notifications) { notifications.toGroups() }
+        Column(
+            modifier = modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            // Header row
+            val hasClearable = notifications.any { it.isClearable }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "${notifications.size} notification${if (notifications.size != 1) "s" else ""}",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (hasClearable) {
+                    Surface(
+                        onClick = {
+                            haptics.sheetDetent()
+                            onClearAll()
+                        },
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.75f),
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f),
+                        ),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ClearAll,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp),
+                            )
+                            Text(
+                                text = "Clear all",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Notification groups (Column, not LazyColumn)
+            groups.forEach { group ->
+                if (group.isStacked) {
+                    GroupedNotificationCard(
+                        group = group,
+                        onDismissGroup = { group.notifications.forEach { onDismiss(it.key) } },
+                        onDismiss = onDismiss,
+                        onNotificationClick = onNotificationClick,
+                        onSnooze = onSnooze,
+                    )
+                } else {
+                    val notification = group.preview
+                    NotificationCard(
+                        notification = notification,
+                        onDismiss = { onDismiss(notification.key) },
+                        onClick = { onNotificationClick(notification) },
+                        onSnooze = { delayMs -> onSnooze(notification.key, delayMs) },
+                    )
+                }
+            }
+        }
+    }
+}

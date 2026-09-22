@@ -102,7 +102,16 @@ enum class SplitGestureMode(
         "Quick Settings Only",
         "Pulling anywhere along the status bar directly expands Quick Settings",
         -0.01f,
+    ),
+    TOGETHER(
+        "together",
+        "Together (One UI style)",
+        "One feed: compact QS tiles on top, notifications below — swipe down expands QS, swipe up collapses",
+        0.50f,
     );
+
+    /** True when both panels coexist in a single vertical scroll (no horizontal split). */
+    val isTogether: Boolean get() = this == TOGETHER
 }
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "supershade_prefs")
@@ -245,6 +254,7 @@ class ShadeSettings(private val context: Context) {
             "split_30_70" -> SplitGestureMode.SEPARATE_30_70
             "always_notifs" -> SplitGestureMode.ALWAYS_NOTIFICATIONS
             "always_qs" -> SplitGestureMode.ALWAYS_QUICK_SETTINGS
+            "together" -> SplitGestureMode.TOGETHER
             else -> SplitGestureMode.SEPARATE_70_30
         }
     }

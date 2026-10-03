@@ -90,6 +90,11 @@ import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Phonelink
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.MusicNote
 import com.supershade.domain.tile.humanizeTileLabel
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -349,34 +354,48 @@ fun TileCard(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (tile.customIcon != null) {
-                        androidx.compose.foundation.Image(
-                            bitmap = tile.customIcon,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(iconSize)
-                                .graphicsLayer {
-                                    scaleX = iconScale
-                                    scaleY = iconScale
-                                    rotationZ = iconRotation
-                                },
-                        )
-                    } else {
-                        Icon(
-                            imageVector = tileIcon(tile.id, tile.isActive, tile.subtitle),
-                            contentDescription = null,
-                            tint = contentColor,
-                            modifier = Modifier
-                                .size(iconSize)
-                                .graphicsLayer {
-                                    scaleX = iconScale
-                                    scaleY = iconScale
-                                    rotationZ = iconRotation
-                                },
-                        )
-                    }
+                    val resolvedIcon = tileIcon(tile.id, tile.isActive, tile.subtitle)
+                    if (resolvedIcon != Icons.Filled.Widgets) {
+                    Icon(
+                        imageVector = resolvedIcon,
+                        contentDescription = null,
+                        tint = contentColor,
+                        modifier = Modifier
+                            .size(iconSize)
+                            .graphicsLayer {
+                                scaleX = iconScale
+                                scaleY = iconScale
+                                rotationZ = iconRotation
+                            },
+                    )
+                } else if (tile.customIcon != null) {
+                    androidx.compose.foundation.Image(
+                        bitmap = tile.customIcon,
+                        contentDescription = null,
+                        colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(contentColor),
+                        modifier = Modifier
+                            .size(iconSize)
+                            .graphicsLayer {
+                                scaleX = iconScale
+                                scaleY = iconScale
+                                rotationZ = iconRotation
+                            },
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.Widgets,
+                        contentDescription = null,
+                        tint = contentColor,
+                        modifier = Modifier
+                            .size(iconSize)
+                            .graphicsLayer {
+                                scaleX = iconScale
+                                scaleY = iconScale
+                                rotationZ = iconRotation
+                            },
+                    )
+                }
                     if (activeDotScale > 0.05f) {
                         val dotColor = when (theme) {
                             is ShadeTheme.Nothing -> Color(0xFFD71920) // Nothing signature glyph red
@@ -499,13 +518,13 @@ fun tileIcon(id: String, isActive: Boolean, subtitle: String?): ImageVector {
         key.contains("hotspot") || key.contains("tether") -> Icons.Default.WifiTethering
         key.contains("dnd") || key.contains("disturb")   -> Icons.Default.DoNotDisturb
         key.contains("rotation") || key.contains("rotate") -> Icons.Default.ScreenRotation
-        key.contains("dark") || key.contains("night")    -> Icons.Default.DarkMode
+        key.contains("dark") || key.contains("night") || key.contains("uimode") -> Icons.Default.DarkMode
         key.contains("flash") || key.contains("torch")   -> Icons.Default.FlashOn
         key.contains("location") || key.contains("gps")  -> Icons.Default.LocationOn
         key.contains("nfc")                             -> Icons.Default.Nfc
         key.contains("sync")                            -> Icons.Default.Sync
         key.contains("record")                          -> Icons.Default.Videocam
-        key.contains("cast") || key.contains("smart")   -> Icons.Default.Cast
+        key.contains("cast") || key.contains("smart") || key.contains("mirror") -> Icons.Default.Cast
         key.contains("vpn")                             -> Icons.Default.VpnKey
         key.contains("cell") || key.contains("data") || key.contains("mobile") -> Icons.Default.SignalCellularAlt
         key.contains("powershare")                      -> Icons.Default.ChargingStation
@@ -514,18 +533,19 @@ fun tileIcon(id: String, isActive: Boolean, subtitle: String?): ImageVector {
         key.contains("camera")                          -> Icons.Default.CameraAlt
         key.contains("mic")                             -> Icons.Default.Mic
         key.contains("qr")                              -> Icons.Default.QrCodeScanner
-        key.contains("wallet")                          -> Icons.Default.AccountBalanceWallet
-        key.contains("share")                           -> Icons.Default.Share
-        key.contains("dolby") || key.contains("atmos")  -> Icons.Default.GraphicEq
+        key.contains("wallet") || key.contains("cashiro") || key.contains("transaction") || key.contains("subscription") -> Icons.Default.AccountBalanceWallet
+        key.contains("share") || key.contains("nearby") || key.contains("quickshare") -> Icons.Default.Share
+        key.contains("dolby") || key.contains("atmos") || key.contains("jamesdsp") || key.contains("soundalive") || key.contains("auracast") || key.contains("audiobroadcast") || key.contains("equalizer") -> Icons.Default.GraphicEq
         key.contains("dex") || key.contains("desktop")  -> Icons.Default.DesktopWindows
-        key.contains("note")                            -> Icons.AutoMirrored.Filled.StickyNote2
+        key.contains("note") || key.contains("todo") || key.contains("ramble") || key.contains("task") -> Icons.AutoMirrored.Filled.StickyNote2
         key.contains("hearing")                         -> Icons.Default.Hearing
-        key.contains("dim") || key.contains("reduce")   -> Icons.Default.Brightness4
+        key.contains("dim") || key.contains("reduce") || key.contains("extradim") -> Icons.Default.Brightness4
         key.contains("work") || key.contains("focus")    -> Icons.Default.Work
         key.contains("alarm")                           -> Icons.Default.Alarm
-        key.contains("lock") || key.contains("secure")  -> Icons.Default.ScreenLockPortrait
+        key.contains("pocket")                          -> Icons.Default.ScreenLockPortrait
+        key.contains("lock") || key.contains("secure") || key.contains("knox") || key.contains("folder") -> Icons.Default.ScreenLockPortrait
         key.contains("radio") || key.contains("nrs")    -> Icons.Default.RadioButtonChecked
-        key.contains("sensor")                         -> Icons.Default.PanTool
+        key.contains("sensor") || key.contains("sidegesturepad") || key.contains("sgp") || key.contains("onehand") || key.contains("gesture") -> Icons.Default.PanTool
         key.contains("vibrate") || key.contains("vibration") -> Icons.Default.Vibration
         key.contains("mute") || key.contains("sound") || key.contains("volume") -> {
             if (isActive || subtitle?.contains("Vibrate", ignoreCase = true) == true)
@@ -535,15 +555,20 @@ fun tileIcon(id: String, isActive: Boolean, subtitle: String?): ImageVector {
         }
         key.contains("bedtime") || key.contains("sleep") -> Icons.Default.NightsStay
         key.contains("usage") || key.contains("stats")  -> Icons.Default.DataUsage
-        key.contains("privacy") || key.contains("screenprivacy") -> Icons.Filled.VisibilityOff
-        key.contains("aod") || key.contains("alwayson") || key.contains("always_on") -> Icons.Filled.WatchLater
+        key.contains("privacy") || key.contains("screenprivacy") || key.contains("curtain") -> Icons.Filled.VisibilityOff
+        key.contains("aod") || key.contains("alwayson") || key.contains("always_on") || key.contains("keepscreen") || key.contains("caffeine") || key.contains("awake") -> Icons.Filled.WatchLater
         key.contains("mode") || key.contains("routine") -> Icons.Filled.Tune
         key.contains("kid") -> Icons.Filled.ChildCare
         key.contains("color") || key.contains("invert") -> Icons.Filled.InvertColors
         key.contains("refresh") || key.contains("speed") || key.contains("perf") -> Icons.Filled.Speed
-        key.contains("terminal") || key.contains("shell") -> Icons.Filled.Terminal
+        key.contains("terminal") || key.contains("shell") || key.contains("wirelessdebugging") || key.contains("debug") -> Icons.Filled.Terminal
         key.contains("windows") || key.contains("link") -> Icons.Filled.Phonelink
         key.contains("smartthings") || key.contains("home") -> Icons.Filled.Home
+        key.contains("bluelight") || key.contains("blue_light") || key.contains("eye") || key.contains("comfort") || key.contains("shield") -> Icons.Default.Visibility
+        key.contains("screen") || key.contains("capture") || key.contains("shot") -> Icons.Default.CameraAlt
+        key.contains("font") || key.contains("text") -> Icons.Default.TextFields
+        key.contains("keyboard") || key.contains("ime") -> Icons.Default.Keyboard
+        key.contains("music") || key.contains("audio") -> Icons.Default.MusicNote
         key.contains("protect") -> Icons.Filled.Security
         else -> Icons.Filled.Widgets
     }

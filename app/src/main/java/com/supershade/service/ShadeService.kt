@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -117,10 +118,12 @@ class ShadeService : Service() {
             .launchIn(scope)
 
         // Apply or lift the system-shade block whenever the setting changes.
-        settings.blockSystemShade
+        combine(settings.isActive, settings.blockSystemShade) { active, block ->
+            active && block
+        }
             .distinctUntilChanged()
-            .onEach { block ->
-                if (block) governor.disableExpansion() else governor.enableExpansion()
+            .onEach { shouldBlock ->
+                if (shouldBlock) governor.disableExpansion() else governor.enableExpansion()
             }
             .launchIn(scope)
     }

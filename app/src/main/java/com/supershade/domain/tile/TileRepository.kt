@@ -170,7 +170,30 @@ class TileRepository(
             }
 
             var customIcon: androidx.compose.ui.graphics.ImageBitmap? = null
-            // Resolve friendly label & dynamic icon: KNOWN_TILES -> PackageManager ServiceInfo -> humanizeTileLabel
+            // Load real app/service icon if componentName is available
+            if (componentName != null) {
+                try {
+                    val cn = android.content.ComponentName.unflattenFromString(componentName)
+                    if (cn != null) {
+                        val pm = context.packageManager
+                        val serviceInfo = pm.getServiceInfo(cn, 0)
+                        val iconDrawable = serviceInfo.loadIcon(pm) ?: pm.getApplicationIcon(cn.packageName)
+                        customIcon = drawableToImageBitmap(iconDrawable)
+                    }
+                } catch (_: Exception) {
+                    try {
+                        val pkg = if (id.startsWith("custom(") && id.contains("/")) {
+                            id.substringAfter("custom(").substringBefore("/")
+                        } else if (id.contains("/")) id.substringBefore("/") else null
+                        if (pkg != null) {
+                            val pm = context.packageManager
+                            customIcon = drawableToImageBitmap(pm.getApplicationIcon(pkg))
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
+
+            // Resolve friendly label: KNOWN_TILES -> PackageManager ServiceInfo -> humanizeTileLabel
             val label = when {
                 known != null -> known.first
                 componentName != null -> {
@@ -179,8 +202,6 @@ class TileRepository(
                         if (cn != null) {
                             val pm = context.packageManager
                             val serviceInfo = pm.getServiceInfo(cn, 0)
-                            val iconDrawable = serviceInfo.loadIcon(pm) ?: pm.getApplicationIcon(cn.packageName)
-                            customIcon = drawableToImageBitmap(iconDrawable)
                             val loaded = serviceInfo.loadLabel(pm).toString()
                             if (loaded.isNotBlank() && !loaded.contains(".") && !loaded.endsWith("TileService") && !loaded.endsWith("Service")) {
                                 loaded
@@ -189,15 +210,6 @@ class TileRepository(
                             }
                         } else humanizeTileLabel(id)
                     } catch (_: Exception) {
-                        try {
-                            val pkg = if (id.startsWith("custom(") && id.contains("/")) {
-                                id.substringAfter("custom(").substringBefore("/")
-                            } else if (id.contains("/")) id.substringBefore("/") else null
-                            if (pkg != null) {
-                                val pm = context.packageManager
-                                customIcon = drawableToImageBitmap(pm.getApplicationIcon(pkg))
-                            }
-                        } catch (_: Exception) {}
                         humanizeTileLabel(id)
                     }
                 }
@@ -221,12 +233,19 @@ class TileRepository(
 
     private fun drawableToImageBitmap(drawable: android.graphics.drawable.Drawable): androidx.compose.ui.graphics.ImageBitmap? {
         return try {
-            val width = drawable.intrinsicWidth.takeIf { it > 0 } ?: 96
-            val height = drawable.intrinsicHeight.takeIf { it > 0 } ?: 96
+            val d = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
+                drawable is android.graphics.drawable.AdaptiveIconDrawable
+            ) {
+                drawable.foreground ?: drawable
+            } else {
+                drawable
+            }
+            val width = d.intrinsicWidth.takeIf { it > 0 } ?: 96
+            val height = d.intrinsicHeight.takeIf { it > 0 } ?: 96
             val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
             val canvas = android.graphics.Canvas(bitmap)
-            drawable.setBounds(0, 0, canvas.width, canvas.height)
-            drawable.draw(canvas)
+            d.setBounds(0, 0, canvas.width, canvas.height)
+            d.draw(canvas)
             bitmap.asImageBitmap()
         } catch (_: Exception) { null }
     }

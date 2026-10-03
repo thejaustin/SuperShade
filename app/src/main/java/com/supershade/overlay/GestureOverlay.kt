@@ -51,8 +51,7 @@ class GestureOverlay(
         WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
         PixelFormat.TRANSLUCENT,
     ).apply {
         gravity = Gravity.TOP or Gravity.START
@@ -67,27 +66,20 @@ class GestureOverlay(
         var startY = 0f
         var triggered = false
         val density = context.resources.displayMetrics.density
-        val dragThreshold = (16f * density).coerceAtLeast(24f)
+        // Responsive pull threshold: 14dp downward motion
+        val dragThreshold = (14f * density).coerceAtLeast(20f)
 
         val view = View(context).apply {
             setOnTouchListener { v, event ->
                 if (isShadeOpen()) return@setOnTouchListener false
                 val wmCurrent = windowManager ?: return@setOnTouchListener false
 
-                // Do not intercept touches when status bar is explicitly hidden in immersive mode
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                    val rootInsets = v.rootWindowInsets
-                    if (rootInsets != null && !rootInsets.isVisible(android.view.WindowInsets.Type.statusBars())) {
-                        return@setOnTouchListener false
-                    }
-                }
-
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         startX = event.rawX
                         startY = event.rawY
                         triggered = false
-                        val edgeExclusionPx = 18f * density
+                        val edgeExclusionPx = 10f * density
                         val screenWidth = context.resources.displayMetrics.widthPixels
                         if (startX < edgeExclusionPx || startX > (screenWidth - edgeExclusionPx)) {
                             return@setOnTouchListener false
@@ -97,7 +89,8 @@ class GestureOverlay(
                     MotionEvent.ACTION_MOVE -> {
                         val deltaX = kotlin.math.abs(event.rawX - startX)
                         val deltaY = event.rawY - startY
-                        if (!triggered && deltaY > dragThreshold && deltaY > deltaX * 1.30f) {
+                        // Fluid pull trigger: predominantly downward gesture (> 46 degrees)
+                        if (!triggered && deltaY > dragThreshold && deltaY > deltaX * 1.05f) {
                             triggered = true
                             v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
                             val screenWidth = context.resources.displayMetrics.widthPixels.coerceAtLeast(1)

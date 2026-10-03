@@ -161,34 +161,42 @@ fun NotificationCard(
         else -> ""
     }
 
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart && notification.isClearable) {
-                haptics.sheetDetent()
-                onDismiss()
-                true
-            } else if (value == SwipeToDismissBoxValue.StartToEnd && notification.isClearable) {
-                haptics.sheetDetent()
-                if (onSnooze != null) {
-                    onSnooze(3600_000L) // 1 hour snooze
-                } else {
+    val dismissState = androidx.compose.runtime.key(notification.key) {
+        rememberSwipeToDismissBoxState(
+            confirmValueChange = { value ->
+                if ((value == SwipeToDismissBoxValue.EndToStart || value == SwipeToDismissBoxValue.StartToEnd) && notification.isClearable) {
+                    haptics.sheetDetent()
                     onDismiss()
-                }
-                true
-            } else false
-        },
-        positionalThreshold = { totalDistance -> totalDistance * 0.35f },
-    )
+                    true
+                } else false
+            },
+            positionalThreshold = { totalDistance ->
+                val density = context.resources.displayMetrics.density
+                (totalDistance * 0.22f).coerceAtMost(90f * density)
+            },
+        )
+    }
 
-    val isSwiping = dismissState.dismissDirection != SwipeToDismissBoxValue.Settled
-    val dragProgress = if (isSwiping) kotlin.math.abs(dismissState.progress).coerceIn(0f, 1f) else 0f
-    val isPastDismissThreshold = isSwiping && dragProgress >= 0.35f
+    val currentOffset = try { dismissState.requireOffset() } catch (_: Exception) { 0f }
+    val absOffset = kotlin.math.abs(currentOffset)
+    val isSettledAtRest = dismissState.currentValue == SwipeToDismissBoxValue.Settled &&
+        dismissState.targetValue == SwipeToDismissBoxValue.Settled &&
+        absOffset < 12f
+    val isSwiping = !isSettledAtRest && absOffset >= 12f
+    val dragProgress = if (isSwiping) {
+        if (dismissState.currentValue != dismissState.targetValue) {
+            kotlin.math.abs(dismissState.progress).coerceIn(0f, 1f)
+        } else {
+            (absOffset / 280f).coerceIn(0f, 1f)
+        }
+    } else 0f
+    val isPastDismissThreshold = isSwiping && (dragProgress >= 0.22f || absOffset > 80f)
     var hasTickedThreshold by remember { mutableStateOf(false) }
     LaunchedEffect(isPastDismissThreshold) {
         if (isPastDismissThreshold && !hasTickedThreshold) {
             haptics.sheetDetent()
             hasTickedThreshold = true
-        } else if (!isPastDismissThreshold && dragProgress < 0.20f) {
+        } else if (!isPastDismissThreshold && dragProgress < 0.15f) {
             hasTickedThreshold = false
         }
     }
@@ -196,40 +204,30 @@ fun NotificationCard(
     SwipeToDismissBox(
         state = dismissState,
         backgroundContent = {
-            val direction = dismissState.dismissDirection
-            val isSnooze = direction == SwipeToDismissBoxValue.StartToEnd
-            val alignment = if (isSnooze) Alignment.CenterStart else Alignment.CenterEnd
+            if (!isSwiping || isSettledAtRest) {
+                // Return completely empty content when at rest — zero red background or trash icons visible
+                return@SwipeToDismissBox
+            }
+            val alignment = if (currentOffset > 0f) Alignment.CenterStart else Alignment.CenterEnd
             val progress = dragProgress
 
             val badgeScale by animateFloatAsState(
-                targetValue = if (isPastDismissThreshold) 1.08f else (0.80f + progress * 0.40f).coerceIn(0.80f, 1.0f),
+                targetValue = if (isPastDismissThreshold) 1.06f else (0.82f + progress * 0.35f).coerceIn(0.82f, 1.0f),
                 animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
                 label = "swipeBadgeScale",
             )
             val iconRotation by animateFloatAsState(
-                targetValue = if (isPastDismissThreshold) 0f else if (isSnooze) -15f else 12f,
+                targetValue = if (isPastDismissThreshold) 0f else if (currentOffset > 0f) -12f else 12f,
                 animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
                 label = "swipeIconRotation",
             )
-            val trackBgColor = if (!isSwiping) {
-                Color.Transparent
-            } else if (isSnooze) {
-                Color(0xFFFFA000).copy(alpha = (progress * 0.45f).coerceIn(0f, 0.40f))
-            } else {
-                Color(0xFFE53935).copy(alpha = (progress * 0.45f).coerceIn(0f, 0.40f))
-            }
-
-            val badgeColor = if (isSnooze) {
-                if (isPastDismissThreshold) Color(0xFFFFA000) else Color(0xFFFFA000).copy(alpha = 0.85f)
-            } else {
-                if (isPastDismissThreshold) Color(0xFFE53935) else Color(0xFFE53935).copy(alpha = 0.85f)
-            }
-
-            val icon = if (isSnooze) Icons.Default.Snooze else Icons.Default.Delete
-            val label = if (isSnooze) "Snooze 1h" else "Dismiss"
+            val trackBgColor = Color(0xFFE53935).copy(alpha = (progress * 0.45f).coerceIn(0f, 0.40f))
+            val badgeColor = if (isPastDismissThreshold) Color(0xFFE53935) else Color(0xFFE53935).copy(alpha = 0.85f)
+            val icon = Icons.Default.Delete
+            val label = "Dismiss"
 
             val iconSlideOffset by animateDpAsState(
-                targetValue = if (isSnooze) {
+                targetValue = if (currentOffset > 0f) {
                     ((progress.coerceIn(0f, 0.35f) / 0.35f - 1f) * 16f).dp
                 } else {
                     ((1f - progress.coerceIn(0f, 0.35f) / 0.35f) * 16f).dp
@@ -245,25 +243,24 @@ fun NotificationCard(
                     .background(trackBgColor),
                 contentAlignment = alignment,
             ) {
-                if (isSwiping) {
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = badgeColor,
-                        shadowElevation = if (isPastDismissThreshold) 6.dp else 1.dp,
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp)
-                            .offset(x = iconSlideOffset)
-                            .graphicsLayer {
-                                scaleX = badgeScale
-                                scaleY = badgeScale
-                            },
-                    ) {
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = badgeColor,
+                    shadowElevation = if (isPastDismissThreshold) 6.dp else 1.dp,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .offset(x = iconSlideOffset)
+                        .graphicsLayer {
+                            scaleX = badgeScale
+                            scaleY = badgeScale
+                        },
+                ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        if (isSnooze) {
+                        if (currentOffset > 0f) {
                             Icon(
                                 imageVector = icon,
                                 contentDescription = label,
@@ -305,8 +302,7 @@ fun NotificationCard(
                     }
                 }
             }
-        }
-    },
+        },
         enableDismissFromStartToEnd = notification.isClearable,
         enableDismissFromEndToStart = notification.isClearable,
         modifier = modifier.fillMaxWidth(),
@@ -314,7 +310,7 @@ fun NotificationCard(
         val cardScale = (1.0f - dragProgress * 0.04f).coerceIn(0.95f, 1.0f)
         val cardAlpha = if (dragProgress > 0.75f) (1f - (dragProgress - 0.75f) * 2.5f).coerceIn(0.4f, 1.0f) else 1.0f
         val cardElevation = (dragProgress * 8f).dp
-        val dynamicCardShape = if (dragProgress > 0.01f && shapes.card is RoundedCornerShape) {
+        val dynamicCardShape = if (isSwiping && dragProgress > 0.05f && shapes.card is RoundedCornerShape) {
             RoundedCornerShape(24.dp + (dragProgress * 6f).dp)
         } else {
             shapes.card

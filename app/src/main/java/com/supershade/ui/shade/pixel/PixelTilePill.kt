@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -247,35 +248,47 @@ fun PixelTilePill(
                             scaleX = iconContainerScale
                             scaleY = iconContainerScale
                         }
-                        .clip(morphShape)
-                        .background(iconContainerColor),
+                        .background(iconContainerColor, shape = morphShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (tile.customIcon != null) {
-                        androidx.compose.foundation.Image(
-                            bitmap = tile.customIcon,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(22.dp)
-                                .graphicsLayer {
-                                    rotationZ = iconRotation
-                                },
-                        )
-                    } else {
-                        Icon(
-                            imageVector = tileIcon(tile.id, isActive, tile.subtitle),
-                            contentDescription = null,
-                            tint = iconTint,
-                            modifier = Modifier
-                                .size(22.dp)
-                                .graphicsLayer {
-                                    rotationZ = iconRotation
-                                },
-                        )
-                    }
+                    val resolvedIcon = tileIcon(tile.id, isActive, tile.subtitle)
+                    if (resolvedIcon != Icons.Filled.Widgets) {
+                    Icon(
+                        imageVector = resolvedIcon,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier
+                            .size(22.dp)
+                            .graphicsLayer {
+                                rotationZ = iconRotation
+                            },
+                    )
+                } else if (tile.customIcon != null) {
+                    androidx.compose.foundation.Image(
+                        bitmap = tile.customIcon,
+                        contentDescription = null,
+                        colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(iconTint),
+                        modifier = Modifier
+                            .size(22.dp)
+                            .graphicsLayer {
+                                rotationZ = iconRotation
+                            },
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.Widgets,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier
+                            .size(22.dp)
+                            .graphicsLayer {
+                                rotationZ = iconRotation
+                            },
+                    )
                 }
+            }
 
-                Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
                 // Title and Subtitle with Live Dot
                 Column(

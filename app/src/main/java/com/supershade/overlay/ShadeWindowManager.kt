@@ -137,7 +137,15 @@ class ShadeWindowManager(
         showTimestampMs = System.currentTimeMillis()
         hideJob?.cancel()
         hideJob = null
-        if (overlayView != null) return
+
+        if (overlayView != null) {
+            if (!viewModel.state.value.isOpen) {
+                viewModel.open(expandQs = expandQs)
+            }
+            scope.launch { governor?.collapse() }
+            return
+        }
+
         val owner = ShadeLifecycleOwner().also { lifecycleOwner = it }
         owner.start()
         val s = viewModel.state.value
@@ -179,7 +187,11 @@ class ShadeWindowManager(
             }
         }
         overlayView = view
-        windowManager.addView(view, params)
+        try {
+            windowManager.addView(view, params)
+        } catch (e: Exception) {
+            android.util.Log.e("ShadeWindowManager", "Failed to add overlay window", e)
+        }
         // Dispatch window insets to the ComposeView so statusBarsPadding() and
         // similar modifiers resolve to the correct values in an overlay window.
         view.requestApplyInsets()

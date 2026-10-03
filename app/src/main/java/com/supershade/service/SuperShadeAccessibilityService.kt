@@ -18,6 +18,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
@@ -86,27 +87,22 @@ class SuperShadeAccessibilityService : AccessibilityService() {
             }
             .launchIn(scope)
 
-        settings.isActive
+        combine(settings.isActive, settings.blockSystemShade) { active, block ->
+            active to block
+        }
             .distinctUntilChanged()
-            .onEach { active ->
+            .onEach { (active, block) ->
                 isSuperShadeActive = active
                 if (active) {
                     attachAccessibilityTouchCapture()
-                    if (settings.blockSystemShade.first()) {
+                    if (block) {
                         governor.disableExpansion()
+                    } else {
+                        governor.enableExpansion()
                     }
                 } else {
                     detachAccessibilityTouchCapture()
                     governor.restoreSystemStatusBar()
-                }
-            }
-            .launchIn(scope)
-
-        settings.blockSystemShade
-            .distinctUntilChanged()
-            .onEach { block ->
-                if (isSuperShadeActive) {
-                    if (block) governor.disableExpansion() else governor.enableExpansion()
                 }
             }
             .launchIn(scope)
@@ -148,8 +144,7 @@ class SuperShadeAccessibilityService : AccessibilityService() {
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -162,27 +157,18 @@ class SuperShadeAccessibilityService : AccessibilityService() {
         var startY = 0f
         var triggered = false
         val density = resources.displayMetrics.density
-        // Robust threshold: 16dp downward motion (never trapped by narrow status bar height)
-        val dragThreshold = (16f * density).coerceAtLeast(24f)
+        // Responsive pull threshold: 14dp downward motion
+        val dragThreshold = (14f * density).coerceAtLeast(20f)
 
         val view = View(this).apply {
             setOnTouchListener { v, event ->
                 if (shadeViewModel.state.value.isOpen) return@setOnTouchListener false
-
-                // Do not intercept touches when status bar is explicitly hidden in immersive mode
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    val rootInsets = v.rootWindowInsets
-                    if (rootInsets != null && !rootInsets.isVisible(android.view.WindowInsets.Type.statusBars())) {
-                        return@setOnTouchListener false
-                    }
-                }
-
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         startX = event.rawX
                         startY = event.rawY
                         triggered = false
-                        val edgeExclusionPx = 18f * density
+                        val edgeExclusionPx = 10f * density
                         val screenWidth = resources.displayMetrics.widthPixels
                         if (startX < edgeExclusionPx || startX > (screenWidth - edgeExclusionPx)) {
                             return@setOnTouchListener false
@@ -192,8 +178,8 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                     MotionEvent.ACTION_MOVE -> {
                         val deltaX = kotlin.math.abs(event.rawX - startX)
                         val deltaY = event.rawY - startY
-                        // Require deliberate downward pull (at least 28dp, predominantly vertical > 52 degrees)
-                        if (!triggered && deltaY > dragThreshold && deltaY > deltaX * 1.30f) {
+                        // Fluid pull trigger: predominantly downward gesture (> 46 degrees)
+                        if (!triggered && deltaY > dragThreshold && deltaY > deltaX * 1.05f) {
                             triggered = true
                             v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
                             val screenWidth = resources.displayMetrics.widthPixels.coerceAtLeast(1)
@@ -383,8 +369,10 @@ class SuperShadeAccessibilityService : AccessibilityService() {
     }
 
     private fun openSuperShade(expandQs: Boolean = false) {
-        // Safely collapse system panel without injecting global BACK keycodes that kill SuperShade
-        scope.launch { governor.collapse() }
+        // Collapse native system panel via Shizuku without injecting synthetic BACK keycodes
+        scope.launch {
+            governor.collapse()
+        }
 
         val intent = Intent(this, ShadeService::class.java).apply {
             action = ShadeService.ACTION_OPEN_SHADE

@@ -51,6 +51,7 @@ import com.supershade.haptics.SuperHaptics
 import kotlinx.coroutines.launch
 
 val RELEASE_VERSIONS: List<String> = listOf(
+    "1.9.33",
     "1.9.32",
     "1.9.31",
     "1.9.30",
@@ -97,6 +98,15 @@ val RELEASE_VERSIONS: List<String> = listOf(
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.33" -> """
+        ✨ Rock-Solid Top Swipe Interception, Native Shade Suppression & Tile Icon Fix
+        • Flawless Top Swipe Pull-Down: Completely resolved swipe-down gesture capture from status bar with optimized angle detection (>46°) and relaxed edge margins, ensuring SuperShade reliably opens just like the native system shade
+        • Self-Dismissal Race Condition Eliminated: Removed synthetic BACK actions during panel opening so SuperShade stays open smoothly without closing prematurely
+        • Deadlock-Free Overlay Lifecycle: Rapid swipes and re-opens within dismissal windows now instantly reopen the shade rather than becoming stuck in an invisible closed state
+        • Reliable Native Shade Suppression: Seamless handoff between native status bar and SuperShade when toggling "Block native system shade" or "Enable SuperShade"
+        • Comprehensive Tile Icons: Resolved custom Samsung One UI, Good Lock OHO+, system utilities, and third-party QS tile icons with crisp vector graphics and proper adaptive icon foreground extraction
+        • Pristine Notification Cards: Zero red background tinting or exposed delete buttons at rest on all notification cards and grouped feeds
+        """.trimIndent()
         "1.9.32" -> """
         ✨ Notification Swipe Cleanup & Dismiss Detection Fix
         • Fixed Notification Swipe Red Tint: Corrected dismiss state detection so red trash buttons and snooze badges only appear during an active user drag, restoring pristine transparent backgrounds when settled

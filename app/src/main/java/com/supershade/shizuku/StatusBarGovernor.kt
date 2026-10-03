@@ -152,7 +152,9 @@ class StatusBarGovernor(
 
     suspend fun disableExpansion(): Boolean {
         shouldDisableExpansion = true
-        return runShell("cmd", "statusbar", "send-disable-flag", "statusbar-expansion")
+        return runShell("cmd", "statusbar", "send-disable-flag", "statusbar-expansion") ||
+            runShell("/system/bin/cmd", "statusbar", "send-disable-flag", "statusbar-expansion") ||
+            runShell("sh", "-c", "cmd statusbar send-disable-flag statusbar-expansion")
     }
 
     /**
@@ -189,7 +191,9 @@ class StatusBarGovernor(
         runShellOutput("settings", "get", "secure", "sysui_qs_tiles")
 
     suspend fun collapse(): Boolean =
-        runShell("cmd", "statusbar", "collapse")
+        runShell("cmd", "statusbar", "collapse") ||
+        runShell("/system/bin/cmd", "statusbar", "collapse") ||
+        runShell("sh", "-c", "cmd statusbar collapse")
 
     suspend fun expandSettings(): Boolean =
         runShell("cmd", "statusbar", "expand-settings")

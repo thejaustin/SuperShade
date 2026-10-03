@@ -323,7 +323,7 @@ fun StatusBarRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 22.dp, end = 16.dp, top = 16.dp, bottom = 12.dp),
+            .padding(start = 22.dp, end = 16.dp, top = 10.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top,
     ) {
@@ -369,23 +369,23 @@ fun StatusBarRow(
                     Text(
                         text = time,
                         style = when (shadeTheme) {
-                            is ShadeTheme.Cyberpunk -> MaterialTheme.typography.displayMedium.copy(
+                            is ShadeTheme.Cyberpunk -> MaterialTheme.typography.displaySmall.copy(
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = (-1).sp,
                             )
-                            else -> MaterialTheme.typography.displayMedium
+                            else -> MaterialTheme.typography.displaySmall
                         },
                         color = MaterialTheme.colorScheme.onBackground,
                     )
                     Text(
                         text = if (shadeTheme is ShadeTheme.Cyberpunk) "// $ampm" else ampm,
-                        style = MaterialTheme.typography.headlineSmall.copy(
+                        style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = if (shadeTheme is ShadeTheme.Cyberpunk) FontWeight.Bold else FontWeight.Light,
                             fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else null,
                         ),
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                        modifier = Modifier.padding(bottom = 10.dp),
+                        modifier = Modifier.padding(bottom = 6.dp),
                     )
                 }
             }

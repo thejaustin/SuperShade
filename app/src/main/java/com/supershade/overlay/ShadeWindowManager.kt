@@ -4,6 +4,8 @@ import android.content.Context
 import android.graphics.PixelFormat
 import android.os.Build
 import android.view.Gravity
+import android.view.MotionEvent
+import android.view.View
 import android.view.WindowManager
 import android.view.KeyEvent
 import androidx.activity.OnBackPressedDispatcher
@@ -57,6 +59,7 @@ class ShadeWindowManager(
 
     private val windowManager: WindowManager = context.getSystemService()!!
     private var overlayView: ComposeView? = null
+    private var statusBarBlockerView: View? = null
 
     // A fresh ShadeLifecycleOwner is created on each show() call because
     // LifecycleRegistry cannot transition out of DESTROYED back to RESUMED.
@@ -192,6 +195,7 @@ class ShadeWindowManager(
         } catch (e: Exception) {
             android.util.Log.e("ShadeWindowManager", "Failed to add overlay window", e)
         }
+        attachStatusBarBlocker()
         // Dispatch window insets to the ComposeView so statusBarsPadding() and
         // similar modifiers resolve to the correct values in an overlay window.
         view.requestApplyInsets()
@@ -205,6 +209,7 @@ class ShadeWindowManager(
     fun hide() {
         if (overlayView == null) return
         if (hideJob?.isActive == true) return
+        detachStatusBarBlocker()
         viewModel.close()
         val viewToRemove = overlayView
         val ownerToStop = lifecycleOwner
@@ -226,6 +231,44 @@ class ShadeWindowManager(
 
     /** Returns true when the shade overlay is currently attached to the window. */
     fun isShowing(): Boolean = overlayView != null
+
+    // Adds an invisible full-width view at the top of the screen that consumes all touch events
+    // in the status bar height zone, preventing the native status bar from intercepting swipes
+    // while our shade is open. Removed on hide().
+    private fun attachStatusBarBlocker() {
+        if (statusBarBlockerView != null) return
+        val statusBarHeight = context.resources.getDimensionPixelSize(
+            context.resources.getIdentifier("status_bar_height", "dimen", "android")
+        ).coerceAtLeast(48)
+        val blockerParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            statusBarHeight,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+        }
+        val blocker = View(context).apply {
+            setOnTouchListener { _, event ->
+                // Consume down/move/up — do not pass to the system status bar window.
+                event.action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE,
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL)
+            }
+        }
+        try {
+            windowManager.addView(blocker, blockerParams)
+            statusBarBlockerView = blocker
+        } catch (_: Exception) {}
+    }
+
+    private fun detachStatusBarBlocker() {
+        val v = statusBarBlockerView ?: return
+        statusBarBlockerView = null
+        try { windowManager.removeView(v) } catch (_: Exception) {}
+    }
 }
 
 /**

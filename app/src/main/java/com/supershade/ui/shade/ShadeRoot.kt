@@ -734,13 +734,13 @@ fun ShadeRoot(
                                         border = getCardBorder(),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 14.dp, vertical = 3.dp),
+                                            .padding(horizontal = 14.dp, vertical = 2.dp),
                                     ) {
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp),
                                         ) {
                                             BrightnessSlider(
                                                 brightness = state.brightness,

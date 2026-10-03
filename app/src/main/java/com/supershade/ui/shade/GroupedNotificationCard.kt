@@ -44,16 +44,13 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
+import kotlin.math.abs as absF
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -101,7 +98,6 @@ fun List<ShadeNotification>.toGroups(): List<NotificationGroup> {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GroupedNotificationCard(
     group: NotificationGroup,
@@ -138,55 +134,19 @@ fun GroupedNotificationCard(
         }
     }
 
-    val dismissState = androidx.compose.runtime.key(group.groupKey ?: group.packageName) {
-        rememberSwipeToDismissBoxState(
-            confirmValueChange = { value ->
-                if (value != SwipeToDismissBoxValue.Settled) {
-                    haptics.sheetDetent()
-                    onDismissGroup()
-                    true
-                } else false
-            },
-            positionalThreshold = { totalDistance ->
-                val density = context.resources.displayMetrics.density
-                (totalDistance * 0.22f).coerceAtMost(90f * density)
-            },
-        )
-    }
+    val swipeState = rememberFluidSwipeState(key = group.groupKey ?: group.packageName)
 
-    val currentOffset = try { dismissState.requireOffset() } catch (_: Exception) { 0f }
-    val absOffset = kotlin.math.abs(currentOffset)
-    val isSettledAtRest = dismissState.currentValue == SwipeToDismissBoxValue.Settled &&
-        dismissState.targetValue == SwipeToDismissBoxValue.Settled &&
-        absOffset < 12f
-    val isSwiping = !isSettledAtRest && absOffset >= 12f
-    val dragProgress = if (isSwiping) {
-        if (dismissState.currentValue != dismissState.targetValue) {
-            kotlin.math.abs(dismissState.progress).coerceIn(0f, 1f)
-        } else {
-            (absOffset / 280f).coerceIn(0f, 1f)
-        }
-    } else 0f
-    val isPastDismissThreshold = isSwiping && (dragProgress >= 0.22f || absOffset > 80f)
-    var hasTickedThreshold by remember { mutableStateOf(false) }
-    LaunchedEffect(isPastDismissThreshold) {
-        if (isPastDismissThreshold && !hasTickedThreshold) {
-            haptics.sheetDetent()
-            hasTickedThreshold = true
-        } else if (!isPastDismissThreshold && dragProgress < 0.15f) {
-            hasTickedThreshold = false
-        }
-    }
-
-    SwipeToDismissBox(
-        state = dismissState,
+    FluidSwipeToDismiss(
+        state = swipeState,
+        onDismissed = { onDismissGroup() },
+        modifier = modifier.fillMaxWidth(),
         backgroundContent = {
-            if (!isSwiping || isSettledAtRest) {
-                // Return completely empty content when at rest — zero red background or trash icons visible
-                return@SwipeToDismissBox
-            }
+            val isSwiping = !swipeState.isAtRest
+            if (!isSwiping) return@FluidSwipeToDismiss
+            val currentOffset = swipeState.offsetPx
             val alignment = if (currentOffset > 0f) Alignment.CenterStart else Alignment.CenterEnd
-            val progress = dragProgress
+            val progress = swipeState.progress
+            val isPastDismissThreshold = absF(currentOffset) > swipeState.thresholdPx
 
             val badgeScale by animateFloatAsState(
                 targetValue = if (isPastDismissThreshold) 1.08f else (0.80f + progress * 0.40f).coerceIn(0.80f, 1.0f),
@@ -257,10 +217,9 @@ fun GroupedNotificationCard(
                 }
             }
         },
-        enableDismissFromStartToEnd = true,
-        enableDismissFromEndToStart = true,
-        modifier = modifier.fillMaxWidth(),
     ) {
+        val dragProgress = swipeState.progress
+        val isSwiping = !swipeState.isAtRest
         val cardScale = (1.0f - dragProgress * 0.04f).coerceIn(0.95f, 1.0f)
         val cardAlpha = if (dragProgress > 0.75f) (1f - (dragProgress - 0.75f) * 2.5f).coerceIn(0.4f, 1.0f) else 1.0f
         val cardElevation = (dragProgress * 8f).dp

@@ -169,7 +169,7 @@ fun CyberpunkShadeTheme(
             onPrimaryContainer = if (isDark) Color.White else c,
         )
     } else {
-        base
+        monetScheme(base, isDark, if (isAmoled) 0f else 0.25f)
     }
 
     MaterialTheme(

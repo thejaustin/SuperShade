@@ -161,9 +161,8 @@ class MorphShape(
         val scaleX = if (bounds.width > 0f) size.width / bounds.width else 1f
         val scaleY = if (bounds.height > 0f) size.height / bounds.height else 1f
 
-        matrix.translate(-bounds.left, -bounds.top)
-        matrix.scale(scaleX, scaleY)
-
+        // Compose Matrix ops post-multiply, so the LAST call is applied to points FIRST.
+        // Desired point pipeline: move bounds to origin -> scale to fit -> rotate about center.
         if (rotationAngle != 0f) {
             val cx = size.width / 2f
             val cy = size.height / 2f
@@ -171,6 +170,8 @@ class MorphShape(
             matrix.rotateZ(rotationAngle)
             matrix.translate(-cx, -cy)
         }
+        matrix.scale(scaleX, scaleY)
+        matrix.translate(-bounds.left, -bounds.top)
 
         path.transform(matrix)
         return Outline.Generic(path)
@@ -212,9 +213,8 @@ class PolygonShape(
         val scaleX = if (bounds.width > 0f) size.width / bounds.width else 1f
         val scaleY = if (bounds.height > 0f) size.height / bounds.height else 1f
 
-        matrix.translate(-bounds.left, -bounds.top)
-        matrix.scale(scaleX, scaleY)
-
+        // Compose Matrix ops post-multiply, so the LAST call is applied to points FIRST.
+        // Desired point pipeline: move bounds to origin -> scale to fit -> rotate about center.
         if (rotationAngle != 0f) {
             val cx = size.width / 2f
             val cy = size.height / 2f
@@ -222,6 +222,8 @@ class PolygonShape(
             matrix.rotateZ(rotationAngle)
             matrix.translate(-cx, -cy)
         }
+        matrix.scale(scaleX, scaleY)
+        matrix.translate(-bounds.left, -bounds.top)
 
         path.transform(matrix)
         return Outline.Generic(path)

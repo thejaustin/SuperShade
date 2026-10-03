@@ -388,7 +388,7 @@ fun ShadeRoot(
                                 val px = this.density
                                 val edgeZonePx = (28f * px).toInt()
                                 val headerZonePx = (72f * px).toInt()
-                                val bottomZonePx = (36f * px).toInt()
+                                val bottomHomeZonePx = (80f * px).toInt()
                                 val minSwipeUp = (110f * px).toInt()
                                 val slopeMin = 0.55f
 
@@ -405,11 +405,12 @@ fun ShadeRoot(
                                     val tracker = VelocityTracker()
                                     tracker.addPosition(down.uptimeMillis, down.position)
 
+                                    val isTouchInHomeBarZone = down.position.y >= (size.height - bottomHomeZonePx)
                                     val hasNotifications = state.visibleNotifications.isNotEmpty()
-                                    // Touch is over the scrollable feed if it occurs between top header and slim bottom handle zone
-                                    // and there are notifications to scroll (or together mode with compact QS).
-                                    val isTouchOverScrollableFeed = down.position.y >= headerZonePx &&
-                                                                    down.position.y <= (size.height - bottomZonePx) &&
+                                    // Touch is over scrollable feed only if outside top header and bottom home bar zone
+                                    val isTouchOverScrollableFeed = !isTouchInHomeBarZone &&
+                                                                    down.position.y >= headerZonePx &&
+                                                                    down.position.y <= (size.height - bottomHomeZonePx) &&
                                                                     (hasNotifications || (isTogether && !isQsExpanded))
 
                                     while (true) {
@@ -445,11 +446,10 @@ fun ShadeRoot(
                                         }
 
                                         // Vertical dismiss drag tracking:
-                                        // ONLY active when the touch started outside scrollable notification feed
-                                        // (e.g. Header zone, Bottom handle zone, or Empty notifications state)
+                                        // Active when touch started in bottom home zone, header zone, or empty state
                                         if (!isTouchOverScrollableFeed) {
-                                            val isDominantVertical = kotlin.math.abs(dy) > kotlin.math.abs(dx) * slopeMin
-                                            if (isDominantVertical && (dy < -6f || dy > 6f || dragOffset.value != 0f)) {
+                                            val isDominantVertical = isTouchInHomeBarZone || kotlin.math.abs(dy) > kotlin.math.abs(dx) * slopeMin
+                                            if (isDominantVertical && (dy < -4f || dy > 4f || dragOffset.value != 0f)) {
                                                 totalDy = dy
                                                 val currentVal = dragOffset.value
                                                 val nextVal = if (deltaY > 0f && currentVal >= 0f) {
@@ -459,10 +459,11 @@ fun ShadeRoot(
                                                     // Live 1:1 tracking upward towards dismiss or returning down
                                                     (currentVal + deltaY).coerceAtMost(64f * px)
                                                 }
-                                                if (nextVal < -dismissThresholdPx && !hasFiredDismissThresholdHaptic) {
+                                                val threshold = if (isTouchInHomeBarZone) 36f * px else dismissThresholdPx
+                                                if (nextVal < -threshold && !hasFiredDismissThresholdHaptic) {
                                                     haptics.sheetDetent()
                                                     hasFiredDismissThresholdHaptic = true
-                                                } else if (nextVal >= -dismissThresholdPx * 0.8f) {
+                                                } else if (nextVal >= -threshold * 0.8f) {
                                                     hasFiredDismissThresholdHaptic = false
                                                 }
                                                 coroutineScope.launch {
@@ -472,13 +473,21 @@ fun ShadeRoot(
 
                                             if (!change.pressed) {
                                                 val velocity = tracker.calculateVelocity().y
-                                                val isFlingUp = velocity < -velocityThresholdPxPerSec && totalDy < -(32f * px)
-                                                val isPulledPastThreshold = dragOffset.value < -dismissThresholdPx || -totalDy >= minSwipeUp
+                                                val isFlingUp = if (isTouchInHomeBarZone) {
+                                                    velocity < -360f * px && totalDy < -(12f * px)
+                                                } else {
+                                                    velocity < -velocityThresholdPxPerSec && totalDy < -(32f * px)
+                                                }
+                                                val isPulledPastThreshold = if (isTouchInHomeBarZone) {
+                                                    dragOffset.value < -(32f * px) || -totalDy >= (32f * px)
+                                                } else {
+                                                    dragOffset.value < -dismissThresholdPx || -totalDy >= minSwipeUp
+                                                }
 
                                                 if (isFlingUp || isPulledPastThreshold) {
                                                     consumed = true
                                                     change.consume()
-                                                    if (isTogether && isQsExpanded && velocity > -1600f * px && dragOffset.value > -screenHeightPx * 0.35f) {
+                                                    if (!isTouchInHomeBarZone && isTogether && isQsExpanded && velocity > -1600f * px && dragOffset.value > -screenHeightPx * 0.35f) {
                                                         haptics.sheetDetent()
                                                         coroutineScope.launch {
                                                             viewModel.setQsExpanded(false)

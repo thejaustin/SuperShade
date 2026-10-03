@@ -519,19 +519,19 @@ fun SettingsScreen(
                             subtitle = when {
                                 shizukuOk -> "Connected — privileged hardware controls & system panel suppression"
                                 shizukuConnected && !shizukuPermGranted -> "Connected — tap to authorize permission"
-                                else -> "Optional — run wireless ADB or Shizuku/ShizukuPlus for rootless toggles"
+                                else -> "Tap to open Shizuku/ShizukuPlus to start service & set up rootless toggles"
                             },
                             isGranted = shizukuOk,
                             isRequired = false,
                             actionText = when {
                                 shizukuConnected && !shizukuPermGranted -> "Authorize"
-                                !shizukuConnected -> "Open"
+                                !shizukuConnected -> "Set up"
                                 else -> "Active"
                             },
                             onClick = when {
                                 shizukuConnected && !shizukuPermGranted -> onRequestShizukuPermission
-                                !shizukuConnected -> onOpenShizukuManager
-                                else -> null
+                                !shizukuOk -> onOpenShizukuManager
+                                else -> onOpenShizukuManager
                             },
                         )
                     }

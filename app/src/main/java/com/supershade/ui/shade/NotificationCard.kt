@@ -211,10 +211,13 @@ fun NotificationCard(
                 label = "swipeIconRotation",
             )
 
-            val trackBgColor = if (isSnooze) {
-                Color(0xFFFFA000).copy(alpha = (progress * 0.35f).coerceIn(0.08f, 0.40f))
+            val isSwiping = progress > 0.01f
+            val trackBgColor = if (!isSwiping) {
+                Color.Transparent
+            } else if (isSnooze) {
+                Color(0xFFFFA000).copy(alpha = (progress * 0.45f).coerceIn(0f, 0.40f))
             } else {
-                Color(0xFFE53935).copy(alpha = (progress * 0.35f).coerceIn(0.08f, 0.40f))
+                Color(0xFFE53935).copy(alpha = (progress * 0.45f).coerceIn(0f, 0.40f))
             }
 
             val badgeColor = if (isSnooze) {
@@ -243,18 +246,19 @@ fun NotificationCard(
                     .background(trackBgColor),
                 contentAlignment = alignment,
             ) {
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = badgeColor,
-                    shadowElevation = if (isPastDismissThreshold) 6.dp else 1.dp,
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .offset(x = iconSlideOffset)
-                        .graphicsLayer {
-                            scaleX = badgeScale
-                            scaleY = badgeScale
-                        },
-                ) {
+                if (isSwiping) {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = badgeColor,
+                        shadowElevation = if (isPastDismissThreshold) 6.dp else 1.dp,
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .offset(x = iconSlideOffset)
+                            .graphicsLayer {
+                                scaleX = badgeScale
+                                scaleY = badgeScale
+                            },
+                    ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -302,7 +306,8 @@ fun NotificationCard(
                     }
                 }
             }
-        },
+        }
+    },
         enableDismissFromStartToEnd = notification.isClearable,
         enableDismissFromEndToStart = notification.isClearable,
         modifier = modifier.fillMaxWidth(),

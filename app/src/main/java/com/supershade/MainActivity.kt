@@ -252,8 +252,24 @@ class MainActivity : ComponentActivity() {
                             superHaptics.lightTap()
                             try {
                                 val launchIntent = connector.getManagerLaunchIntent()
-                                startActivity(launchIntent ?: Intent(Settings.ACTION_SETTINGS))
-                            } catch (e: Exception) {}
+                                if (launchIntent != null) {
+                                    startActivity(launchIntent)
+                                } else {
+                                    val explicitIntent = Intent(Intent.ACTION_MAIN)
+                                        .setComponent(android.content.ComponentName("af.shizuku.plus.api", "af.shizuku.manager.LauncherAlias"))
+                                        .addCategory(Intent.CATEGORY_LAUNCHER)
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    startActivity(explicitIntent)
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("MainActivity", "Failed to launch Shizuku manager app", e)
+                                try {
+                                    startActivity(
+                                        Intent(Intent.ACTION_VIEW, Uri.parse("https://shizuku.rikka.app/download/"))
+                                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    )
+                                } catch (_: Exception) {}
+                            }
                         },
                         onCheckUpdate = {
                             superHaptics.lightTap()

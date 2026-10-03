@@ -1,5 +1,6 @@
 package com.supershade.shizuku
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -73,21 +74,59 @@ class ShizukuPlusConnector(private val context: Context) {
 
     fun isInstalled(): Boolean {
         val pm = context.packageManager
-        return isPackageInstalled(pm, PACKAGE_SHIZUKU_PLUS) || isPackageInstalled(pm, PACKAGE_SHIZUKU_STANDARD)
+        return isPackageInstalled(pm, PACKAGE_SHIZUKU_PLUS) ||
+               isPackageInstalled(pm, PACKAGE_SHIZUKU_STANDARD) ||
+               isPackageInstalled(pm, PACKAGE_SHIZUKU_MANAGER)
     }
 
     fun getManagerPackage(): String? {
         val pm = context.packageManager
         return when {
             isPackageInstalled(pm, PACKAGE_SHIZUKU_PLUS) -> PACKAGE_SHIZUKU_PLUS
+            isPackageInstalled(pm, PACKAGE_SHIZUKU_MANAGER) -> PACKAGE_SHIZUKU_MANAGER
             isPackageInstalled(pm, PACKAGE_SHIZUKU_STANDARD) -> PACKAGE_SHIZUKU_STANDARD
             else -> null
         }
     }
 
     fun getManagerLaunchIntent(): Intent? {
-        val pkg = getManagerPackage() ?: return null
-        return context.packageManager.getLaunchIntentForPackage(pkg)
+        val pm = context.packageManager
+        // 1. Try launch intent for ShizukuPlus (preferred)
+        pm.getLaunchIntentForPackage(PACKAGE_SHIZUKU_PLUS)?.let {
+            return it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        // 2. Try explicit launcher component for ShizukuPlus
+        try {
+            val explicitPlus = Intent(Intent.ACTION_MAIN)
+                .setComponent(ComponentName(PACKAGE_SHIZUKU_PLUS, "af.shizuku.manager.LauncherAlias"))
+                .addCategory(Intent.CATEGORY_LAUNCHER)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (pm.queryIntentActivities(explicitPlus, 0).isNotEmpty() || isPackageInstalled(pm, PACKAGE_SHIZUKU_PLUS)) {
+                return explicitPlus
+            }
+        } catch (e: Exception) {}
+
+        // 3. Try standard Shizuku Manager
+        for (pkg in listOf(PACKAGE_SHIZUKU_MANAGER, PACKAGE_SHIZUKU_STANDARD)) {
+            pm.getLaunchIntentForPackage(pkg)?.let {
+                return it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            try {
+                val intent = Intent(Intent.ACTION_MAIN)
+                    .setComponent(ComponentName(pkg, "moe.shizuku.manager.MainActivity"))
+                    .addCategory(Intent.CATEGORY_LAUNCHER)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                if (pm.queryIntentActivities(intent, 0).isNotEmpty() || isPackageInstalled(pm, pkg)) {
+                    return intent
+                }
+            } catch (e: Exception) {}
+        }
+
+        // 4. Fallback explicit launcher intent directly to ShizukuPlus launcher alias
+        return Intent(Intent.ACTION_MAIN)
+            .setComponent(ComponentName(PACKAGE_SHIZUKU_PLUS, "af.shizuku.manager.LauncherAlias"))
+            .addCategory(Intent.CATEGORY_LAUNCHER)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 
     private fun isPackageInstalled(pm: PackageManager, packageName: String): Boolean {
@@ -110,5 +149,6 @@ class ShizukuPlusConnector(private val context: Context) {
     companion object {
         const val PACKAGE_SHIZUKU_PLUS = "af.shizuku.plus.api"
         const val PACKAGE_SHIZUKU_STANDARD = "moe.shizuku.privileged.api"
+        const val PACKAGE_SHIZUKU_MANAGER = "moe.shizuku.manager"
     }
 }

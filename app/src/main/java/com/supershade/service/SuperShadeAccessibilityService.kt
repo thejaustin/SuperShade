@@ -330,6 +330,17 @@ class SuperShadeAccessibilityService : AccessibilityService() {
         if (!isSuperShadeActive || event == null) return super.onKeyEvent(event)
         val keyCode = event.keyCode
 
+        // Close SuperShade when Home or App Switch is pressed while shade is open
+        if (shadeViewModel.state.value.isOpen) {
+            if (keyCode == KeyEvent.KEYCODE_HOME || keyCode == KeyEvent.KEYCODE_APP_SWITCH) {
+                if (event.action == KeyEvent.ACTION_UP) {
+                    android.util.Log.d("SuperShadeA11y", "Home/Recents button tapped while shade open -> closing SuperShade")
+                    shadeViewModel.close()
+                }
+                return true
+            }
+        }
+
         // Samsung Good Lock One Hand Operation+ and Knox inject keycodes:
         // - 1003: Samsung One UI SEM_KEYCODE_EXPAND_NOTI_PANEL
         // - 1004: Samsung One UI SEM_KEYCODE_EXPAND_QUICK_PANEL
@@ -352,6 +363,22 @@ class SuperShadeAccessibilityService : AccessibilityService() {
         }
 
         return super.onKeyEvent(event)
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onGesture(gestureId: Int): Boolean {
+        if (shadeViewModel.state.value.isOpen) {
+            when (gestureId) {
+                GESTURE_SWIPE_UP,
+                GESTURE_SWIPE_UP_AND_LEFT,
+                GESTURE_SWIPE_UP_AND_RIGHT -> {
+                    android.util.Log.d("SuperShadeA11y", "Accessibility swipe-up detected while shade open -> closing SuperShade")
+                    shadeViewModel.close()
+                    return true
+                }
+            }
+        }
+        return super.onGesture(gestureId)
     }
 
     private fun openSuperShade(expandQs: Boolean = false) {

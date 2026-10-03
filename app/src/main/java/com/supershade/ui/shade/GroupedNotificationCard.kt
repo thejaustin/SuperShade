@@ -180,7 +180,12 @@ fun GroupedNotificationCard(
                 label = "groupSwipeIconRotation",
             )
 
-            val trackBgColor = Color(0xFFE53935).copy(alpha = (progress * 0.35f).coerceIn(0.08f, 0.40f))
+            val isSwiping = progress > 0.01f
+            val trackBgColor = if (!isSwiping) {
+                Color.Transparent
+            } else {
+                Color(0xFFE53935).copy(alpha = (progress * 0.45f).coerceIn(0f, 0.40f))
+            }
             val badgeColor = if (isPastDismissThreshold) Color(0xFFE53935) else Color(0xFFE53935).copy(alpha = 0.85f)
 
             val iconSlideOffset by animateDpAsState(
@@ -200,18 +205,19 @@ fun GroupedNotificationCard(
                     .background(trackBgColor),
                 contentAlignment = alignment,
             ) {
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = badgeColor,
-                    shadowElevation = if (isPastDismissThreshold) 6.dp else 1.dp,
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .offset(x = iconSlideOffset)
-                        .graphicsLayer {
-                            scaleX = badgeScale
-                            scaleY = badgeScale
-                        },
-                ) {
+                if (isSwiping) {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = badgeColor,
+                        shadowElevation = if (isPastDismissThreshold) 6.dp else 1.dp,
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .offset(x = iconSlideOffset)
+                            .graphicsLayer {
+                                scaleX = badgeScale
+                                scaleY = badgeScale
+                            },
+                    ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -238,7 +244,8 @@ fun GroupedNotificationCard(
                     }
                 }
             }
-        },
+        }
+    },
         enableDismissFromStartToEnd = true,
         enableDismissFromEndToStart = true,
         modifier = modifier.fillMaxWidth(),

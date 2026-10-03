@@ -56,13 +56,22 @@ import com.supershade.haptics.SuperHaptics
 import com.supershade.ui.theme.getCardBorder
 import kotlinx.coroutines.delay
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.material.icons.filled.Android
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Refresh
+
 enum class PowerConfirmAction {
-    NONE, POWER_OFF, RESTART
+    NONE, POWER_OFF, RESTART, RESTART_SYSTEMUI, REBOOT_RECOVERY, REBOOT_BOOTLOADER
 }
 
 /**
  * Modern One UI 8/9 style Quick Power Menu dialog with two-step safety confirmation,
- * spring-driven press feedback, and flagship mechanical haptics.
+ * spring-driven press feedback, Shizuku advanced reboot actions, and flagship mechanical haptics.
  */
 @Composable
 fun PowerMenuDialog(
@@ -71,10 +80,15 @@ fun PowerMenuDialog(
     onRestart: () -> Unit,
     onPowerOff: () -> Unit,
     onSystemPowerDialog: () -> Unit,
+    onRestartSystemUI: () -> Unit = {},
+    onRebootRecovery: () -> Unit = {},
+    onRebootBootloader: () -> Unit = {},
+    isShizukuActive: Boolean = false,
 ) {
     val context = LocalContext.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
     var confirmAction by remember { mutableStateOf(PowerConfirmAction.NONE) }
+    var showAdvanced by remember { mutableStateOf(false) }
 
     // Auto-revert confirmation after 4 seconds of inactivity
     LaunchedEffect(confirmAction) {
@@ -129,6 +143,9 @@ fun PowerMenuDialog(
                             text = when (state) {
                                 PowerConfirmAction.POWER_OFF -> "Power off"
                                 PowerConfirmAction.RESTART -> "Restart"
+                                PowerConfirmAction.RESTART_SYSTEMUI -> "Restart SystemUI"
+                                PowerConfirmAction.REBOOT_RECOVERY -> "Reboot Recovery"
+                                PowerConfirmAction.REBOOT_BOOTLOADER -> "Reboot Bootloader"
                                 PowerConfirmAction.NONE -> "Power options"
                             },
                             style = MaterialTheme.typography.titleMedium.copy(
@@ -142,6 +159,9 @@ fun PowerMenuDialog(
                             text = when (state) {
                                 PowerConfirmAction.POWER_OFF -> "Tap again to turn off your phone"
                                 PowerConfirmAction.RESTART -> "Tap again to restart your phone"
+                                PowerConfirmAction.RESTART_SYSTEMUI -> "Tap again to reload Samsung SystemUI & status bar"
+                                PowerConfirmAction.REBOOT_RECOVERY -> "Tap again to reboot into Android Recovery"
+                                PowerConfirmAction.REBOOT_BOOTLOADER -> "Tap again to reboot into Download / Bootloader mode"
                                 PowerConfirmAction.NONE -> "Select a power or security action"
                             },
                             style = MaterialTheme.typography.bodySmall,
@@ -221,6 +241,108 @@ fun PowerMenuDialog(
                             onSystemPowerDialog()
                         },
                     )
+                }
+
+                // Advanced Controls Section (Shizuku)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable {
+                            haptics.lightTap()
+                            showAdvanced = !showAdvanced
+                        }
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = if (isShizukuActive) "Advanced actions (Shizuku active)" else "Advanced actions",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Icon(
+                        imageVector = if (showAdvanced) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (showAdvanced) "Collapse" else "Expand",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+
+                AnimatedVisibility(
+                    visible = showAdvanced,
+                    enter = fadeIn(tween(140)) + expandVertically(spring(dampingRatio = Spring.DampingRatioLowBouncy)),
+                    exit = fadeOut(tween(120)) + shrinkVertically(tween(120)),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                        ) {
+                            val isSystemUIConfirmed = confirmAction == PowerConfirmAction.RESTART_SYSTEMUI
+                            PowerActionButton(
+                                icon = Icons.Default.Refresh,
+                                label = if (isSystemUIConfirmed) "Tap to confirm" else "SystemUI",
+                                iconColor = if (isSystemUIConfirmed) Color.White else Color(0xFF00ACC1),
+                                backgroundColor = if (isSystemUIConfirmed) Color(0xFF00ACC1) else Color(0xFF00ACC1).copy(alpha = 0.16f),
+                                isConfirmed = isSystemUIConfirmed,
+                                haptics = haptics,
+                                onClick = {
+                                    if (confirmAction == PowerConfirmAction.RESTART_SYSTEMUI) {
+                                        haptics.heavyClick()
+                                        onRestartSystemUI()
+                                    } else {
+                                        haptics.sheetDetent()
+                                        confirmAction = PowerConfirmAction.RESTART_SYSTEMUI
+                                    }
+                                },
+                            )
+
+                            val isRecoveryConfirmed = confirmAction == PowerConfirmAction.REBOOT_RECOVERY
+                            PowerActionButton(
+                                icon = Icons.Default.Build,
+                                label = if (isRecoveryConfirmed) "Tap to confirm" else "Recovery",
+                                iconColor = if (isRecoveryConfirmed) Color.White else Color(0xFFFFA000),
+                                backgroundColor = if (isRecoveryConfirmed) Color(0xFFFFA000) else Color(0xFFFFA000).copy(alpha = 0.16f),
+                                isConfirmed = isRecoveryConfirmed,
+                                haptics = haptics,
+                                onClick = {
+                                    if (confirmAction == PowerConfirmAction.REBOOT_RECOVERY) {
+                                        haptics.heavyClick()
+                                        onRebootRecovery()
+                                    } else {
+                                        haptics.sheetDetent()
+                                        confirmAction = PowerConfirmAction.REBOOT_RECOVERY
+                                    }
+                                },
+                            )
+
+                            val isBootloaderConfirmed = confirmAction == PowerConfirmAction.REBOOT_BOOTLOADER
+                            PowerActionButton(
+                                icon = Icons.Default.Android,
+                                label = if (isBootloaderConfirmed) "Tap to confirm" else "Bootloader",
+                                iconColor = if (isBootloaderConfirmed) Color.White else Color(0xFF8E24AA),
+                                backgroundColor = if (isBootloaderConfirmed) Color(0xFF8E24AA) else Color(0xFF8E24AA).copy(alpha = 0.16f),
+                                isConfirmed = isBootloaderConfirmed,
+                                haptics = haptics,
+                                onClick = {
+                                    if (confirmAction == PowerConfirmAction.REBOOT_BOOTLOADER) {
+                                        haptics.heavyClick()
+                                        onRebootBootloader()
+                                    } else {
+                                        haptics.sheetDetent()
+                                        confirmAction = PowerConfirmAction.REBOOT_BOOTLOADER
+                                    }
+                                },
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))

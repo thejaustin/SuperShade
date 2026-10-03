@@ -345,9 +345,20 @@ class TileRepository(
                 key.contains("sync") -> {
                     android.content.ContentResolver.getMasterSyncAutomatically()
                 }
+                key.contains("reducebright") || key.contains("extradim") -> {
+                    Settings.Secure.getInt(context.contentResolver, "reduce_bright_colors_activated", 0) == 1
+                }
+                key.contains("bluelight") || key.contains("eyecomfort") -> {
+                    Settings.System.getInt(context.contentResolver, "blue_light_filter", 0) == 1 ||
+                    Settings.Secure.getInt(context.contentResolver, "night_display_activated", 0) == 1
+                }
+                key.contains("aod") || key.contains("alwayson") -> {
+                    Settings.Secure.getInt(context.contentResolver, "aod_mode", 0) == 1 ||
+                    Settings.Secure.getInt(context.contentResolver, "doze_always_on", 0) == 1
+                }
                 else -> false
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             false
         }
     }

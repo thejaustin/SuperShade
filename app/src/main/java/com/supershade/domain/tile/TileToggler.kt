@@ -241,7 +241,45 @@ class TileToggler(
                 // Battery Saver: Shizuku privileged or battery settings
                 id.contains("battery") || id.contains("batterymode") -> {
                     if (governor.canRunPrivileged) {
-                        governor.runShell("cmd", "power", "set-mode", if (newState) "1" else "0")
+                        governor.setBatterySaver(newState)
+                    } else {
+                        openSettings(tile)
+                    }
+                }
+
+                // Extra Dim / Reduce Bright Colors
+                id.contains("reducebright") || id.contains("extradim") -> {
+                    if (governor.canRunPrivileged) {
+                        governor.setExtraDim(newState)
+                    } else {
+                        openSettings(tile)
+                    }
+                }
+
+                // Eye Comfort Shield / Blue Light Filter
+                id.contains("bluelight") || id.contains("eyecomfort") -> {
+                    if (governor.canRunPrivileged) {
+                        governor.putSetting("system", "blue_light_filter", if (newState) "1" else "0")
+                        governor.putSetting("secure", "night_display_activated", if (newState) "1" else "0")
+                    } else {
+                        openSettings(tile)
+                    }
+                }
+
+                // Always On Display
+                id.contains("aod") || id.contains("alwayson") -> {
+                    if (governor.canRunPrivileged) {
+                        governor.setAlwaysOnDisplay(newState)
+                    } else {
+                        val component = tile.componentName ?: tile.id
+                        governor.clickTile(component)
+                    }
+                }
+
+                // Dolby Atmos
+                id.contains("dolby") -> {
+                    if (governor.canRunPrivileged) {
+                        governor.clickTile("com.sec.android.app.soundalive/.DolbyTile")
                     } else {
                         openSettings(tile)
                     }

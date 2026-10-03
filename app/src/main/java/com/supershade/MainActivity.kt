@@ -89,8 +89,8 @@ class MainActivity : ComponentActivity() {
             val showWhatsNew by updateRepo.showWhatsNew.collectAsState()
 
             SuperShadeAppTheme(mode = darkThemeMode, accentColor = accentColor) {
-                // Re-checked on every resume so user sees instant feedback after
-                // granting access in system Settings.
+                // Re-checked on every resume and reactively via Shizuku listener so user sees instant feedback
+                val shizukuPermGrantedFlow by connector.hasPermissionFlow.collectAsState()
                 var notifAccessGranted by remember { mutableStateOf(isNotificationAccessGranted()) }
                 var overlayGranted by remember { mutableStateOf(Settings.canDrawOverlays(this)) }
                 var shizukuPermGranted by remember { mutableStateOf(connector.hasPermission()) }
@@ -102,6 +102,7 @@ class MainActivity : ComponentActivity() {
                         if (event == Lifecycle.Event.ON_RESUME) {
                             notifAccessGranted = isNotificationAccessGranted()
                             overlayGranted = Settings.canDrawOverlays(this@MainActivity)
+                            connector.updatePermissionState()
                             shizukuPermGranted = connector.hasPermission()
                             writeSettingsGranted = Settings.System.canWrite(this@MainActivity)
                             accessibilityGranted = isAccessibilityServiceEnabled()
@@ -148,7 +149,7 @@ class MainActivity : ComponentActivity() {
                 ) { padding ->
                     SettingsScreen(
                         shizukuConnected = shizukuConnected,
-                        shizukuPermGranted = shizukuPermGranted,
+                        shizukuPermGranted = shizukuPermGranted || shizukuPermGrantedFlow,
                         notificationAccessGranted = notifAccessGranted,
                         overlayGranted = overlayGranted,
                         writeSettingsGranted = writeSettingsGranted,
@@ -241,6 +242,17 @@ class MainActivity : ComponentActivity() {
                             superHaptics.lightTap()
                             try {
                                 startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                            } catch (e: Exception) {}
+                        },
+                        onRequestShizukuPermission = {
+                            superHaptics.lightTap()
+                            connector.requestPermission()
+                        },
+                        onOpenShizukuManager = {
+                            superHaptics.lightTap()
+                            try {
+                                val launchIntent = connector.getManagerLaunchIntent()
+                                startActivity(launchIntent ?: Intent(Settings.ACTION_SETTINGS))
                             } catch (e: Exception) {}
                         },
                         onCheckUpdate = {

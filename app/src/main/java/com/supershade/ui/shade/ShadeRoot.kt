@@ -1276,6 +1276,22 @@ fun ShadeRoot(
                         viewModel.openSystemPowerDialog()
                         onDismiss()
                     },
+                    onRestartSystemUI = {
+                        showPowerMenu = false
+                        viewModel.restartSystemUI()
+                        onDismiss()
+                    },
+                    onRebootRecovery = {
+                        showPowerMenu = false
+                        viewModel.rebootRecovery()
+                        onDismiss()
+                    },
+                    onRebootBootloader = {
+                        showPowerMenu = false
+                        viewModel.rebootBootloader()
+                        onDismiss()
+                    },
+                    isShizukuActive = state.isShizukuConnected,
                 )
             }
         }

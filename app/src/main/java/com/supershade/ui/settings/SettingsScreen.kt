@@ -168,6 +168,8 @@ fun SettingsScreen(
     onGrantOverlay: () -> Unit,
     onGrantWriteSettings: () -> Unit = {},
     onGrantAccessibility: () -> Unit = {},
+    onRequestShizukuPermission: () -> Unit = {},
+    onOpenShizukuManager: () -> Unit = {},
     onCheckUpdate: () -> Unit,
     isCheckingUpdate: Boolean = false,
     onShowWhatsNew: () -> Unit,
@@ -517,7 +519,7 @@ fun SettingsScreen(
                             subtitle = when {
                                 shizukuOk -> "Connected — privileged hardware controls & system panel suppression"
                                 shizukuConnected && !shizukuPermGranted -> "Connected — tap to authorize permission"
-                                else -> "Optional — run wireless ADB or Shizuku for rootless toggles"
+                                else -> "Optional — run wireless ADB or Shizuku/ShizukuPlus for rootless toggles"
                             },
                             isGranted = shizukuOk,
                             isRequired = false,
@@ -527,13 +529,8 @@ fun SettingsScreen(
                                 else -> "Active"
                             },
                             onClick = when {
-                                shizukuConnected && !shizukuPermGranted -> null
-                                !shizukuConnected -> {
-                                    {
-                                        val launchIntent = context.packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")
-                                        context.startActivity(launchIntent ?: Intent(Settings.ACTION_SETTINGS))
-                                    }
-                                }
+                                shizukuConnected && !shizukuPermGranted -> onRequestShizukuPermission
+                                !shizukuConnected -> onOpenShizukuManager
                                 else -> null
                             },
                         )

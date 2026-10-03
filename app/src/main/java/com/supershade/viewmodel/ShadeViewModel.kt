@@ -753,20 +753,35 @@ class ShadeViewModel(
     fun restartDevice() {
         viewModelScope.launch {
             close()
-            val handled = governor.runShell("svc", "power", "reboot")
-            if (!handled) {
-                governor.runShell("reboot")
-            }
+            governor.reboot()
         }
     }
 
     fun powerOffDevice() {
         viewModelScope.launch {
             close()
-            val handled = governor.runShell("svc", "power", "shutdown")
-            if (!handled) {
-                governor.runShell("reboot", "-p")
-            }
+            governor.shutdown()
+        }
+    }
+
+    fun restartSystemUI() {
+        viewModelScope.launch {
+            close()
+            governor.restartSystemUI()
+        }
+    }
+
+    fun rebootRecovery() {
+        viewModelScope.launch {
+            close()
+            governor.reboot("recovery")
+        }
+    }
+
+    fun rebootBootloader() {
+        viewModelScope.launch {
+            close()
+            governor.reboot("bootloader")
         }
     }
 

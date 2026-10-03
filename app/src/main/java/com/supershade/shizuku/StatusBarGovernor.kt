@@ -61,7 +61,11 @@ class StatusBarGovernor(
 
     init {
         connector.isConnected
-            .onEach { connected -> if (connected) bindService() }
+            .onEach { connected -> if (connected && connector.hasPermission()) bindService() }
+            .launchIn(CoroutineScope(SupervisorJob() + Dispatchers.Main))
+
+        connector.hasPermissionFlow
+            .onEach { granted -> if (granted && connector.isConnected.value) bindService() }
             .launchIn(CoroutineScope(SupervisorJob() + Dispatchers.Main))
     }
 
@@ -70,6 +74,7 @@ class StatusBarGovernor(
             android.util.Log.d("StatusBarGovernor", "bindService skipped: Shizuku permission not granted")
             return
         }
+        if (_isCommanderConnected.value && commander != null) return
         try {
             android.util.Log.i("StatusBarGovernor", "Binding Shizuku UserService...")
             Shizuku.bindUserService(serviceArgs, serviceConnection)
@@ -178,5 +183,95 @@ class StatusBarGovernor(
 
     suspend fun expandSettings(): Boolean =
         runShell("cmd", "statusbar", "expand-settings")
-}
 
+    // --- Direct Settings Control via Shizuku ---
+
+    suspend fun putSetting(table: String, key: String, value: String): Boolean =
+        runShell("settings", "put", table, key, value)
+
+    suspend fun getSetting(table: String, key: String): String =
+        runShellOutput("settings", "get", table, key)
+
+    // --- Privileged Hardware & System Toggles ---
+
+    suspend fun setWifi(enabled: Boolean): Boolean =
+        runShell("svc", "wifi", if (enabled) "enable" else "disable")
+
+    suspend fun setData(enabled: Boolean): Boolean =
+        runShell("svc", "data", if (enabled) "enable" else "disable")
+
+    suspend fun setBluetooth(enabled: Boolean): Boolean =
+        runShell("svc", "bluetooth", if (enabled) "enable" else "disable")
+
+    suspend fun setNfc(enabled: Boolean): Boolean =
+        runShell("svc", "nfc", if (enabled) "enable" else "disable")
+
+    suspend fun setAirplaneMode(enabled: Boolean): Boolean =
+        runShell("cmd", "connectivity", "airplane-mode", if (enabled) "enable" else "disable")
+
+    suspend fun setLocationEnabled(enabled: Boolean): Boolean =
+        runShell("cmd", "location", "set-location-enabled", if (enabled) "true" else "false")
+
+    suspend fun setUiModeNight(night: Boolean): Boolean =
+        runShell("cmd", "uimode", "night", if (night) "yes" else "no")
+
+    suspend fun setDnd(enabled: Boolean): Boolean =
+        runShell("cmd", "notification", "set_dnd", if (enabled) "on" else "off")
+
+    suspend fun setBatterySaver(enabled: Boolean): Boolean =
+        runShell("cmd", "power", "set-mode", if (enabled) "1" else "0")
+
+    suspend fun setHotspot(enabled: Boolean): Boolean =
+        runShell("cmd", "connectivity", "tether", if (enabled) "start-tethering" else "stop-tethering")
+
+    suspend fun setAutoRotate(enabled: Boolean): Boolean =
+        putSetting("system", "accelerometer_rotation", if (enabled) "1" else "0")
+
+    suspend fun setExtraDim(enabled: Boolean): Boolean =
+        putSetting("secure", "reduce_bright_colors_activated", if (enabled) "1" else "0")
+
+    suspend fun setAlwaysOnDisplay(enabled: Boolean): Boolean {
+        val s1 = putSetting("secure", "aod_mode", if (enabled) "1" else "0")
+        val s2 = putSetting("secure", "doze_always_on", if (enabled) "1" else "0")
+        return s1 || s2
+    }
+
+    // --- Privileged Power & System Actions ---
+
+    suspend fun restartSystemUI(): Boolean =
+        runShell("pkill", "-f", "com.android.systemui")
+
+    suspend fun reboot(reason: String? = null): Boolean = withContext(Dispatchers.IO) {
+        when (reason?.lowercase()) {
+            "recovery" -> {
+                runShell("cmd", "power", "reboot", "recovery") ||
+                runShell("setprop", "sys.powerctl", "reboot,recovery")
+            }
+            "bootloader", "download" -> {
+                runShell("cmd", "power", "reboot", "bootloader") ||
+                runShell("reboot", "bootloader") ||
+                runShell("reboot", "download")
+            }
+            "systemui", "soft" -> {
+                restartSystemUI()
+            }
+            else -> {
+                runShell("svc", "power", "reboot") ||
+                runShell("cmd", "power", "reboot") ||
+                runShell("reboot")
+            }
+        }
+    }
+
+    suspend fun shutdown(): Boolean = withContext(Dispatchers.IO) {
+        runShell("svc", "power", "shutdown") ||
+        runShell("cmd", "power", "shutdown") ||
+        runShell("reboot", "-p")
+    }
+
+    suspend fun lockScreen(): Boolean =
+        runShell("input", "keyevent", "26")
+
+    suspend fun takeScreenshot(): Boolean =
+        runShell("input", "keyevent", "120")
+}

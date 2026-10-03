@@ -23,6 +23,8 @@ import com.supershade.domain.tile.TILE_SETTINGS_ACTIONS
 import com.supershade.domain.tile.TileDefinition
 import com.supershade.domain.tile.TileRepository
 import com.supershade.domain.tile.TileToggler
+import com.supershade.domain.tile.canonicalTileId
+import com.supershade.domain.tile.humanizeTileLabel
 import com.supershade.settings.ShadeSettings
 import com.supershade.shizuku.StatusBarGovernor
 import kotlinx.coroutines.Job
@@ -30,6 +32,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -64,7 +67,10 @@ class ShadeViewModel(
             ?.onEach { bs ->
                 _state.update { current ->
                     current.copy(
-                        statusBar = current.statusBar.copy(batteryPct = bs.levelPct)
+                        statusBar = current.statusBar.copy(
+                            batteryPct = bs.levelPct,
+                            isCharging = bs.isCharging
+                        )
                     )
                 }
             }
@@ -75,7 +81,29 @@ class ShadeViewModel(
                 _state.update { current ->
                     current.copy(
                         allNotifications = notifications,
-                        visibleNotifications = filterFor(notifications, current.selectedCategory)
+                        visibleNotifications = filterFor(notifications, current.selectedCategory, current.hiddenChannels, current.hideOngoingNotifications)
+                    )
+                }
+            }
+            .launchIn(viewModelScope)
+
+        settings.hiddenChannels
+            .onEach { channels ->
+                _state.update { current ->
+                    current.copy(
+                        hiddenChannels = channels,
+                        visibleNotifications = filterFor(current.allNotifications, current.selectedCategory, channels, current.hideOngoingNotifications)
+                    )
+                }
+            }
+            .launchIn(viewModelScope)
+
+        settings.hideOngoingNotifications
+            .onEach { hide ->
+                _state.update { current ->
+                    current.copy(
+                        hideOngoingNotifications = hide,
+                        visibleNotifications = filterFor(current.allNotifications, current.selectedCategory, current.hiddenChannels, hide)
                     )
                 }
             }
@@ -85,12 +113,52 @@ class ShadeViewModel(
             .onEach { tiles -> _state.update { it.copy(tiles = tiles) } }
             .launchIn(viewModelScope)
 
-        mediaRepo.media
-            .onEach { media ->
-                _state.update { it.copy(media = media) }
-                updatePositionTicker(media)
+        combine(mediaRepo.media, notificationRepo.voiceRecorderNotification) { media, voiceNote ->
+            if (media != null && media.isPlaying) {
+                media
+            } else if (voiceNote != null) {
+                val isPaused = voiceNote.title.contains("Pause", ignoreCase = true) ||
+                    voiceNote.text.contains("Pause", ignoreCase = true) ||
+                    voiceNote.actions.any { it.label.contains("Resume", ignoreCase = true) || it.label.contains("Record", ignoreCase = true) }
+                val playPauseAction = voiceNote.actions.firstOrNull {
+                    it.label.contains("Pause", ignoreCase = true) ||
+                        it.label.contains("Resume", ignoreCase = true) ||
+                        it.label.contains("Record", ignoreCase = true)
+                } ?: voiceNote.actions.firstOrNull()
+                val stopAction = voiceNote.actions.firstOrNull {
+                    it.label.contains("Stop", ignoreCase = true) ||
+                        it.label.contains("Save", ignoreCase = true) ||
+                        it.label.contains("Done", ignoreCase = true)
+                }
+
+                MediaState(
+                    title = voiceNote.title.ifBlank { "Voice Recorder" },
+                    artist = voiceNote.text.ifBlank { "Recording" },
+                    album = "Voice Note",
+                    albumArt = voiceNote.picture,
+                    isPlaying = !isPaused,
+                    packageName = voiceNote.packageName,
+                    isRecording = true,
+                    customPlayPauseAction = {
+                        try {
+                            playPauseAction?.pendingIntent?.send()
+                        } catch (_: Exception) {}
+                    },
+                    customStopAction = {
+                        try {
+                            stopAction?.pendingIntent?.send()
+                        } catch (_: Exception) {}
+                    },
+                )
+            } else {
+                media
             }
-            .launchIn(viewModelScope)
+        }
+        .onEach { media ->
+            _state.update { it.copy(media = media) }
+            updatePositionTicker(media)
+        }
+        .launchIn(viewModelScope)
 
         settings.theme
             .onEach { t -> _state.update { it.copy(theme = t) } }
@@ -140,6 +208,14 @@ class ShadeViewModel(
             .onEach { opacity -> _state.update { it.copy(backdropOpacity = opacity) } }
             .launchIn(viewModelScope)
 
+        settings.notificationDensity
+            .onEach { density -> _state.update { it.copy(notificationDensity = density) } }
+            .launchIn(viewModelScope)
+
+        settings.deviceControlMode
+            .onEach { mode -> _state.update { it.copy(deviceControlMode = mode) } }
+            .launchIn(viewModelScope)
+
         governor.isCommanderConnected
             .onEach { connected -> _state.update { it.copy(isShizukuConnected = connected) } }
             .launchIn(viewModelScope)
@@ -173,7 +249,6 @@ class ShadeViewModel(
                 isOpen = true,
                 isQsExpanded = expandQs,
                 activePanel = if (expandQs) ShadePanel.QUICK_SETTINGS else ShadePanel.NOTIFICATIONS,
-                isQuickControlsTucked = false,
                 brightness = brightnessRepo.getCurrent(),
             )
         }
@@ -201,12 +276,8 @@ class ShadeViewModel(
         }
     }
 
-    fun setQuickControlsTucked(tucked: Boolean) {
-        _state.update { it.copy(isQuickControlsTucked = tucked) }
-    }
-
     fun close() {
-        _state.update { it.copy(isOpen = false, isQsExpanded = false, isQuickControlsTucked = false) }
+        _state.update { it.copy(isOpen = false, isQsExpanded = false) }
         positionTickerJob?.cancel()
         positionTickerJob = null
         brightnessJob?.cancel()
@@ -217,9 +288,17 @@ class ShadeViewModel(
         _state.update { current ->
             current.copy(
                 selectedCategory = category,
-                visibleNotifications = filterFor(current.allNotifications, category)
+                visibleNotifications = filterFor(current.allNotifications, category, current.hiddenChannels)
             )
         }
+    }
+
+    fun hideNotificationChannel(pkg: String, channelId: String) {
+        viewModelScope.launch { settings.hideChannel("$pkg/$channelId") }
+    }
+
+    fun unhideNotificationChannel(pkg: String, channelId: String) {
+        viewModelScope.launch { settings.unhideChannel("$pkg/$channelId") }
     }
 
     fun toggleTile(tile: TileDefinition) {
@@ -239,39 +318,45 @@ class ShadeViewModel(
     }
 
     fun removeTile(tileId: String) {
-        val currentTiles = _state.value.tiles.toMutableList()
-        val index = currentTiles.indexOfFirst { it.id == tileId }
-        if (index != -1) {
-            currentTiles.removeAt(index)
-            _state.update { it.copy(tiles = currentTiles) }
-            viewModelScope.launch {
-                settings.setEnabledTiles(currentTiles.map { it.id })
-            }
+        val canonical = canonicalTileId(tileId)
+        val currentTiles = _state.value.tiles.filter { canonicalTileId(it.id) != canonical }
+        _state.update { it.copy(tiles = currentTiles) }
+        viewModelScope.launch {
+            settings.setEnabledTiles(currentTiles.map { canonicalTileId(it.id) })
         }
     }
 
     fun addTile(tileId: String) {
-        if (_state.value.tiles.any { it.id == tileId }) return
-        val (label, capability) = KNOWN_TILES[tileId] ?: (tileId.replaceFirstChar { it.uppercase() } to TileCapability.FULL_TOGGLE)
+        val canonical = canonicalTileId(tileId)
+        if (_state.value.tiles.any { canonicalTileId(it.id) == canonical }) return
+        val (label, capability) = KNOWN_TILES[canonical]
+            ?: KNOWN_TILES[tileId]
+            ?: (humanizeTileLabel(canonical) to TileCapability.FULL_TOGGLE)
         val newTile = TileDefinition(
-            id = tileId,
+            id = canonical,
             label = label,
             isActive = false,
             capability = capability,
-            componentName = TILE_COMPONENTS[tileId],
-            settingsAction = TILE_SETTINGS_ACTIONS[tileId],
+            componentName = TILE_COMPONENTS[canonical] ?: TILE_COMPONENTS[tileId],
+            settingsAction = TILE_SETTINGS_ACTIONS[canonical] ?: TILE_SETTINGS_ACTIONS[tileId],
             subtitle = null,
         )
         val updated = _state.value.tiles + newTile
         _state.update { it.copy(tiles = updated) }
         viewModelScope.launch {
-            settings.setEnabledTiles(updated.map { it.id })
+            settings.setEnabledTiles(updated.map { canonicalTileId(it.id) })
         }
     }
 
     fun resetTiles() {
         viewModelScope.launch {
-            settings.setEnabledTiles(DEFAULT_TILES)
+            settings.setEnabledTiles(DEFAULT_TILES.map { canonicalTileId(it) }.distinct())
+        }
+    }
+
+    fun setDeviceControlMode(mode: com.supershade.settings.DeviceControlMode) {
+        viewModelScope.launch {
+            settings.setDeviceControlMode(mode)
         }
     }
 
@@ -369,6 +454,78 @@ class ShadeViewModel(
                     )
                 }
             }
+            id.contains("mute") || id.contains("sound") || id.contains("volume") -> {
+                val am = context.getSystemService(AudioManager::class.java)
+                val currentRinger = audioRepo?.getCurrentRingerMode() ?: (am?.ringerMode ?: AudioManager.RINGER_MODE_NORMAL)
+                val mediaVol = audioRepo?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: (am?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0)
+                val mediaMax = audioRepo?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: (am?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15)
+                val ringVol = audioRepo?.getStreamVolume(AudioManager.STREAM_RING) ?: (am?.getStreamVolume(AudioManager.STREAM_RING) ?: 0)
+                val ringMax = audioRepo?.getStreamMaxVolume(AudioManager.STREAM_RING) ?: (am?.getStreamMaxVolume(AudioManager.STREAM_RING) ?: 15)
+                val notifVol = audioRepo?.getStreamVolume(AudioManager.STREAM_NOTIFICATION) ?: (am?.getStreamVolume(AudioManager.STREAM_NOTIFICATION) ?: 0)
+                val notifMax = audioRepo?.getStreamMaxVolume(AudioManager.STREAM_NOTIFICATION) ?: (am?.getStreamMaxVolume(AudioManager.STREAM_NOTIFICATION) ?: 15)
+                val sysVol = audioRepo?.getStreamVolume(AudioManager.STREAM_SYSTEM) ?: (am?.getStreamVolume(AudioManager.STREAM_SYSTEM) ?: 0)
+                val sysMax = audioRepo?.getStreamMaxVolume(AudioManager.STREAM_SYSTEM) ?: (am?.getStreamMaxVolume(AudioManager.STREAM_SYSTEM) ?: 15)
+
+                val modeLabel = when (currentRinger) {
+                    AudioManager.RINGER_MODE_VIBRATE -> "Vibrate"
+                    AudioManager.RINGER_MODE_SILENT -> "Mute"
+                    else -> "Sound"
+                }
+
+                _state.update {
+                    it.copy(
+                        activeTileDetail = TileDetailState(
+                            type = TileDetailType.SOUND_MODE,
+                            title = "Sound Mode",
+                            subtitle = modeLabel,
+                            isActive = currentRinger != AudioManager.RINGER_MODE_SILENT,
+                            ringerMode = currentRinger,
+                            mediaVol = mediaVol,
+                            mediaMaxVol = mediaMax,
+                            ringVol = ringVol,
+                            ringMaxVol = ringMax,
+                            notifVol = notifVol,
+                            notifMaxVol = notifMax,
+                            sysVol = sysVol,
+                            sysMaxVol = sysMax,
+                            settingsAction = Settings.ACTION_SOUND_SETTINGS,
+                        )
+                    )
+                }
+            }
+            id.contains("dnd") || id.contains("donotdisturb") -> {
+                val nm = context.getSystemService(android.app.NotificationManager::class.java)
+                val isDnd = if (nm?.isNotificationPolicyAccessGranted == true) {
+                    nm.currentInterruptionFilter != android.app.NotificationManager.INTERRUPTION_FILTER_ALL
+                } else tile.isActive
+
+                _state.update {
+                    it.copy(
+                        activeTileDetail = TileDetailState(
+                            type = TileDetailType.DND,
+                            title = "Do Not Disturb",
+                            subtitle = if (isDnd) "Active • Calls and alerts muted" else "Off",
+                            isActive = isDnd,
+                            settingsAction = Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS,
+                        )
+                    )
+                }
+            }
+            id.contains("hotspot") || id.contains("tether") -> {
+                _state.update {
+                    it.copy(
+                        activeTileDetail = TileDetailState(
+                            type = TileDetailType.HOTSPOT,
+                            title = "Mobile Hotspot",
+                            subtitle = if (tile.isActive) "Hotspot is active" else "Off",
+                            isActive = tile.isActive,
+                            hotspotSsid = "AndroidAP",
+                            hotspotBand = "5 GHz",
+                            settingsAction = "android.settings.TETHER_SETTINGS",
+                        )
+                    )
+                }
+            }
             else -> {
                 tile.settingsAction?.let { action ->
                     try {
@@ -376,6 +533,93 @@ class ShadeViewModel(
                     } catch (_: Exception) {}
                 }
             }
+        }
+    }
+
+    fun setRingerModeInDetail(mode: Int) {
+        val updated = audioRepo?.setRingerMode(mode) ?: mode
+        val modeLabel = when (updated) {
+            AudioManager.RINGER_MODE_VIBRATE -> "Vibrate"
+            AudioManager.RINGER_MODE_SILENT -> "Mute"
+            else -> "Sound"
+        }
+        _state.update { current ->
+            val detail = current.activeTileDetail ?: return@update current
+            if (detail.type == TileDetailType.SOUND_MODE) {
+                current.copy(
+                    activeTileDetail = detail.copy(
+                        ringerMode = updated,
+                        subtitle = modeLabel,
+                        isActive = updated != AudioManager.RINGER_MODE_SILENT,
+                    )
+                )
+            } else current
+        }
+        viewModelScope.launch {
+            tileRepo.reload()
+        }
+    }
+
+    fun setStreamVolumeInDetail(stream: Int, volume: Int) {
+        audioRepo?.setStreamVolume(stream, volume)
+        _state.update { current ->
+            val detail = current.activeTileDetail ?: return@update current
+            if (detail.type == TileDetailType.SOUND_MODE) {
+                current.copy(
+                    activeTileDetail = when (stream) {
+                        AudioManager.STREAM_MUSIC -> detail.copy(mediaVol = volume)
+                        AudioManager.STREAM_RING -> detail.copy(ringVol = volume)
+                        AudioManager.STREAM_NOTIFICATION -> detail.copy(notifVol = volume)
+                        AudioManager.STREAM_SYSTEM -> detail.copy(sysVol = volume)
+                        else -> detail
+                    }
+                )
+            } else current
+        }
+    }
+
+    fun toggleDndInDetail() {
+        val currentDetail = _state.value.activeTileDetail ?: return
+        val newActive = !currentDetail.isActive
+        val dndTile = _state.value.tiles.firstOrNull { it.id.lowercase().contains("dnd") }
+        if (dndTile != null) {
+            toggleTile(dndTile)
+        }
+        _state.update { current ->
+            val detail = current.activeTileDetail ?: return@update current
+            current.copy(
+                activeTileDetail = detail.copy(
+                    isActive = newActive,
+                    subtitle = if (newActive) "Active • Calls and alerts muted" else "Off"
+                )
+            )
+        }
+    }
+
+    fun setDndDuration(minutes: Int) {
+        _state.update { current ->
+            val detail = current.activeTileDetail ?: return@update current
+            current.copy(
+                activeTileDetail = detail.copy(dndDurationMinutes = minutes)
+            )
+        }
+    }
+
+    fun toggleHotspotInDetail() {
+        val currentDetail = _state.value.activeTileDetail ?: return
+        val newActive = !currentDetail.isActive
+        val hotspotTile = _state.value.tiles.firstOrNull { it.id.lowercase().contains("hotspot") }
+        if (hotspotTile != null) {
+            toggleTile(hotspotTile)
+        }
+        _state.update { current ->
+            val detail = current.activeTileDetail ?: return@update current
+            current.copy(
+                activeTileDetail = detail.copy(
+                    isActive = newActive,
+                    subtitle = if (newActive) "Hotspot is active" else "Off"
+                )
+            )
         }
     }
 
@@ -445,7 +689,16 @@ class ShadeViewModel(
     // --- Media transport controls ---
 
     fun mediaPlayPause() {
-        if (state.value.media?.isPlaying == true) mediaRepo.pause() else mediaRepo.play()
+        val current = state.value.media
+        if (current?.customPlayPauseAction != null) {
+            current.customPlayPauseAction.invoke()
+        } else {
+            if (current?.isPlaying == true) mediaRepo.pause() else mediaRepo.play()
+        }
+    }
+
+    fun mediaStop() {
+        state.value.media?.customStopAction?.invoke()
     }
 
     fun mediaSkipNext() { mediaRepo.skipNext() }
@@ -529,6 +782,18 @@ class ShadeViewModel(
         }
     }
 
+    fun unhideNotificationChannel(channelKey: String) {
+        viewModelScope.launch {
+            settings.unhideChannel(channelKey)
+        }
+    }
+
+    fun setHideOngoingNotifications(hide: Boolean) {
+        viewModelScope.launch {
+            settings.setHideOngoingNotifications(hide)
+        }
+    }
+
     // --- Lifecycle ---
 
     override fun onCleared() {
@@ -541,7 +806,18 @@ class ShadeViewModel(
 
     private fun filterFor(
         notifications: List<com.supershade.domain.notification.model.ShadeNotification>,
-        category: ShadeCategory
-    ) = if (category == ShadeCategory.All) notifications
-        else notifications.filter { it.category == category }
+        category: ShadeCategory,
+        hiddenChannels: Set<String> = _state.value.hiddenChannels,
+        hideOngoing: Boolean = _state.value.hideOngoingNotifications,
+    ): List<com.supershade.domain.notification.model.ShadeNotification> {
+        val byOngoing = if (hideOngoing) notifications.filter { !it.isOngoing } else notifications
+        val byCategory = if (category == ShadeCategory.All) byOngoing
+            else byOngoing.filter { it.category == category }
+        if (hiddenChannels.isEmpty()) return byCategory
+        return byCategory.filter { n ->
+            val channelKey = "${n.packageName}/${n.channelId.orEmpty()}"
+            val pkgKey = n.packageName
+            channelKey !in hiddenChannels && pkgKey !in hiddenChannels
+        }
+    }
 }

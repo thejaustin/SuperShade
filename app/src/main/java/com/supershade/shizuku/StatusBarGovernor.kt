@@ -35,7 +35,7 @@ class StatusBarGovernor(
                 @Suppress("DEPRECATION")
                 context.packageManager.getPackageInfo(context.packageName, 0).versionCode
             }
-        } catch (_: Exception) { 1 }
+        } catch (e: Exception) { 1 }
         return Shizuku.UserServiceArgs(
             ComponentName(context.packageName, ShadeCommanderService::class.java.name)
         ).daemon(false).processNameSuffix("commander").debuggable(false).version(ver)
@@ -81,7 +81,7 @@ class StatusBarGovernor(
     fun unbindService() {
         try {
             Shizuku.unbindUserService(serviceArgs, serviceConnection, false)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
         commander = null
         _isCommanderConnected.value = false
     }
@@ -95,7 +95,7 @@ class StatusBarGovernor(
                 String::class.java,
             ).apply { isAccessible = true }
             method.invoke(null, cmd, null, null) as? java.lang.Process
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             null
         }
     }
@@ -108,7 +108,7 @@ class StatusBarGovernor(
             if (direct != null) return@withContext direct
             val proc = executeShizukuProcess(cmd)
             proc?.waitFor() == 0
-        } catch (_: Exception) { false }
+        } catch (e: Exception) { false }
     }
 
     suspend fun runShellOutput(vararg args: String): String = withContext(Dispatchers.IO) {
@@ -121,7 +121,7 @@ class StatusBarGovernor(
             val output = proc?.inputStream?.bufferedReader()?.use { it.readText() }?.trim().orEmpty()
             proc?.waitFor()
             output
-        } catch (_: Exception) { "" }
+        } catch (e: Exception) { "" }
     }
 
     fun runShellBlocking(vararg args: String): Boolean {
@@ -132,7 +132,7 @@ class StatusBarGovernor(
             if (direct != null) return direct
             val proc = executeShizukuProcess(cmd)
             proc?.waitFor() == 0
-        } catch (_: Exception) { false }
+        } catch (e: Exception) { false }
     }
 
     suspend fun disableExpansion(): Boolean {
@@ -140,15 +140,32 @@ class StatusBarGovernor(
         return runShell("cmd", "statusbar", "send-disable-flag", "statusbar-expansion")
     }
 
-    suspend fun enableExpansion(): Boolean {
+    /**
+     * Completely restores the native system status bar and all elements (clock, icons,
+     * Good Lock QuickStar battery bar, notification icons, and expansion).
+     */
+    suspend fun restoreSystemStatusBar(): Boolean = withContext(Dispatchers.IO) {
         shouldDisableExpansion = false
-        return runShell("cmd", "statusbar", "send-disable-flag", "none")
+        // 1. Reset all disable flags to none (clears any lingering expansion/system-icons flags)
+        val res1 = runShell("cmd", "statusbar", "send-disable-flag", "none")
+        // 2. Collapse any stuck panels
+        val res2 = runShell("cmd", "statusbar", "collapse")
+        // 3. Notify SystemUI & Good Lock to restore custom bars / layout
+        runShell("am", "broadcast", "-a", "android.intent.action.CLOSE_SYSTEM_DIALOGS")
+        res1 || res2
     }
 
-    fun enableExpansionBlocking(): Boolean {
+    fun restoreSystemStatusBarBlocking(): Boolean {
         shouldDisableExpansion = false
-        return runShellBlocking("cmd", "statusbar", "send-disable-flag", "none")
+        val res1 = runShellBlocking("cmd", "statusbar", "send-disable-flag", "none")
+        val res2 = runShellBlocking("cmd", "statusbar", "collapse")
+        runShellBlocking("am", "broadcast", "-a", "android.intent.action.CLOSE_SYSTEM_DIALOGS")
+        return res1 || res2
     }
+
+    suspend fun enableExpansion(): Boolean = restoreSystemStatusBar()
+
+    fun enableExpansionBlocking(): Boolean = restoreSystemStatusBarBlocking()
 
     suspend fun clickTile(component: String): Boolean =
         runShell("cmd", "statusbar", "click-tile", component)

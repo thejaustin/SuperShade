@@ -19,6 +19,8 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -91,9 +93,9 @@ import com.supershade.ui.theme.BackdropTheme
 import com.supershade.ui.theme.LocalBackdropTheme
 import com.supershade.ui.theme.LocalCardBorderWidth
 import com.supershade.ui.theme.LocalShadeShapeScheme
+import com.supershade.ui.theme.LocalShadeTheme
 import com.supershade.ui.theme.ShadeShapeScheme
 import com.supershade.ui.theme.getCardBorder
-import com.supershade.ui.tile.TilePreferencesActivity
 import com.supershade.viewmodel.ShadePanel
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -112,6 +114,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.supershade.domain.notification.model.ShadeCategory
+import com.supershade.ui.theme.CyberpunkShadeTheme
+import com.supershade.ui.theme.NothingShadeTheme
 import com.supershade.ui.theme.OneUiShadeTheme
 import com.supershade.ui.theme.PixelShadeTheme
 import com.supershade.ui.theme.PureMaterialShadeTheme
@@ -129,6 +133,7 @@ fun ShadeRoot(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var isEditingTiles by remember { mutableStateOf(false) }
     val isQsExpanded = state.isQsExpanded || isEditingTiles
+    var mediaCollapsed by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
 
     val context = LocalContext.current
     var showPowerMenu by remember { mutableStateOf(false) }
@@ -148,12 +153,29 @@ fun ShadeRoot(
         ShadeTheme.Pixel -> { content ->
             PixelShadeTheme(
                 isAmoled = isAmoled,
+                darkThemeMode = state.darkThemeMode,
                 accentColor = state.accentColor,
                 content = content,
             )
         }
         ShadeTheme.PureMaterial -> { content ->
             PureMaterialShadeTheme(
+                isAmoled = isAmoled,
+                darkThemeMode = state.darkThemeMode,
+                accentColor = state.accentColor,
+                content = content,
+            )
+        }
+        ShadeTheme.Nothing -> { content ->
+            NothingShadeTheme(
+                isAmoled = isAmoled,
+                darkThemeMode = state.darkThemeMode,
+                accentColor = state.accentColor,
+                content = content,
+            )
+        }
+        ShadeTheme.Cyberpunk -> { content ->
+            CyberpunkShadeTheme(
                 isAmoled = isAmoled,
                 darkThemeMode = state.darkThemeMode,
                 accentColor = state.accentColor,
@@ -227,19 +249,13 @@ fun ShadeRoot(
     }
 
     val isTogether = state.splitGestureMode.isTogether
-    val isTucked = state.isQuickControlsTucked
     val activePanel = state.activePanel
 
-    val nestedScrollConnection = remember(isTogether, isQsExpanded, isTucked, activePanel) {
+    val nestedScrollConnection = remember(isTogether, isQsExpanded, activePanel, isEditingTiles) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (isEditingTiles) return Offset.Zero
                 val dy = available.y
-                // Swiping UP while on notifications panel and quick controls are untucked:
-                // Tucks quick controls on deliberate swipe without swallowing scroll delta
-                if (dy < -24f && activePanel == ShadePanel.NOTIFICATIONS && !isTucked && !isTogether) {
-                    haptics.sheetDetent()
-                    viewModel.setQuickControlsTucked(true)
-                }
                 // Swiping UP in Together mode while Quick Settings is expanded:
                 if (dy < -12f && isTogether && isQsExpanded) {
                     haptics.sheetDetent()
@@ -250,13 +266,8 @@ fun ShadeRoot(
             }
 
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (isEditingTiles) return Offset.Zero
                 val dy = available.y
-                // Pulled down at top of notifications list (available.y > 0):
-                if (dy > 16f && activePanel == ShadePanel.NOTIFICATIONS && isTucked && !isTogether) {
-                    haptics.sheetDetent()
-                    viewModel.setQuickControlsTucked(false)
-                    return Offset(0f, dy)
-                }
                 // Pulled down in Together mode: expand Quick Settings
                 if (dy > 20f && isTogether && !isQsExpanded) {
                     haptics.sheetDetent()
@@ -279,8 +290,8 @@ fun ShadeRoot(
         }
     }
 
-    val shapeScheme = remember(state.tileShape) {
-        ShadeShapeScheme.fromTileShape(state.tileShape)
+    val shapeScheme = remember(state.theme, state.tileShape) {
+        ShadeShapeScheme.forTheme(state.theme, state.tileShape)
     }
 
     val backdropTheme = state.backdropTheme
@@ -307,6 +318,7 @@ fun ShadeRoot(
     }
 
     CompositionLocalProvider(
+        LocalShadeTheme provides state.theme,
         LocalCardBorderWidth provides state.cardBorderWidth,
         LocalShadeShapeScheme provides shapeScheme,
         LocalBackdropTheme provides backdropTheme,
@@ -389,6 +401,7 @@ fun ShadeRoot(
                                     var consumed = false
                                     var lastY = down.position.y
                                     var totalDy = 0f
+                                    var hasFiredDismissThresholdHaptic = false
                                     val tracker = VelocityTracker()
                                     tracker.addPosition(down.uptimeMillis, down.position)
 
@@ -445,6 +458,12 @@ fun ShadeRoot(
                                                 } else {
                                                     // Live 1:1 tracking upward towards dismiss or returning down
                                                     (currentVal + deltaY).coerceAtMost(64f * px)
+                                                }
+                                                if (nextVal < -dismissThresholdPx && !hasFiredDismissThresholdHaptic) {
+                                                    haptics.sheetDetent()
+                                                    hasFiredDismissThresholdHaptic = true
+                                                } else if (nextVal >= -dismissThresholdPx * 0.8f) {
+                                                    hasFiredDismissThresholdHaptic = false
                                                 }
                                                 coroutineScope.launch {
                                                     dragOffset.snapTo(nextVal)
@@ -553,6 +572,7 @@ fun ShadeRoot(
                                             onDismiss()
                                         } catch (_: Exception) {}
                                     },
+                                    onLockScreen = { viewModel.lockScreen() },
                                 )
                             } else {
                                 StatusBarRow(
@@ -587,7 +607,7 @@ fun ShadeRoot(
                                     .weight(1f)
                                     .fillMaxWidth()
                                     .nestedScroll(nestedScrollConnection)
-                                    .verticalScroll(rememberScrollState()),
+                                    .verticalScroll(rememberScrollState(), enabled = !isEditingTiles),
                                 verticalArrangement = Arrangement.spacedBy(2.dp),
                             ) {
                                 if (state.theme == ShadeTheme.Pixel) {
@@ -630,12 +650,14 @@ fun ShadeRoot(
 
                                     state.media?.let { media ->
                                         PixelMediaCard(
-                                            media = media,
-                                            onPlayPause = { viewModel.mediaPlayPause() },
-                                            onSkipNext = { viewModel.mediaSkipNext() },
-                                            onSkipPrevious = { viewModel.mediaSkipPrevious() },
-                                            onSeek = { viewModel.mediaSeek(it) },
-                                        )
+                                                media = media,
+                                                onPlayPause = { viewModel.mediaPlayPause() },
+                                                onSkipNext = { viewModel.mediaSkipNext() },
+                                                onSkipPrevious = { viewModel.mediaSkipPrevious() },
+                                                onSeek = { viewModel.mediaSeek(it) },
+                                                mediaCollapsed = mediaCollapsed,
+                                                onToggleCollapse = { mediaCollapsed = !mediaCollapsed },
+                                            )
                                     }
                                 } else {
                                     // ── One UI Layout in Together Mode ──
@@ -674,6 +696,23 @@ fun ShadeRoot(
                                             onResetTiles = { viewModel.resetTiles() },
                                             onTileClick = { viewModel.toggleTile(it) },
                                             onTileLongClick = { viewModel.openTileDetail(it) },
+                                            deviceControlMode = state.deviceControlMode,
+                                            onRestoreDeviceControl = { viewModel.setDeviceControlMode(com.supershade.settings.DeviceControlMode.SHOW_WHEN_EXPANDED) },
+                                        )
+                                    }
+
+                                    AnimatedVisibility(
+                                        visible = isEditingTiles || (state.deviceControlMode == com.supershade.settings.DeviceControlMode.SHOW_ALWAYS) || (state.deviceControlMode == com.supershade.settings.DeviceControlMode.SHOW_WHEN_EXPANDED && isQsExpanded),
+                                        enter = expandVertically(spring(0.8f, 380f)) + fadeIn(tween(140)),
+                                        exit = shrinkVertically(tween(160)) + fadeOut(tween(120)),
+                                    ) {
+                                        OneUIDeviceControlRow(
+                                            mode = state.deviceControlMode,
+                                            isExpanded = isQsExpanded,
+                                            isEditing = isEditingTiles,
+                                            onRemove = { viewModel.setDeviceControlMode(com.supershade.settings.DeviceControlMode.DONT_SHOW) },
+                                            onChangeMode = { viewModel.setDeviceControlMode(it) },
+                                            onDismissShade = onDismiss,
                                         )
                                     }
 
@@ -716,12 +755,14 @@ fun ShadeRoot(
                                     // Media card
                                     state.media?.let { media ->
                                         MediaCard(
-                                            media = media,
-                                            onPlayPause = { viewModel.mediaPlayPause() },
-                                            onSkipNext = { viewModel.mediaSkipNext() },
-                                            onSkipPrevious = { viewModel.mediaSkipPrevious() },
-                                            onSeek = { viewModel.mediaSeek(it) },
-                                        )
+                                                media = media,
+                                                onPlayPause = { viewModel.mediaPlayPause() },
+                                                onSkipNext = { viewModel.mediaSkipNext() },
+                                                onSkipPrevious = { viewModel.mediaSkipPrevious() },
+                                                onSeek = { viewModel.mediaSeek(it) },
+                                                mediaCollapsed = mediaCollapsed,
+                                                onToggleCollapse = { mediaCollapsed = !mediaCollapsed },
+                                            )
                                     }
                                 }
 
@@ -761,6 +802,8 @@ fun ShadeRoot(
                                             onDismiss()
                                         },
                                         onSnooze = { key, delayMs -> viewModel.snoozeNotification(key, delayMs) },
+                                        onHideChannel = { pkg, ch -> viewModel.hideNotificationChannel(pkg, ch) },
+                                        compact = state.isNotificationCompact,
                                     )
                                 }
                             }
@@ -788,178 +831,7 @@ fun ShadeRoot(
                             ) {
                                 if (page == 0) {
                                     Column(modifier = Modifier.fillMaxSize()) {
-                                    // Quick Controls section on Notifications panel
-                                    AnimatedVisibility(
-                                        visible = !state.isQuickControlsTucked,
-                                        enter = expandVertically(spring(dampingRatio = 0.8f, stiffness = 400f)) + fadeIn(tween(150)),
-                                        exit = shrinkVertically(tween(180)) + fadeOut(tween(150)),
-                                    ) {
-                                        Column(
-                                            modifier = Modifier.fillMaxWidth(),
-                                        ) {
-                                            if (state.theme == ShadeTheme.Pixel) {
-                                                PixelQuickSettingsGrid(
-                                                    tiles = state.tiles,
-                                                    isExpanded = false,
-                                                    isEditing = false,
-                                                    onToggleEdit = {},
-                                                    onMoveTile = { _, _ -> },
-                                                    onRemoveTile = {},
-                                                    onAddTile = {},
-                                                    onResetTiles = {},
-                                                    onTileClick = { viewModel.toggleTile(it) },
-                                                    onTileLongClick = { viewModel.openTileDetail(it) },
-                                                )
-
-                                                PixelBrightnessSlider(
-                                                    brightness = state.brightness,
-                                                    onBrightnessChange = { viewModel.setBrightness(it) },
-                                                )
-                                            } else {
-                                                QuickSettingsGrid(
-                                                    tiles = state.tiles,
-                                                    theme = state.theme,
-                                                    isShizukuConnected = state.isShizukuConnected,
-                                                    isExpanded = false,
-                                                    tileShape = state.tileShape,
-                                                    tileSize = state.tileSize,
-                                                    tileColumns = state.tileColumns,
-                                                    showWideCards = state.showWideCards,
-                                                    isEditing = false,
-                                                    onToggleEdit = {},
-                                                    onMoveTile = { _, _ -> },
-                                                    onRemoveTile = {},
-                                                    onAddTile = {},
-                                                    onResetTiles = {},
-                                                    onTileClick = { viewModel.toggleTile(it) },
-                                                    onTileLongClick = { viewModel.openTileDetail(it) },
-                                                )
-
-                                                Surface(
-                                                    shape = shapeScheme.container,
-                                                    color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
-                                                    border = getCardBorder(),
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(horizontal = 14.dp, vertical = 2.dp),
-                                                ) {
-                                                    Column(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .padding(horizontal = 8.dp, vertical = 5.dp),
-                                                    ) {
-                                                        BrightnessSlider(
-                                                            brightness = state.brightness,
-                                                            onBrightnessChange = { viewModel.setBrightness(it) },
-                                                            compact = false,
-                                                            modifier = Modifier.fillMaxWidth(),
-                                                        )
-                                                    }
-                                                }
-                                            }
-
-                                            // Pill handle to tuck quick controls
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(vertical = 1.dp),
-                                                contentAlignment = Alignment.Center,
-                                            ) {
-                                                Surface(
-                                                    shape = RoundedCornerShape(50),
-                                                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.40f),
-                                                    border = getCardBorder(),
-                                                    modifier = Modifier.clickable {
-                                                        haptics.sheetDetent()
-                                                        viewModel.setQuickControlsTucked(true)
-                                                    },
-                                                ) {
-                                                    Row(
-                                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                                    ) {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .width(24.dp)
-                                                                .height(3.dp)
-                                                                .clip(RoundedCornerShape(2.dp))
-                                                                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.40f)),
-                                                        )
-                                                        Icon(
-                                                            imageVector = Icons.Default.KeyboardArrowUp,
-                                                            contentDescription = "Tuck Quick Controls",
-                                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.60f),
-                                                            modifier = Modifier.size(16.dp),
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // Minimal slim bar when quick controls are tucked
-                                    AnimatedVisibility(
-                                        visible = state.isQuickControlsTucked,
-                                        enter = expandVertically(spring(dampingRatio = 0.8f, stiffness = 400f)) + fadeIn(tween(150)),
-                                        exit = shrinkVertically(tween(180)) + fadeOut(tween(150)),
-                                    ) {
-                                        Surface(
-                                            shape = RoundedCornerShape(50),
-                                            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f),
-                                            border = getCardBorder(),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 14.dp, vertical = 3.dp)
-                                                .clickable {
-                                                    haptics.sheetDetent()
-                                                    viewModel.setQuickControlsTucked(false)
-                                                },
-                                        ) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                            ) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Tune,
-                                                        contentDescription = null,
-                                                        tint = MaterialTheme.colorScheme.primary,
-                                                        modifier = Modifier.size(15.dp),
-                                                    )
-                                                    Text(
-                                                        text = "Quick Controls tucked",
-                                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    )
-                                                }
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                                ) {
-                                                    Text(
-                                                        text = "Swipe down to show",
-                                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                                    )
-                                                    Icon(
-                                                        imageVector = Icons.Default.KeyboardArrowDown,
-                                                        contentDescription = null,
-                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        modifier = Modifier.size(16.dp),
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // Media playback card (if active)
+                                        // Media playback card (if active)
                                     state.media?.let { media ->
                                         if (state.theme == ShadeTheme.Pixel) {
                                             PixelMediaCard(
@@ -968,6 +840,8 @@ fun ShadeRoot(
                                                 onSkipNext = { viewModel.mediaSkipNext() },
                                                 onSkipPrevious = { viewModel.mediaSkipPrevious() },
                                                 onSeek = { viewModel.mediaSeek(it) },
+                                                mediaCollapsed = mediaCollapsed,
+                                                onToggleCollapse = { mediaCollapsed = !mediaCollapsed },
                                             )
                                         } else {
                                             MediaCard(
@@ -976,6 +850,8 @@ fun ShadeRoot(
                                                 onSkipNext = { viewModel.mediaSkipNext() },
                                                 onSkipPrevious = { viewModel.mediaSkipPrevious() },
                                                 onSeek = { viewModel.mediaSeek(it) },
+                                                mediaCollapsed = mediaCollapsed,
+                                                onToggleCollapse = { mediaCollapsed = !mediaCollapsed },
                                             )
                                         }
                                     }
@@ -1018,6 +894,8 @@ fun ShadeRoot(
                                                 onDismiss()
                                             },
                                             onSnooze = { key, delayMs -> viewModel.snoozeNotification(key, delayMs) },
+                                            onHideChannel = { pkg, ch -> viewModel.hideNotificationChannel(pkg, ch) },
+                                            compact = state.isNotificationCompact,
                                             modifier = Modifier.fillMaxSize(),
                                         )
                                     }
@@ -1057,6 +935,8 @@ fun ShadeRoot(
                                                 onSkipNext = { viewModel.mediaSkipNext() },
                                                 onSkipPrevious = { viewModel.mediaSkipPrevious() },
                                                 onSeek = { viewModel.mediaSeek(it) },
+                                                mediaCollapsed = mediaCollapsed,
+                                                onToggleCollapse = { mediaCollapsed = !mediaCollapsed },
                                             )
                                         }
                                     } else {
@@ -1077,6 +957,17 @@ fun ShadeRoot(
                                             onResetTiles = { viewModel.resetTiles() },
                                             onTileClick = { viewModel.toggleTile(it) },
                                             onTileLongClick = { viewModel.openTileDetail(it) },
+                                            deviceControlMode = state.deviceControlMode,
+                                            onRestoreDeviceControl = { viewModel.setDeviceControlMode(com.supershade.settings.DeviceControlMode.SHOW_WHEN_EXPANDED) },
+                                        )
+
+                                        OneUIDeviceControlRow(
+                                            mode = state.deviceControlMode,
+                                            isExpanded = true,
+                                            isEditing = isEditingTiles,
+                                            onRemove = { viewModel.setDeviceControlMode(com.supershade.settings.DeviceControlMode.DONT_SHOW) },
+                                            onChangeMode = { viewModel.setDeviceControlMode(it) },
+                                            onDismissShade = onDismiss,
                                         )
 
                                         // Full tactile sliders island (Brightness & Volume)
@@ -1115,6 +1006,8 @@ fun ShadeRoot(
                                                 onSkipNext = { viewModel.mediaSkipNext() },
                                                 onSkipPrevious = { viewModel.mediaSkipPrevious() },
                                                 onSeek = { viewModel.mediaSeek(it) },
+                                                mediaCollapsed = mediaCollapsed,
+                                                onToggleCollapse = { mediaCollapsed = !mediaCollapsed },
                                             )
                                         }
                                     }
@@ -1252,6 +1145,22 @@ fun ShadeRoot(
                         }
 
                         // Bottom drag-handle — swipe up to dismiss with spring physics, or tap for fast quick-close
+                        var hasHandleFiredHaptic by remember { mutableStateOf(false) }
+                        val handlePullProgress = (-dragOffset.value / dismissThresholdPx).coerceIn(0f, 1.5f)
+                        val animatedHandleWidth by animateDpAsState(
+                            targetValue = (44 + 24 * handlePullProgress).dp,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                            label = "handleWidth",
+                        )
+                        val animatedHandleAlpha by animateFloatAsState(
+                            targetValue = (0.40f + 0.35f * handlePullProgress).coerceIn(0.40f, 0.85f),
+                            animationSpec = tween(120),
+                            label = "handleAlpha",
+                        )
+
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1269,16 +1178,23 @@ fun ShadeRoot(
                                     enabled = isSettled && !isEditingTiles,
                                     state = rememberDraggableState { delta ->
                                         coroutineScope.launch {
-                                            dragOffset.snapTo(
-                                                (dragOffset.value + delta).coerceAtMost(0f)
-                                            )
+                                            val next = (dragOffset.value + delta).coerceAtMost(0f)
+                                            if (next < -dismissThresholdPx && !hasHandleFiredHaptic) {
+                                                haptics.sheetDetent()
+                                                hasHandleFiredHaptic = true
+                                            } else if (next >= -dismissThresholdPx * 0.8f) {
+                                                hasHandleFiredHaptic = false
+                                            }
+                                            dragOffset.snapTo(next)
                                         }
                                     },
                                     onDragStopped = { velocity ->
+                                        hasHandleFiredHaptic = false
                                         coroutineScope.launch {
                                             if (dragOffset.value < -dismissThresholdPx ||
                                                 (velocity < -velocityThresholdPxPerSec && dragOffset.value < -(16f * density.density))
                                             ) {
+                                                haptics.sheetDetent()
                                                 dragOffset.animateTo(
                                                     targetValue = -screenHeightPx,
                                                     animationSpec = tween(durationMillis = 180),
@@ -1300,10 +1216,10 @@ fun ShadeRoot(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .width(44.dp)
+                                    .width(animatedHandleWidth)
                                     .height(5.dp)
                                     .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.40f)),
+                                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = animatedHandleAlpha)),
                             )
                         }
                     }
@@ -1323,6 +1239,11 @@ fun ShadeRoot(
                         onDismiss = { viewModel.closeTileDetail() },
                         onSetTorchStrength = { viewModel.setTorchStrength(it) },
                         onToggleTorch = { viewModel.toggleTorchInDetail() },
+                        onSetRingerMode = { viewModel.setRingerModeInDetail(it) },
+                        onSetStreamVolume = { stream, vol -> viewModel.setStreamVolumeInDetail(stream, vol) },
+                        onToggleDnd = { viewModel.toggleDndInDetail() },
+                        onSetDndDuration = { viewModel.setDndDuration(it) },
+                        onToggleHotspot = { viewModel.toggleHotspotInDetail() },
                     )
                 }
             }

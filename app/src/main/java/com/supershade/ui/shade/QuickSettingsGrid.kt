@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -87,9 +88,14 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TextButton
+import com.supershade.settings.DeviceControlMode
+import com.supershade.domain.tile.CANONICAL_TILES
 import com.supershade.domain.tile.KNOWN_TILES
+import com.supershade.domain.tile.canonicalTileId
+import com.supershade.domain.tile.humanizeTileLabel
 import kotlin.math.roundToInt
 
 /**
@@ -119,6 +125,8 @@ fun QuickSettingsGrid(
     onResetTiles: () -> Unit = {},
     onTileClick: (TileDefinition) -> Unit,
     onTileLongClick: ((TileDefinition) -> Unit)? = null,
+    deviceControlMode: DeviceControlMode = DeviceControlMode.SHOW_WHEN_EXPANDED,
+    onRestoreDeviceControl: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
@@ -346,8 +354,8 @@ fun QuickSettingsGrid(
             // ── Available Buttons drawer ───────────────────────────────────────
             if (isEditing) {
                 val availableTileIds = remember(tiles) {
-                    val currentIds = tiles.map { it.id }.toSet()
-                    KNOWN_TILES.keys.filter { it !in currentIds }
+                    val activeCanonical = tiles.map { canonicalTileId(it.id) }.toSet()
+                    CANONICAL_TILES.filter { canonicalTileId(it) !in activeCanonical }
                 }
                 if (availableTileIds.isNotEmpty()) {
                     HorizontalDivider(
@@ -367,8 +375,43 @@ fun QuickSettingsGrid(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
+                        if (deviceControlMode == DeviceControlMode.DONT_SHOW) {
+                            Surface(
+                                onClick = {
+                                    haptics.tileToggleOn()
+                                    onRestoreDeviceControl()
+                                },
+                                shape = RoundedCornerShape(50),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                border = getCardBorder(alpha = 0.35f),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = "Add Device control & Media",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Outlined.Devices,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(14.dp),
+                                    )
+                                    Text(
+                                        text = "Device control & Media",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                }
+                            }
+                        }
                         availableTileIds.forEach { tileId ->
-                            val label = KNOWN_TILES[tileId]?.first ?: tileId
+                            val label = com.supershade.domain.tile.humanizeTileLabel(tileId)
                             Surface(
                                 onClick = {
                                     haptics.tileToggleOn()
@@ -497,7 +540,7 @@ private fun DraggableTileGrid(
                             targetIndex = pressedIndex
                             dragX = change.position.x
                             dragY = change.position.y
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            haptics.tileGrab()
                             change.consume()
                         }
 
@@ -526,9 +569,11 @@ private fun DraggableTileGrid(
                     }
 
                     // Commit the swap
-                    if (isLongPress && dragIndex >= 0 && targetIndex >= 0 && dragIndex != targetIndex) {
-                        haptics.tileToggleOn()
-                        onMoveTile(dragIndex, targetIndex)
+                    if (isLongPress) {
+                        haptics.tileDrop()
+                        if (dragIndex >= 0 && targetIndex >= 0 && dragIndex != targetIndex) {
+                            onMoveTile(dragIndex, targetIndex)
+                        }
                     }
                     dragIndex   = -1
                     targetIndex = -1
@@ -652,23 +697,36 @@ private fun ConnectivityWideCard(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
 
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.94f else 1f,
+    // Icon button interaction
+    val iconInteractionSource = remember { MutableInteractionSource() }
+    val isIconPressed by iconInteractionSource.collectIsPressedAsState()
+    val iconScale by animateFloatAsState(
+        targetValue = if (isIconPressed) 0.88f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessHigh,
+        ),
+        label = "iconScale",
+    )
+
+    // Body interaction
+    val bodyInteractionSource = remember { MutableInteractionSource() }
+    val isBodyPressed by bodyInteractionSource.collectIsPressedAsState()
+    val cardScale by animateFloatAsState(
+        targetValue = if (isBodyPressed) 0.97f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioLowBouncy,
             stiffness = Spring.StiffnessHigh,
         ),
-        label = "connScale",
+        label = "cardScale",
     )
 
     val containerColor by animateColorAsState(
         targetValue = if (tile.isActive)
             MaterialTheme.colorScheme.primary
         else
-            MaterialTheme.colorScheme.surfaceContainerHigh,
+            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium,
@@ -688,23 +746,39 @@ private fun ConnectivityWideCard(
         label = "connContent",
     )
 
-    val borderStroke = if (tile.isActive) null else getCardBorder(alpha = 0.40f)
+    val borderStroke = if (tile.isActive) null else getCardBorder(alpha = 0.35f)
+    val dynamicCornerRadius by animateDpAsState(
+        targetValue = when {
+            isBodyPressed || isIconPressed -> 18.dp
+            tile.isActive -> 26.dp
+            else -> 22.dp
+        },
+        animationSpec = com.supershade.ui.theme.M3ExpressiveMotion.spatialDefault(),
+        label = "connCornerRadius",
+    )
+    val wideCardShape = RoundedCornerShape(dynamicCornerRadius)
 
-    val shapeScheme = LocalShadeShapeScheme.current
-    val wideCardShape = when {
-        theme is ShadeTheme.Pixel -> CircleShape
-        else -> shapeScheme.tile
-    }
+    val iconRotation by animateFloatAsState(
+        targetValue = when {
+            tile.id.contains("airplane") -> if (tile.isActive) 45f else 0f
+            tile.id.contains("rotate") -> if (tile.isActive) 90f else 0f
+            tile.id.contains("sync") -> if (tile.isActive) 180f else 0f
+            isIconPressed -> -5f
+            else -> 0f
+        },
+        animationSpec = spring(dampingRatio = 0.65f, stiffness = 800f),
+        label = "connIconRotation",
+    )
+    val stateDesc = tile.subtitle ?: if (tile.isActive) "Connected" else "Off"
 
     Surface(
         shape = wideCardShape,
         color = containerColor,
         border = borderStroke,
         modifier = modifier
-            .height(62.dp)
-            .graphicsLayer { scaleX = scale; scaleY = scale },
+            .height(66.dp)
+            .graphicsLayer { scaleX = cardScale; scaleY = cardScale },
     ) {
-        val stateDesc = tile.subtitle ?: if (tile.isActive) "Connected" else "Off"
         Box(modifier = Modifier.fillMaxSize()) {
             if (tile.isActive && LocalBackdropTheme.current == BackdropTheme.LIQUID_GLASS) {
                 Box(
@@ -726,35 +800,83 @@ private fun ConnectivityWideCard(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .semantics(mergeDescendants = true) {
-                        role = Role.Switch
-                        contentDescription = tile.label
-                        stateDescription = stateDesc
-                        tile.settingsAction?.let { action ->
-                            customActions = listOf(
-                                CustomAccessibilityAction("Open settings") {
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                // Decoupled Left Icon Badge: toggles state with signature haptics
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .graphicsLayer { scaleX = iconScale; scaleY = iconScale }
+                        .clip(CircleShape)
+                        .background(
+                            if (tile.isActive)
+                                Color.White.copy(alpha = 0.22f)
+                            else
+                                MaterialTheme.colorScheme.surfaceContainerHighest
+                        )
+                        .combinedClickable(
+                            interactionSource = iconInteractionSource,
+                            indication = LocalIndication.current,
+                            onClick = {
+                                if (!tile.isActive) haptics.tileToggleOn() else haptics.tileToggleOff()
+                                onClick()
+                            },
+                            onLongClick = {
+                                haptics.sheetDetent()
+                                tile.settingsAction?.let { action ->
                                     try {
                                         context.startActivity(
                                             Intent(action).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
                                         )
-                                        true
-                                    } catch (_: Exception) {
-                                        false
-                                    }
-                                }
-                            )
-                        }
-                    }
-                    .combinedClickable(
-                        interactionSource = interactionSource,
-                        indication = LocalIndication.current,
-                        onClick = {
-                            if (!tile.isActive) haptics.tileToggleOn() else haptics.tileToggleOff()
-                            onClick()
+                                    } catch (_: Exception) {}
+                                } ?: onLongClick?.invoke()
+                            },
+                            role = Role.Switch,
+                        )
+                        .semantics {
+                            role = Role.Switch
+                            contentDescription = "Toggle ${tile.label}"
+                            stateDescription = stateDesc
                         },
-                        onLongClick = if (onLongClick != null || tile.settingsAction != null) {
-                            {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                ) {
+                    Icon(
+                        imageVector = tileIcon(tile.id, tile.isActive, null),
+                        contentDescription = null,
+                        tint = contentColor,
+                        modifier = Modifier
+                            .size(22.dp)
+                            .graphicsLayer { rotationZ = iconRotation },
+                    )
+                }
+
+                // Decoupled Body & Chevron: opens details / quick settings
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(12.dp))
+                        .combinedClickable(
+                            interactionSource = bodyInteractionSource,
+                            indication = LocalIndication.current,
+                            onClick = {
+                                haptics.lightTap()
+                                if (tile.settingsAction != null) {
+                                    try {
+                                        context.startActivity(
+                                            Intent(tile.settingsAction).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                                        )
+                                    } catch (_: Exception) {
+                                        onLongClick?.invoke()
+                                    }
+                                } else {
+                                    onLongClick?.invoke() ?: onClick()
+                                }
+                            },
+                            onLongClick = {
+                                haptics.sheetDetent()
                                 if (onLongClick != null) {
                                     onLongClick()
                                 } else {
@@ -766,59 +888,61 @@ private fun ConnectivityWideCard(
                                         } catch (_: Exception) {}
                                     }
                                 }
-                            }
-                        } else null,
-                    )
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (tile.isActive)
-                                Color.White.copy(alpha = 0.22f)
-                            else
-                                MaterialTheme.colorScheme.surfaceContainerHighest
+                            },
+                            role = Role.Button,
+                        )
+                        .semantics {
+                            role = Role.Button
+                            contentDescription = "${tile.label} details: $stateDesc"
+                        }
+                        .padding(horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        val displayLabel = tile.label.ifBlank { com.supershade.domain.tile.humanizeTileLabel(tile.id) }
+                        Text(
+                            text = displayLabel,
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                            ),
+                            color = contentColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = tile.subtitle ?: if (tile.isActive) "Connected" else "Off",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Normal,
+                            ),
+                            color = contentColor.copy(alpha = 0.75f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+
+                    val chevronNudge by animateDpAsState(
+                        targetValue = if (isBodyPressed) 4.dp else 0.dp,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMediumLow,
                         ),
-                ) {
+                        label = "connChevronNudge",
+                    )
                     Icon(
-                        imageVector = tileIcon(tile.id, tile.isActive, null),
+                        imageVector = Icons.Default.ChevronRight,
                         contentDescription = null,
-                        tint = contentColor,
-                        modifier = Modifier.size(20.dp),
+                        tint = contentColor.copy(alpha = 0.55f),
+                        modifier = Modifier
+                            .size(18.dp)
+                            .offset(x = chevronNudge),
                     )
                 }
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Text(
-                        text = tile.label,
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                        color = contentColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = tile.subtitle ?: if (tile.isActive) "Connected" else "Off",
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                        color = contentColor.copy(alpha = 0.70f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = contentColor.copy(alpha = 0.40f),
-                    modifier = Modifier.size(18.dp),
-                )
             }
         }
     }

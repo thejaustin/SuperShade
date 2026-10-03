@@ -6,8 +6,8 @@ plugins {
 }
 
 // Version can be overridden by CI via: -PversionCode=123 -PversionName=1.2.3
-def appVersionCode = project.findProperty("versionCode")?.toInteger() ?: 52
-def appVersionName = project.findProperty("versionName") ?: "1.9.27"
+def appVersionCode = project.findProperty("versionCode")?.toInteger() ?: 53
+def appVersionName = project.findProperty("versionName") ?: "1.9.28"
 
 android {
     namespace 'com.supershade'
@@ -99,6 +99,7 @@ dependencies {
     // Material 3
     implementation 'androidx.compose.material3:material3'
     implementation 'androidx.compose.material:material-icons-extended'
+    implementation 'androidx.graphics:graphics-shapes:1.0.1'
 
     // Activity + Lifecycle Compose
     implementation 'androidx.activity:activity-compose:1.9.3'

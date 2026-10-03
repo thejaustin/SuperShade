@@ -28,7 +28,9 @@ enum class TileShape(val id: String, val label: String, val cornerRadiusDp: Int)
     PILL("pill", "Stadium Pill", 28),
     SOFT("soft", "Soft Minimal", 12),
     LEAF("leaf", "Asymmetric Leaf", 24),
-    SHARP("sharp", "Sharp Modern", 6);
+    SHARP("sharp", "Sharp Modern", 6),
+    CLOVER("clover", "Clover 4-Leaf", 20),
+    BURST("burst", "M3E SoftBurst", 20);
 }
 
 enum class CardBorderWidth(val id: String, val label: String, val widthDp: Float) {
@@ -54,6 +56,16 @@ enum class TileGridColumns(val id: String, val label: String, val count: Int) {
     COMFORTABLE("comfortable", "Comfortable (3)", 3),
     STANDARD("standard", "Standard (4)", 4),
     COMPACT("compact", "Compact (5)", 5);
+}
+
+enum class NotificationDensity(
+    val id: String,
+    val label: String,
+    val subtitle: String,
+) {
+    COMPACT("compact", "Compact (Space-saving)", "28dp icons, single-line headers, dense layout fits 2-3x more notifications"),
+    BALANCED("balanced", "Balanced (Standard)", "Comfortable One UI spacing with full previews and action chips"),
+    EXPANSIVE("expansive", "Expansive (Detailed)", "Generous padding with multi-line text and prominent media");
 }
 
 enum class AccentColor(val label: String, val hex: Long) {
@@ -114,6 +126,31 @@ enum class SplitGestureMode(
     val isTogether: Boolean get() = this == TOGETHER
 }
 
+/**
+ * Official Samsung One UI 8.5/9 Quick Panel Device control & Media output layout modes.
+ */
+enum class DeviceControlMode(
+    val id: String,
+    val label: String,
+    val subtitle: String,
+) {
+    SHOW_WHEN_EXPANDED(
+        "show_when_expanded",
+        "Show when expanded",
+        "Show buttons when the Quick Panel is fully expanded",
+    ),
+    SHOW_ALWAYS(
+        "show_always",
+        "Show always",
+        "Always show buttons in compact and expanded views",
+    ),
+    DONT_SHOW(
+        "dont_show",
+        "Don't show",
+        "Remove buttons from the Quick Panel",
+    );
+}
+
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "supershade_prefs")
 
 class ShadeSettings(private val context: Context) {
@@ -136,8 +173,12 @@ class ShadeSettings(private val context: Context) {
         private val TORCH_STRENGTH_LEVEL_KEY = intPreferencesKey("torch_strength_level")
         private val CARD_BORDER_WIDTH_KEY = stringPreferencesKey("card_border_width")
         private val SHOW_PANEL_SWITCHER_PILL_KEY = booleanPreferencesKey("show_panel_switcher_pill")
+        private val NOTIFICATION_DENSITY_KEY = stringPreferencesKey("notification_density")
         private val BACKDROP_THEME_KEY = stringPreferencesKey("backdrop_theme")
         private val BACKDROP_OPACITY_KEY = floatPreferencesKey("backdrop_opacity")
+        private val HIDDEN_CHANNELS_KEY = stringPreferencesKey("hidden_notification_channels")
+        private val HIDE_ONGOING_NOTIFICATIONS_KEY = booleanPreferencesKey("hide_ongoing_notifications")
+        private val DEVICE_CONTROL_MODE_KEY = stringPreferencesKey("device_control_mode")
     }
 
     val backdropTheme: Flow<BackdropTheme> = context.dataStore.data.map { prefs ->
@@ -159,7 +200,17 @@ class ShadeSettings(private val context: Context) {
         when (prefs[THEME_KEY]) {
             "pixel" -> ShadeTheme.Pixel
             "material" -> ShadeTheme.PureMaterial
+            "nothing" -> ShadeTheme.Nothing
+            "cyberpunk" -> ShadeTheme.Cyberpunk
             else -> ShadeTheme.OneUI
+        }
+    }
+
+    val notificationDensity: Flow<NotificationDensity> = context.dataStore.data.map { prefs ->
+        when (prefs[NOTIFICATION_DENSITY_KEY]) {
+            "compact" -> NotificationDensity.COMPACT
+            "expansive" -> NotificationDensity.EXPANSIVE
+            else -> NotificationDensity.BALANCED
         }
     }
 
@@ -206,8 +257,7 @@ class ShadeSettings(private val context: Context) {
 
     val qsTileTapAction: Flow<QsTileTapAction> = context.dataStore.data.map { prefs ->
         when (prefs[QS_TILE_TAP_ACTION_KEY]) {
-            "open_shade" -> QsTileTapAction.OPEN_SHADE
-            "show_menu" -> QsTileTapAction.SHOW_MENU
+            "open_shade", "show_menu" -> QsTileTapAction.OPEN_SHADE
             else -> QsTileTapAction.TOGGLE_ACTIVE
         }
     }
@@ -272,13 +322,35 @@ class ShadeSettings(private val context: Context) {
         prefs[SHOW_PANEL_SWITCHER_PILL_KEY] ?: false
     }
 
+    val deviceControlMode: Flow<DeviceControlMode> = context.dataStore.data.map { prefs ->
+        when (prefs[DEVICE_CONTROL_MODE_KEY]) {
+            "show_always" -> DeviceControlMode.SHOW_ALWAYS
+            "dont_show" -> DeviceControlMode.DONT_SHOW
+            else -> DeviceControlMode.SHOW_WHEN_EXPANDED
+        }
+    }
+
+    suspend fun setDeviceControlMode(mode: DeviceControlMode) {
+        context.dataStore.edit { prefs ->
+            prefs[DEVICE_CONTROL_MODE_KEY] = mode.id
+        }
+    }
+
     suspend fun setTheme(theme: ShadeTheme) {
         context.dataStore.edit { prefs ->
             prefs[THEME_KEY] = when (theme) {
                 is ShadeTheme.Pixel -> "pixel"
                 is ShadeTheme.PureMaterial -> "material"
+                is ShadeTheme.Nothing -> "nothing"
+                is ShadeTheme.Cyberpunk -> "cyberpunk"
                 else -> "oneui"
             }
+        }
+    }
+
+    suspend fun setNotificationDensity(density: NotificationDensity) {
+        context.dataStore.edit { prefs ->
+            prefs[NOTIFICATION_DENSITY_KEY] = density.id
         }
     }
 
@@ -419,6 +491,38 @@ class ShadeSettings(private val context: Context) {
         context.dataStore.edit { prefs ->
             prefs[BACKDROP_OPACITY_KEY] = clamped
             prefs[BACKDROP_THEME_KEY] = matchingTheme.id
+        }
+    }
+
+    val hiddenChannels: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        val raw = prefs[HIDDEN_CHANNELS_KEY] ?: ""
+        if (raw.isBlank()) emptySet()
+        else raw.split(",").map { it.trim() }.filter { it.isNotBlank() }.toSet()
+    }
+
+    suspend fun hideChannel(channelKey: String) {
+        context.dataStore.edit { prefs ->
+            val current = (prefs[HIDDEN_CHANNELS_KEY] ?: "").split(",").map { it.trim() }.filter { it.isNotBlank() }.toMutableSet()
+            current.add(channelKey)
+            prefs[HIDDEN_CHANNELS_KEY] = current.joinToString(",")
+        }
+    }
+
+    suspend fun unhideChannel(channelKey: String) {
+        context.dataStore.edit { prefs ->
+            val current = (prefs[HIDDEN_CHANNELS_KEY] ?: "").split(",").map { it.trim() }.filter { it.isNotBlank() }.toMutableSet()
+            current.remove(channelKey)
+            prefs[HIDDEN_CHANNELS_KEY] = current.joinToString(",")
+        }
+    }
+
+    val hideOngoingNotifications: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[HIDE_ONGOING_NOTIFICATIONS_KEY] ?: false
+    }
+
+    suspend fun setHideOngoingNotifications(hide: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[HIDE_ONGOING_NOTIFICATIONS_KEY] = hide
         }
     }
 }

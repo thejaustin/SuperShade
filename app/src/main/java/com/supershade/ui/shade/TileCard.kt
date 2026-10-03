@@ -3,8 +3,10 @@ package com.supershade.ui.shade
 import android.content.Intent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.material.icons.automirrored.filled.StickyNote2
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -40,29 +42,42 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AirplanemodeActive
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Battery5Bar
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.Brightness4
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.ChargingStation
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DataUsage
+import androidx.compose.material.icons.filled.DesktopWindows
 import androidx.compose.material.icons.filled.DoNotDisturb
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Hearing
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material.icons.filled.PanTool
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.ScreenLockPortrait
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.SignalCellularAlt
+import androidx.compose.material.icons.filled.StickyNote2
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Vibration
-import androidx.compose.material.icons.filled.SignalCellularAlt
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.filled.Wifi
+import com.supershade.domain.tile.humanizeTileLabel
 import androidx.compose.material.icons.filled.WifiTethering
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.Icon
@@ -81,6 +96,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -110,13 +126,31 @@ fun TileCard(
     val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
     val shapeScheme = com.supershade.ui.theme.LocalShadeShapeScheme.current
 
-    val cardShape = when {
-        theme is ShadeTheme.Pixel -> CircleShape
-        else -> shapeScheme.tile
-    }
-
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+
+    val baseCorner = when (tileShape) {
+        TileShape.SQUIRCLE -> 22.dp
+        TileShape.ROUNDED -> 16.dp
+        TileShape.PILL -> 28.dp
+        TileShape.SOFT -> 14.dp
+        TileShape.SHARP -> 6.dp
+        else -> null
+    }
+
+    val dynamicCornerRadius by animateDpAsState(
+        targetValue = if (baseCorner != null) {
+            when {
+                isPressed -> (baseCorner - 5.dp).coerceAtLeast(4.dp)
+                tile.isActive -> baseCorner + 2.dp
+                else -> baseCorner
+            }
+        } else 0.dp,
+        animationSpec = com.supershade.ui.theme.M3ExpressiveMotion.spatialDefault(),
+        label = "tileCornerRadius",
+    )
+
+    val cardShape = if (baseCorner != null) RoundedCornerShape(dynamicCornerRadius) else shapeScheme.tile
 
     // Scale: pressed shrink, dragging lift, otherwise 1f
     val scale by animateFloatAsState(
@@ -132,11 +166,40 @@ fun TileCard(
         label = "tileScale",
     )
 
+    val iconScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.88f else if (tile.isActive) 1.06f else 1.0f,
+        animationSpec = com.supershade.ui.theme.M3ExpressiveMotion.spatialFast(),
+        label = "tileIconScale",
+    )
+
+    val iconRotation by animateFloatAsState(
+        targetValue = when {
+            tile.id.contains("rotate") -> if (tile.isActive) 90f else 0f
+            tile.id.contains("sync") -> if (tile.isActive) 180f else 0f
+            tile.id.contains("airplane") -> if (tile.isActive) 45f else 0f
+            tile.id.contains("flashlight") || tile.id.contains("torch") -> if (tile.isActive) -12f else 0f
+            isPressed -> -4f
+            else -> 0f
+        },
+        animationSpec = spring(dampingRatio = 0.65f, stiffness = 800f),
+        label = "tileIconRotation",
+    )
+
+    val activeDotScale by animateFloatAsState(
+        targetValue = if (tile.isActive && !isEditing) 1.0f else 0.0f,
+        animationSpec = com.supershade.ui.theme.M3ExpressiveMotion.spatialBouncy(),
+        label = "tileActiveDotScale",
+    )
+
     val containerColor by animateColorAsState(
-        targetValue = if (tile.isActive)
-            MaterialTheme.colorScheme.primary
-        else
-            MaterialTheme.colorScheme.surfaceContainerHigh,
+        targetValue = when {
+            tile.isActive -> when (theme) {
+                is ShadeTheme.Nothing -> Color.White
+                is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF).copy(alpha = 0.22f)
+                else -> MaterialTheme.colorScheme.primary
+            }
+            else -> MaterialTheme.colorScheme.surfaceContainerHigh
+        },
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness    = Spring.StiffnessMedium,
@@ -144,10 +207,14 @@ fun TileCard(
         label = "tileContainer",
     )
     val contentColor by animateColorAsState(
-        targetValue = if (tile.isActive)
-            MaterialTheme.colorScheme.onPrimary
-        else
-            MaterialTheme.colorScheme.onSurface,
+        targetValue = when {
+            tile.isActive -> when (theme) {
+                is ShadeTheme.Nothing -> Color.Black
+                is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF)
+                else -> MaterialTheme.colorScheme.onPrimary
+            }
+            else -> MaterialTheme.colorScheme.onSurface
+        },
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness    = Spring.StiffnessMedium,
@@ -156,7 +223,18 @@ fun TileCard(
     )
 
     val indication = LocalIndication.current
-    val borderStroke = if (tile.isActive) null else getCardBorder(alpha = 0.40f)
+    val borderStroke = when {
+        theme is ShadeTheme.Cyberpunk -> BorderStroke(
+            1.2.dp,
+            if (tile.isActive) Color(0xFF00F0FF) else Color(0xFF00F0FF).copy(alpha = 0.35f),
+        )
+        theme is ShadeTheme.Nothing && !tile.isActive -> BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+        )
+        tile.isActive -> null
+        else -> getCardBorder(alpha = 0.40f)
+    }
 
     val stateDesc = if (tile.isActive) {
         tile.subtitle ?: "Active"
@@ -232,7 +310,7 @@ fun TileCard(
                     },
                     onLongClick = if (onLongClick != null || tile.settingsAction != null) {
                         {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            haptics.sheetDetent()
                             if (onLongClick != null) {
                                 onLongClick()
                             } else {
@@ -266,14 +344,29 @@ fun TileCard(
                         imageVector = tileIcon(tile.id, tile.isActive, tile.subtitle),
                         contentDescription = null,
                         tint = contentColor,
-                        modifier = Modifier.size(iconSize),
+                        modifier = Modifier
+                            .size(iconSize)
+                            .graphicsLayer {
+                                scaleX = iconScale
+                                scaleY = iconScale
+                                rotationZ = iconRotation
+                            },
                     )
-                    if (tile.isActive && !isEditing) {
+                    if (activeDotScale > 0.05f) {
+                        val dotColor = when (theme) {
+                            is ShadeTheme.Nothing -> Color(0xFFD71920) // Nothing signature glyph red
+                            is ShadeTheme.Cyberpunk -> MaterialTheme.colorScheme.secondary // Hot neon pink
+                            else -> contentColor.copy(alpha = 0.85f)
+                        }
                         Box(
                             modifier = Modifier
                                 .size(if (columns >= 5) 5.dp else 6.dp)
+                                .graphicsLayer {
+                                    scaleX = activeDotScale
+                                    scaleY = activeDotScale
+                                }
                                 .clip(CircleShape)
-                                .background(contentColor.copy(alpha = 0.85f)),
+                                .background(dotColor),
                         )
                     }
                 }
@@ -282,40 +375,60 @@ fun TileCard(
                     TileSize.COMFORTABLE -> if (columns >= 5) 9.5.sp else 12.sp
                     TileSize.STANDARD   -> if (columns >= 5) 8.5.sp else 10.5.sp
                 }
+                val rawLabel = tile.label.ifBlank { humanizeTileLabel(tile.id) }
                 val displayLabel = when {
                     tile.id.lowercase().contains("rotation") -> if (tile.isActive) "Auto rotate" else "Portrait"
-                    tile.id.lowercase().contains("mute") || tile.id.lowercase().contains("sound") -> tile.subtitle ?: tile.label
-                    else -> tile.label
+                    tile.id.lowercase().contains("mute") || tile.id.lowercase().contains("sound") -> tile.subtitle ?: rawLabel
+                    else -> rawLabel
                 }
                 val displaySubtitle = when {
                     tile.id.lowercase().contains("rotation") -> null
                     tile.id.lowercase().contains("mute") || tile.id.lowercase().contains("sound") -> null
                     else -> tile.subtitle
                 }
+                val formattedLabel = when (theme) {
+                    is ShadeTheme.Nothing -> displayLabel.uppercase()
+                    else -> displayLabel
+                }
+                val formattedSubtitle = when {
+                    displaySubtitle != null -> when (theme) {
+                        is ShadeTheme.Cyberpunk -> "// $displaySubtitle"
+                        is ShadeTheme.Nothing -> displaySubtitle.uppercase()
+                        else -> displaySubtitle
+                    }
+                    theme is ShadeTheme.Cyberpunk && tileSize != TileSize.COMPACT && !isEditing -> {
+                        if (tile.isActive) "// ON" else "// OFF"
+                    }
+                    else -> null
+                }
                 val titleFontSize = when {
-                    columns >= 5 && displayLabel.length > 8 -> (baseSize.value - 1f).sp
-                    displayLabel.length > 13 -> (baseSize.value - 0.75f).sp
+                    columns >= 5 && formattedLabel.length > 8 -> (baseSize.value - 1f).sp
+                    formattedLabel.length > 13 -> (baseSize.value - 0.75f).sp
                     else -> baseSize
                 }
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = displayLabel,
+                        text = formattedLabel,
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Medium,
+                            fontWeight = if (theme is ShadeTheme.Nothing) FontWeight.SemiBold else FontWeight.Medium,
                             fontSize = titleFontSize,
                             lineHeight = (titleFontSize.value + 2).sp,
+                            fontFamily = if (theme is ShadeTheme.Cyberpunk) FontFamily.Monospace else null,
+                            letterSpacing = if (theme is ShadeTheme.Nothing) 0.8.sp else 0.sp,
                         ),
                         color = contentColor,
-                        maxLines = if (tileSize == TileSize.COMPACT || displaySubtitle != null) 1 else 2,
+                        maxLines = if (tileSize == TileSize.COMPACT || formattedSubtitle != null) 1 else 2,
                         overflow = TextOverflow.Ellipsis,
                         softWrap = true,
                     )
-                    if (displaySubtitle != null && tileSize != TileSize.COMPACT && !isEditing) {
+                    if (formattedSubtitle != null && tileSize != TileSize.COMPACT && !isEditing) {
                         Text(
-                            text = displaySubtitle,
+                            text = formattedSubtitle,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontSize = if (columns >= 5) 8.sp else 9.sp,
                                 lineHeight = if (columns >= 5) 9.sp else 10.sp,
+                                fontFamily = if (theme is ShadeTheme.Cyberpunk) FontFamily.Monospace else null,
+                                letterSpacing = if (theme is ShadeTheme.Nothing) 0.6.sp else 0.sp,
                             ),
                             color = contentColor.copy(alpha = 0.65f),
                             maxLines = 1,
@@ -353,37 +466,50 @@ fun TileCard(
 }
 
 fun tileIcon(id: String, isActive: Boolean, subtitle: String?): ImageVector {
+    val key = id.lowercase()
     return when {
-        id.contains("wifi") || id.contains("internet") -> Icons.Default.Wifi
-        id.contains("bt") || id.contains("bluetooth")  -> Icons.Default.Bluetooth
-        id.contains("airplane")                        -> Icons.Default.AirplanemodeActive
-        id.contains("hotspot") || id.contains("tether") -> Icons.Default.WifiTethering
-        id.contains("dnd") || id.contains("disturb")   -> Icons.Default.DoNotDisturb
-        id.contains("rotation") || id.contains("rotate") -> Icons.Default.ScreenRotation
-        id.contains("dark") || id.contains("night")    -> Icons.Default.DarkMode
-        id.contains("flash") || id.contains("torch")   -> Icons.Default.FlashOn
-        id.contains("location") || id.contains("gps")  -> Icons.Default.LocationOn
-        id.contains("nfc")                             -> Icons.Default.Nfc
-        id.contains("sync")                            -> Icons.Default.Sync
-        id.contains("cast") || id.contains("screen")  -> Icons.Default.Cast
-        id.contains("vpn")                             -> Icons.Default.VpnKey
-        id.contains("data") || id.contains("mobile")  -> Icons.Default.SignalCellularAlt
-        id.contains("battery") || id.contains("saver") -> Icons.Default.Battery5Bar
-        id.contains("chargi")                          -> Icons.Default.BatteryChargingFull
-        id.contains("work") || id.contains("focus")    -> Icons.Default.Work
-        id.contains("alarm")                           -> Icons.Default.Alarm
-        id.contains("lock") || id.contains("secure")  -> Icons.Default.ScreenLockPortrait
-        id.contains("radio") || id.contains("nrs")    -> Icons.Default.RadioButtonChecked
-        id.contains("sensor")                         -> Icons.Default.PanTool
-        id.contains("vibrate") || id.contains("vibration") -> Icons.Default.Vibration
-        id.contains("mute") || id.contains("sound") || id.contains("volume") -> {
+        key.contains("wifi") || key.contains("internet") -> Icons.Default.Wifi
+        key.contains("bt") || key.contains("bluetooth")  -> Icons.Default.Bluetooth
+        key.contains("airplane")                        -> Icons.Default.AirplanemodeActive
+        key.contains("hotspot") || key.contains("tether") -> Icons.Default.WifiTethering
+        key.contains("dnd") || key.contains("disturb")   -> Icons.Default.DoNotDisturb
+        key.contains("rotation") || key.contains("rotate") -> Icons.Default.ScreenRotation
+        key.contains("dark") || key.contains("night")    -> Icons.Default.DarkMode
+        key.contains("flash") || key.contains("torch")   -> Icons.Default.FlashOn
+        key.contains("location") || key.contains("gps")  -> Icons.Default.LocationOn
+        key.contains("nfc")                             -> Icons.Default.Nfc
+        key.contains("sync")                            -> Icons.Default.Sync
+        key.contains("record")                          -> Icons.Default.Videocam
+        key.contains("cast") || key.contains("smart")   -> Icons.Default.Cast
+        key.contains("vpn")                             -> Icons.Default.VpnKey
+        key.contains("cell") || key.contains("data") || key.contains("mobile") -> Icons.Default.SignalCellularAlt
+        key.contains("powershare")                      -> Icons.Default.ChargingStation
+        key.contains("battery") || key.contains("saver") -> Icons.Default.Battery5Bar
+        key.contains("chargi")                          -> Icons.Default.BatteryChargingFull
+        key.contains("camera")                          -> Icons.Default.CameraAlt
+        key.contains("mic")                             -> Icons.Default.Mic
+        key.contains("qr")                              -> Icons.Default.QrCodeScanner
+        key.contains("wallet")                          -> Icons.Default.AccountBalanceWallet
+        key.contains("share")                           -> Icons.Default.Share
+        key.contains("dolby") || key.contains("atmos")  -> Icons.Default.GraphicEq
+        key.contains("dex") || key.contains("desktop")  -> Icons.Default.DesktopWindows
+        key.contains("note")                            -> Icons.AutoMirrored.Filled.StickyNote2
+        key.contains("hearing")                         -> Icons.Default.Hearing
+        key.contains("dim") || key.contains("reduce")   -> Icons.Default.Brightness4
+        key.contains("work") || key.contains("focus")    -> Icons.Default.Work
+        key.contains("alarm")                           -> Icons.Default.Alarm
+        key.contains("lock") || key.contains("secure")  -> Icons.Default.ScreenLockPortrait
+        key.contains("radio") || key.contains("nrs")    -> Icons.Default.RadioButtonChecked
+        key.contains("sensor")                         -> Icons.Default.PanTool
+        key.contains("vibrate") || key.contains("vibration") -> Icons.Default.Vibration
+        key.contains("mute") || key.contains("sound") || key.contains("volume") -> {
             if (isActive || subtitle?.contains("Vibrate", ignoreCase = true) == true)
                 Icons.AutoMirrored.Filled.VolumeOff
             else
                 Icons.AutoMirrored.Filled.VolumeUp
         }
-        id.contains("bedtime") || id.contains("sleep") -> Icons.Default.NightsStay
-        id.contains("usage") || id.contains("stats")  -> Icons.Default.DataUsage
+        key.contains("bedtime") || key.contains("sleep") -> Icons.Default.NightsStay
+        key.contains("usage") || key.contains("stats")  -> Icons.Default.DataUsage
         else -> Icons.Default.Settings
     }
 }

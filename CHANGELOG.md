@@ -5,6 +5,27 @@ Releases follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.9.27] — 2026-09-27
+
+### Added & Enhanced (One UI 8.5/9 & Pixel Android 16 M3E Alignment, Settings Restructuring & UX Polish)
+- **Maximized Notification Viewport & Cleaned Separate Mode**:
+  - Removed duplicate Quick Settings grid, tucked handle, and tucked pill bar from page 0 in Separate mode (`ShadeRoot.kt`), freeing full vertical display space for notification alerts and feed scrolling.
+  - Simplified `nestedScrollConnection` by eliminating the tuck pre-scroll interceptor that previously caused scroll friction and jitter.
+- **Streamlined Settings Architecture**:
+  - Completely removed the redundant Quick Controls modal (`TilePreferencesActivity`) and its duplicate "SuperShade Active" toggle. Long-pressing the system quick settings tile now opens SuperShade settings directly.
+  - Removed "Customize Tiles" buttons and redundant `TileEditorSheet` from settings, since tile customization and reordering is performed directly and naturally inside SuperShade.
+  - Promoted notification density, sticky/ongoing notification suppression, and hidden notification categories into a dedicated, first-class **Section 6: Notifications**.
+  - Cleaned up obsolete `isQuickControlsTucked` and `setQuickControlsTucked` states across `ShadeState.kt` and `ShadeViewModel.kt`.
+- **Bluetooth & Wi-Fi Detail Sheets**:
+  - Added live query of paired Bluetooth devices (`bondedDevices`) with contextual hardware icons, connection badges, and quick-connect triggers.
+  - Added live Wi-Fi signal RSSI telemetry with visual status indicators.
+- **Tactile Micro-Interactions**:
+  - Added spring compression bounce (`0.88f` / `0.85f`) and haptic feedback to media transport buttons (Play/Pause, Skip Next, Skip Previous).
+  - Enhanced One UI integrated "A" squircle auto-brightness badge in `BrightnessSlider.kt`.
+  - Animated chevrons with press nudge mechanics on connectivity cards.
+
+---
+
 ## [1.9.0] — 2026-09-15
 
 ### Added & Enhanced (One UI 8 Settings Hub, Precision Gestures & Notification Polish)

@@ -52,8 +52,11 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.supershade.domain.tile.CANONICAL_TILES
 import com.supershade.domain.tile.KNOWN_TILES
 import com.supershade.domain.tile.TileDefinition
+import com.supershade.domain.tile.canonicalTileId
+import com.supershade.domain.tile.humanizeTileLabel
 import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.haptics.SuperHaptics
 import com.supershade.ui.shade.tileIcon
@@ -84,7 +87,7 @@ fun PixelQuickSettingsGrid(
 
     val displayedTiles = when {
         isEditing -> tiles
-        isExpanded -> tiles.take(8)
+        isExpanded -> tiles
         else -> tiles.take(4)
     }
 
@@ -206,8 +209,8 @@ fun PixelQuickSettingsGrid(
         // Available tiles drawer during edit
         if (isEditing) {
             val availableTileIds = remember(tiles) {
-                val currentIds = tiles.map { it.id }.toSet()
-                KNOWN_TILES.keys.filter { it !in currentIds }
+                val activeCanonical = tiles.map { canonicalTileId(it.id) }.toSet()
+                CANONICAL_TILES.filter { canonicalTileId(it) !in activeCanonical }
             }
             if (availableTileIds.isNotEmpty()) {
                 HorizontalDivider(
@@ -228,7 +231,7 @@ fun PixelQuickSettingsGrid(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     availableTileIds.forEach { tileId ->
-                        val label = KNOWN_TILES[tileId]?.first ?: tileId
+                        val label = humanizeTileLabel(tileId)
                         Surface(
                             onClick = {
                                 haptics.tileToggleOn()
@@ -330,7 +333,7 @@ private fun DraggablePixelTileGrid(
                             targetIndex = pressedIndex
                             dragX = change.position.x
                             dragY = change.position.y
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            haptics.tileGrab()
                             change.consume()
                         }
 
@@ -357,9 +360,11 @@ private fun DraggablePixelTileGrid(
                         }
                     }
 
-                    if (isLongPress && dragIndex >= 0 && targetIndex >= 0 && dragIndex != targetIndex) {
-                        haptics.tileToggleOn()
-                        onMoveTile(dragIndex, targetIndex)
+                    if (isLongPress) {
+                        haptics.tileDrop()
+                        if (dragIndex >= 0 && targetIndex >= 0 && dragIndex != targetIndex) {
+                            onMoveTile(dragIndex, targetIndex)
+                        }
                     }
                     dragIndex = -1
                     targetIndex = -1

@@ -41,14 +41,17 @@ class TileRepository(
 
     private val _tiles = MutableStateFlow<List<TileDefinition>>(
         DEFAULT_TILES.map { id ->
-            val (label, capability) = KNOWN_TILES[id] ?: (id to TileCapability.SETTINGS_INTENT)
+            val canonical = canonicalTileId(id)
+            val (label, capability) = KNOWN_TILES[canonical]
+                ?: KNOWN_TILES[id]
+                ?: (humanizeTileLabel(canonical) to TileCapability.SETTINGS_INTENT)
             TileDefinition(
-                id = id,
+                id = canonical,
                 label = label,
                 isActive = false,
                 capability = capability,
-                componentName = TILE_COMPONENTS[id],
-                settingsAction = TILE_SETTINGS_ACTIONS[id],
+                componentName = TILE_COMPONENTS[canonical] ?: TILE_COMPONENTS[id],
+                settingsAction = TILE_SETTINGS_ACTIONS[canonical] ?: TILE_SETTINGS_ACTIONS[id],
                 subtitle = null,
             )
         }
@@ -70,7 +73,7 @@ class TileRepository(
                     }
                 }
             }, Handler(Looper.getMainLooper()))
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
 
         try {
             val filter = android.content.IntentFilter().apply {
@@ -84,12 +87,17 @@ class TileRepository(
                 addAction("android.media.VOLUME_CHANGED_ACTION")
                 addAction(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
             }
-            context.registerReceiver(object : android.content.BroadcastReceiver() {
+            val receiver = object : android.content.BroadcastReceiver() {
                 override fun onReceive(c: Context?, intent: android.content.Intent?) {
                     scope.launch { updateActiveStates() }
                 }
-            }, filter)
-        } catch (_: Exception) {}
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                context.registerReceiver(receiver, filter)
+            }
+        } catch (e: Exception) {}
 
         try {
             context.contentResolver.registerContentObserver(
@@ -101,7 +109,7 @@ class TileRepository(
                     }
                 }
             )
-        } catch (_: Exception) {}
+        } catch (e: Exception) {}
 
         scope.launch { loadTiles() }
 
@@ -150,24 +158,56 @@ class TileRepository(
 
         _tiles.value = tokens.map { token ->
             val id = componentToId[token] ?: token
-            val (label, capability) = KNOWN_TILES[id] ?: (id to TileCapability.SETTINGS_INTENT)
-            val componentName = TILE_COMPONENTS[id]
+            val canonical = canonicalTileId(id)
+            val known = KNOWN_TILES[id] ?: KNOWN_TILES[canonical]
+            val componentName = when {
+                TILE_COMPONENTS.containsKey(id) -> TILE_COMPONENTS[id]
+                TILE_COMPONENTS.containsKey(canonical) -> TILE_COMPONENTS[canonical]
+                token.startsWith("custom(") && token.endsWith(")") -> token.substring(7, token.length - 1).trim()
+                token.contains("/") -> token
+                else -> null
+            }
+
+            // Resolve friendly label: KNOWN_TILES -> PackageManager ServiceInfo -> humanizeTileLabel
+            val label = when {
+                known != null -> known.first
+                componentName != null -> {
+                    try {
+                        val cn = android.content.ComponentName.unflattenFromString(componentName)
+                        if (cn != null) {
+                            val serviceInfo = context.packageManager.getServiceInfo(cn, 0)
+                            val loaded = serviceInfo.loadLabel(context.packageManager).toString()
+                            if (loaded.isNotBlank() && !loaded.contains(".") && !loaded.endsWith("TileService") && !loaded.endsWith("Service")) {
+                                loaded
+                            } else {
+                                humanizeTileLabel(if (loaded.isNotBlank()) loaded else componentName)
+                            }
+                        } else humanizeTileLabel(id)
+                    } catch (_: Exception) {
+                        humanizeTileLabel(id)
+                    }
+                }
+                else -> humanizeTileLabel(id)
+            }
+
+            val capability = known?.second ?: TileCapability.FULL_TOGGLE
             val isActive = queryTileActiveState(id)
             TileDefinition(
-                id = id,
+                id = canonical,
                 label = label,
                 isActive = isActive,
                 capability = capability,
                 componentName = componentName,
-                settingsAction = TILE_SETTINGS_ACTIONS[id],
-                subtitle = queryTileSubtitle(id),
+                settingsAction = TILE_SETTINGS_ACTIONS[canonical] ?: TILE_SETTINGS_ACTIONS[id],
+                subtitle = queryTileSubtitle(canonical),
             )
         }
     }
 
     fun setTileActive(id: String, active: Boolean) {
+        val target = canonicalTileId(id)
         _tiles.value = _tiles.value.map {
-            if (it.id == id) it.copy(isActive = active) else it
+            if (canonicalTileId(it.id) == target) it.copy(isActive = active) else it
         }
     }
 

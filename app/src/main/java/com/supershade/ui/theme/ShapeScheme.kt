@@ -95,6 +95,110 @@ data class ShadeShapeScheme(
                 tilePaddingHorizontal = 9.dp,
                 tilePaddingVertical = 8.dp,
             )
+            TileShape.CLOVER -> ShadeShapeScheme(
+                tile = M3ExpressiveShapes.Clover4.toComposeShape(),
+                card = RoundedCornerShape(24.dp),
+                container = RoundedCornerShape(26.dp),
+                slider = RoundedCornerShape(22.dp),
+                chip = RoundedCornerShape(14.dp),
+                pill = RoundedCornerShape(50),
+                tilePaddingHorizontal = 10.dp,
+                tilePaddingVertical = 8.dp,
+            )
+            TileShape.BURST -> ShadeShapeScheme(
+                tile = M3ExpressiveShapes.SoftBurst8.toComposeShape(),
+                card = RoundedCornerShape(24.dp),
+                container = RoundedCornerShape(26.dp),
+                slider = RoundedCornerShape(22.dp),
+                chip = RoundedCornerShape(14.dp),
+                pill = RoundedCornerShape(50),
+                tilePaddingHorizontal = 10.dp,
+                tilePaddingVertical = 8.dp,
+            )
+        }
+
+        /**
+         * Authentic Google Pixel (Material 3 Expressive) shape scheme for Android 15/16.
+         * Features 28dp pill tiles, 26dp cards, 30dp sliders, and stadium pill chips.
+         */
+        val PixelExpressive = ShadeShapeScheme(
+            tile = RoundedCornerShape(28.dp),
+            card = RoundedCornerShape(26.dp),
+            container = RoundedCornerShape(28.dp),
+            slider = RoundedCornerShape(30.dp),
+            chip = RoundedCornerShape(50),
+            pill = RoundedCornerShape(50),
+            tilePaddingHorizontal = 10.dp,
+            tilePaddingVertical = 8.dp,
+        )
+
+        /**
+         * Samsung One UI 8/9 squircle shape scheme.
+         */
+        val OneUiStandard = ShadeShapeScheme(
+            tile = RoundedCornerShape(20.dp),
+            card = RoundedCornerShape(24.dp),
+            container = RoundedCornerShape(26.dp),
+            slider = RoundedCornerShape(20.dp),
+            chip = RoundedCornerShape(14.dp),
+            pill = RoundedCornerShape(50),
+            tilePaddingHorizontal = 8.dp,
+            tilePaddingVertical = 8.dp,
+        )
+
+        /**
+         * Nothing OS minimal geometric shape scheme with dot-matrix styling and stadium pills.
+         */
+        val NothingMinimal = ShadeShapeScheme(
+            tile = RoundedCornerShape(20.dp),
+            card = RoundedCornerShape(22.dp),
+            container = RoundedCornerShape(24.dp),
+            slider = RoundedCornerShape(16.dp),
+            chip = RoundedCornerShape(50),
+            pill = RoundedCornerShape(50),
+            tilePaddingHorizontal = 8.dp,
+            tilePaddingVertical = 8.dp,
+        )
+
+        /**
+         * Cyberpunk high-tech sharp angular cuts and chamfered surfaces.
+         */
+        val CyberpunkTech = ShadeShapeScheme(
+            tile = RoundedCornerShape(6.dp),
+            card = RoundedCornerShape(10.dp),
+            container = RoundedCornerShape(12.dp),
+            slider = RoundedCornerShape(6.dp),
+            chip = RoundedCornerShape(4.dp),
+            pill = RoundedCornerShape(8.dp),
+            tilePaddingHorizontal = 9.dp,
+            tilePaddingVertical = 8.dp,
+        )
+
+        /**
+         * Pure Material 3 / Android Expressive shape scheme.
+         */
+        val PureMaterialM3 = ShadeShapeScheme(
+            tile = RoundedCornerShape(16.dp),
+            card = RoundedCornerShape(24.dp),
+            container = RoundedCornerShape(28.dp),
+            slider = RoundedCornerShape(24.dp),
+            chip = RoundedCornerShape(12.dp),
+            pill = RoundedCornerShape(50),
+            tilePaddingHorizontal = 8.dp,
+            tilePaddingVertical = 8.dp,
+        )
+
+        fun forTheme(theme: ShadeTheme, tileShape: TileShape): ShadeShapeScheme {
+            if (tileShape != TileShape.SQUIRCLE) {
+                return fromTileShape(tileShape)
+            }
+            return when (theme) {
+                ShadeTheme.Pixel -> PixelExpressive
+                ShadeTheme.Nothing -> NothingMinimal
+                ShadeTheme.Cyberpunk -> CyberpunkTech
+                ShadeTheme.PureMaterial -> PureMaterialM3
+                ShadeTheme.OneUI -> OneUiStandard
+            }
         }
     }
 }

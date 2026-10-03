@@ -2,8 +2,14 @@ package com.supershade.ui.shade
 
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,10 +39,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -215,6 +224,8 @@ fun NotificationFeed(
     modifier: Modifier = Modifier,
     onNotificationClick: (ShadeNotification) -> Unit = {},
     onSnooze: (String, Long) -> Unit = { _, _ -> },
+    onHideChannel: (pkg: String, channelId: String) -> Unit = { _, _ -> },
+    compact: Boolean = false,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { com.supershade.haptics.SuperHaptics(context) }
@@ -230,8 +241,8 @@ fun NotificationFeed(
         val groups = notifications.toGroups()
         LazyColumn(
             modifier = modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 6.dp, bottom = 68.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = if (compact) 4.dp else 6.dp, bottom = 68.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 5.dp else 8.dp),
         ) {
             item {
                 val hasClearable = notifications.any { it.isClearable }
@@ -251,7 +262,9 @@ fun NotificationFeed(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Surface(
+                        HeaderActionButton(
+                            icon = Icons.Default.History,
+                            label = "History",
                             onClick = {
                                 haptics.lightTap()
                                 try {
@@ -268,63 +281,18 @@ fun NotificationFeed(
                                     } catch (_: Exception) {}
                                 }
                             },
-                            shape = RoundedCornerShape(50),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.75f),
-                            border = BorderStroke(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f),
-                            ),
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.History,
-                                    contentDescription = "Notification history",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(14.dp),
-                                )
-                                Text(
-                                    text = "History",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
+                        )
 
                         if (hasClearable) {
-                            Surface(
+                            HeaderActionButton(
+                                icon = Icons.Default.ClearAll,
+                                label = "Clear all",
+                                isPrimary = true,
                                 onClick = {
                                     haptics.sheetDetent()
                                     onClearAll()
                                 },
-                                shape = RoundedCornerShape(50),
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.75f),
-                                border = BorderStroke(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f),
-                                ),
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.ClearAll,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(15.dp),
-                                    )
-                                    Text(
-                                        text = "Clear all",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                        color = MaterialTheme.colorScheme.primary,
-                                    )
-                                }
-                            }
+                            )
                         }
                     }
                 }
@@ -340,6 +308,8 @@ fun NotificationFeed(
                         onDismiss = onDismiss,
                         onNotificationClick = onNotificationClick,
                         onSnooze = onSnooze,
+                        onHideChannel = onHideChannel,
+                        compact = compact,
                         modifier = Modifier.animateItem(),
                     )
                 } else {
@@ -349,6 +319,8 @@ fun NotificationFeed(
                         onDismiss = { onDismiss(notification.key) },
                         onClick = { onNotificationClick(notification) },
                         onSnooze = { delayMs -> onSnooze(notification.key, delayMs) },
+                        onHideChannel = onHideChannel,
+                        compact = compact,
                         modifier = Modifier.animateItem(),
                     )
                 }
@@ -372,6 +344,8 @@ fun TogetherNotificationFeed(
     modifier: Modifier = Modifier,
     onNotificationClick: (ShadeNotification) -> Unit = {},
     onSnooze: (String, Long) -> Unit = { _, _ -> },
+    onHideChannel: (pkg: String, channelId: String) -> Unit = { _, _ -> },
+    compact: Boolean = false,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { com.supershade.haptics.SuperHaptics(context) }
@@ -387,8 +361,15 @@ fun TogetherNotificationFeed(
     } else {
         val groups = remember(notifications) { notifications.toGroups() }
         Column(
-            modifier = modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = modifier
+                .fillMaxWidth()
+                .animateContentSize(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    )
+                ),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 5.dp else 8.dp),
         ) {
             // Header row
             val hasClearable = notifications.any { it.isClearable }
@@ -405,36 +386,15 @@ fun TogetherNotificationFeed(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (hasClearable) {
-                    Surface(
+                    HeaderActionButton(
+                        icon = Icons.Default.ClearAll,
+                        label = "Clear all",
+                        isPrimary = true,
                         onClick = {
                             haptics.sheetDetent()
                             onClearAll()
                         },
-                        shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.75f),
-                        border = BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f),
-                        ),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ClearAll,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Text(
-                                text = "Clear all",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    }
+                    )
                 }
             }
 
@@ -447,6 +407,8 @@ fun TogetherNotificationFeed(
                         onDismiss = onDismiss,
                         onNotificationClick = onNotificationClick,
                         onSnooze = onSnooze,
+                        onHideChannel = onHideChannel,
+                        compact = compact,
                     )
                 } else {
                     val notification = group.preview
@@ -455,11 +417,72 @@ fun TogetherNotificationFeed(
                         onDismiss = { onDismiss(notification.key) },
                         onClick = { onNotificationClick(notification) },
                         onSnooze = { delayMs -> onSnooze(notification.key, delayMs) },
+                        onHideChannel = onHideChannel,
+                        compact = compact,
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(72.dp))
+        }
+    }
+}
+
+@Composable
+private fun HeaderActionButton(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isPrimary: Boolean = false,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.93f else 1.0f,
+        animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
+        label = "headerBtnScale",
+    )
+    val shapes = LocalShadeShapeScheme.current
+
+    Surface(
+        onClick = onClick,
+        interactionSource = interactionSource,
+        shape = shapes.chip,
+        color = if (isPrimary) {
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f)
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.75f)
+        },
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (isPrimary) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+            } else {
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)
+            },
+        ),
+        modifier = modifier.graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        },
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isPrimary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(14.dp),
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = if (isPrimary) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

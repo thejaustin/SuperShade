@@ -3,9 +3,12 @@ package com.supershade.ui.shade
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -16,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -51,11 +55,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.supershade.haptics.LocalSuperHaptics
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -103,12 +109,15 @@ fun GroupedNotificationCard(
     onDismiss: (String) -> Unit,
     onNotificationClick: (ShadeNotification) -> Unit,
     onSnooze: (String, Long) -> Unit = { _, _ -> },
+    onHideChannel: (pkg: String, channelId: String) -> Unit = { _, _ -> },
+    compact: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val shapes = LocalShadeShapeScheme.current
     var expanded by remember { mutableStateOf(false) }
     var showSettingsMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val haptics = LocalSuperHaptics.current ?: remember(context) { com.supershade.haptics.SuperHaptics(context) }
 
     val appName = remember(group.packageName) {
         try {
@@ -132,11 +141,25 @@ fun GroupedNotificationCard(
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             if (value != SwipeToDismissBoxValue.Settled) {
-                onDismissGroup(); true
+                haptics.sheetDetent()
+                onDismissGroup()
+                true
             } else false
         },
         positionalThreshold = { totalDistance -> totalDistance * 0.35f },
     )
+
+    val dragProgress = kotlin.math.abs(dismissState.progress).coerceIn(0f, 1f)
+    val isPastDismissThreshold = dragProgress >= 0.35f
+    var hasTickedThreshold by remember { mutableStateOf(false) }
+    LaunchedEffect(isPastDismissThreshold) {
+        if (isPastDismissThreshold && !hasTickedThreshold) {
+            haptics.sheetDetent()
+            hasTickedThreshold = true
+        } else if (!isPastDismissThreshold && dragProgress < 0.20f) {
+            hasTickedThreshold = false
+        }
+    }
 
     SwipeToDismissBox(
         state = dismissState,
@@ -144,37 +167,96 @@ fun GroupedNotificationCard(
             val direction = dismissState.dismissDirection
             val alignment = if (direction == SwipeToDismissBoxValue.StartToEnd)
                 Alignment.CenterStart else Alignment.CenterEnd
-            val progress = kotlin.math.abs(dismissState.progress).coerceIn(0f, 1f)
-            val iconScale = (0.6f + progress * 0.5f).coerceIn(0.6f, 1.15f)
-            val bgAlpha = (progress * 1.4f).coerceIn(0.2f, 1f)
+            val progress = dragProgress
+
+            val badgeScale by animateFloatAsState(
+                targetValue = if (isPastDismissThreshold) 1.08f else (0.80f + progress * 0.40f).coerceIn(0.80f, 1.0f),
+                animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
+                label = "groupSwipeBadgeScale",
+            )
+            val iconRotation by animateFloatAsState(
+                targetValue = if (isPastDismissThreshold) 0f else 12f,
+                animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
+                label = "groupSwipeIconRotation",
+            )
+
+            val trackBgColor = Color(0xFFE53935).copy(alpha = (progress * 0.35f).coerceIn(0.08f, 0.40f))
+            val badgeColor = if (isPastDismissThreshold) Color(0xFFE53935) else Color(0xFFE53935).copy(alpha = 0.85f)
+
+            val iconSlideOffset by animateDpAsState(
+                targetValue = if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
+                    ((progress.coerceIn(0f, 0.35f) / 0.35f - 1f) * 16f).dp
+                } else {
+                    ((1f - progress.coerceIn(0f, 0.35f) / 0.35f) * 16f).dp
+                },
+                animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
+                label = "groupSwipeIconSlide",
+            )
+
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight()
+                    .fillMaxSize()
                     .clip(shapes.card)
-                    .background(Color(0xFFE53935).copy(alpha = bgAlpha)),
+                    .background(trackBgColor),
                 contentAlignment = alignment,
             ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete group",
-                    tint = Color.White,
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = badgeColor,
+                    shadowElevation = if (isPastDismissThreshold) 6.dp else 1.dp,
                     modifier = Modifier
-                        .padding(horizontal = 22.dp)
+                        .padding(horizontal = 16.dp)
+                        .offset(x = iconSlideOffset)
                         .graphicsLayer {
-                            scaleX = iconScale
-                            scaleY = iconScale
+                            scaleX = badgeScale
+                            scaleY = badgeScale
                         },
-                )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Clear group",
+                            tint = Color.White,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .graphicsLayer { rotationZ = iconRotation },
+                        )
+                        if (progress > 0.25f) {
+                            Text(
+                                text = "Clear group",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.5.sp,
+                                ),
+                                color = Color.White,
+                            )
+                        }
+                    }
+                }
             }
         },
         enableDismissFromStartToEnd = true,
         enableDismissFromEndToStart = true,
         modifier = modifier.fillMaxWidth(),
     ) {
-        // Box so ghost-peek strips can be drawn behind and below the main card.
-        // Ghost strips are first children (drawn behind), main card is last (on top).
-        Box(modifier = Modifier.fillMaxWidth()) {
+        val cardScale = (1.0f - dragProgress * 0.04f).coerceIn(0.95f, 1.0f)
+        val cardAlpha = if (dragProgress > 0.75f) (1f - (dragProgress - 0.75f) * 2.5f).coerceIn(0.4f, 1.0f) else 1.0f
+        val cardElevation = (dragProgress * 8f).dp
+        val dynamicCardShape = RoundedCornerShape((20f + dragProgress * 8f).coerceIn(20f, 28f).dp)
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    scaleX = cardScale
+                    scaleY = cardScale
+                    alpha = cardAlpha
+                }
+        ) {
 
             // Farthest ghost — narrowest, offsets most below the main card
             if (!expanded && group.notifications.size >= 3) {
@@ -185,7 +267,7 @@ fun GroupedNotificationCard(
                         .align(Alignment.BottomCenter)
                         .offset(y = 8.dp)
                         .height(16.dp)
-                        .clip(shapes.card)
+                        .clip(dynamicCardShape)
                         .background(MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.8f)),
                 )
             }
@@ -198,17 +280,18 @@ fun GroupedNotificationCard(
                         .align(Alignment.BottomCenter)
                         .offset(y = 4.dp)
                         .height(12.dp)
-                        .clip(shapes.card)
+                        .clip(dynamicCardShape)
                         .background(MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.9f)),
                 )
             }
 
             // Main card — on top, determines Box height
             Card(
-                shape = shapes.card,
+                shape = dynamicCardShape,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 ),
+                elevation = CardDefaults.cardElevation(defaultElevation = cardElevation),
                 border = getCardBorder(alpha = 0.25f),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -220,18 +303,25 @@ fun GroupedNotificationCard(
                         onLongClick = { showSettingsMenu = true },
                     ),
             ) {
-                Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                val hPadding = if (compact) 10.dp else 14.dp
+                val vPadding = if (compact) 6.dp else 12.dp
+                val iconBoxSize = if (compact) 30.dp else 38.dp
+                val iconRadius = if (compact) 8.dp else 12.dp
+                val iconImgSize = if (compact) 26.dp else 34.dp
+                val columnSpacing = if (compact) 9.dp else 12.dp
+
+                Column(modifier = Modifier.padding(horizontal = hPadding, vertical = vPadding)) {
                     // One UI 8 Group header & collapsed preview
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(columnSpacing),
                         verticalAlignment = Alignment.Top,
                     ) {
-                        // 38dp app icon badge
+                        // App icon badge
                         Box(
                             modifier = Modifier
-                                .size(38.dp)
-                                .clip(RoundedCornerShape(12.dp)),
+                                .size(iconBoxSize)
+                                .clip(RoundedCornerShape(iconRadius)),
                             contentAlignment = Alignment.Center,
                         ) {
                             if (appIconBitmap != null) {
@@ -239,20 +329,23 @@ fun GroupedNotificationCard(
                                     bitmap = appIconBitmap!!,
                                     contentDescription = null,
                                     modifier = Modifier
-                                        .size(34.dp)
-                                        .clip(RoundedCornerShape(8.dp)),
+                                        .size(iconImgSize)
+                                        .clip(RoundedCornerShape(if (compact) 6.dp else 8.dp)),
                                 )
                             } else {
                                 Box(
                                     modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(RoundedCornerShape(12.dp))
+                                        .size(iconBoxSize)
+                                        .clip(RoundedCornerShape(iconRadius))
                                         .background(MaterialTheme.colorScheme.primaryContainer),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Text(
                                         text = appName.take(1).uppercase(),
-                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        style = if (compact)
+                                            MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                                        else
+                                            MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     )
                                 }
@@ -268,7 +361,10 @@ fun GroupedNotificationCard(
                             ) {
                                 Text(
                                     text = appName,
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    style = if (compact)
+                                        MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 11.5.sp)
+                                    else
+                                        MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
@@ -276,41 +372,54 @@ fun GroupedNotificationCard(
                                 )
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 4.dp),
                                 ) {
                                     Text(
                                         text = "${group.notifications.size}",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = if (compact) 10.sp else 11.sp,
+                                        ),
                                         color = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(8.dp))
+                                            .clip(RoundedCornerShape(6.dp))
                                             .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
-                                            .padding(horizontal = 7.dp, vertical = 2.dp),
+                                            .padding(horizontal = if (compact) 6.dp else 7.dp, vertical = 1.5.dp),
                                     )
                                     if (expanded) {
                                         IconButton(
                                             onClick = {
                                                 onDismissGroup()
                                             },
-                                            modifier = Modifier.size(36.dp),
+                                            modifier = Modifier.size(if (compact) 28.dp else 36.dp),
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.ClearAll,
                                                 contentDescription = "Clear group",
                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                                                modifier = Modifier.size(18.dp),
+                                                modifier = Modifier.size(if (compact) 15.dp else 18.dp),
                                             )
                                         }
                                     }
+                                    val groupChevronRotation by animateFloatAsState(
+                                        targetValue = if (expanded) 180f else 0f,
+                                        animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
+                                        label = "groupChevronRotation",
+                                    )
                                     IconButton(
-                                        onClick = { expanded = !expanded },
-                                        modifier = Modifier.size(36.dp),
+                                        onClick = {
+                                            haptics.lightTap()
+                                            expanded = !expanded
+                                        },
+                                        modifier = Modifier.size(if (compact) 28.dp else 36.dp),
                                     ) {
                                         Icon(
-                                            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                            imageVector = Icons.Default.KeyboardArrowDown,
                                             contentDescription = if (expanded) "Collapse group" else "Expand group",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(20.dp),
+                                            modifier = Modifier
+                                                .size(if (compact) 18.dp else 22.dp)
+                                                .graphicsLayer { rotationZ = groupChevronRotation },
                                         )
                                     }
                                 }
@@ -318,33 +427,63 @@ fun GroupedNotificationCard(
 
                             // Collapsed preview: first notification title + text + "+N more"
                             if (!expanded) {
-                                Spacer(Modifier.height(2.dp))
                                 val preview = group.preview
                                 val displayTitle = preview.title.ifBlank { appName }
-                                Text(
-                                    text = displayTitle,
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                if (preview.text.isNotBlank()) {
+                                if (compact) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(top = 1.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    ) {
+                                        Text(
+                                            text = displayTitle,
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                fontWeight = FontWeight.SemiBold,
+                                                fontSize = 12.sp,
+                                            ),
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f, fill = false),
+                                        )
+                                        if (preview.text.isNotBlank()) {
+                                            Text(
+                                                text = "— ${preview.text}",
+                                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.weight(1f),
+                                            )
+                                        }
+                                    }
+                                } else {
                                     Spacer(Modifier.height(2.dp))
                                     Text(
-                                        text = preview.text,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 2,
+                                        text = displayTitle,
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
-                                }
-                                if (group.notifications.size > 1) {
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(
-                                        text = "+${group.notifications.size - 1} more",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-                                    )
+                                    if (preview.text.isNotBlank()) {
+                                        Spacer(Modifier.height(2.dp))
+                                        Text(
+                                            text = preview.text,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                    if (group.notifications.size > 1) {
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            text = "+${group.notifications.size - 1} more",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -380,6 +519,16 @@ fun GroupedNotificationCard(
                                 },
                                 onClick = {
                                     showSettingsMenu = false
+                                    onHideChannel(group.packageName, channelId)
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Open notification settings →", style = MaterialTheme.typography.bodyMedium) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(20.dp))
+                                },
+                                onClick = {
+                                    showSettingsMenu = false
                                     try {
                                         val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
                                             putExtra(Settings.EXTRA_APP_PACKAGE, group.packageName)
@@ -388,6 +537,17 @@ fun GroupedNotificationCard(
                                         }
                                         context.startActivity(intent)
                                     } catch (_: Exception) {}
+                                },
+                            )
+                        } else {
+                            DropdownMenuItem(
+                                text = { Text("Turn off notifications from app", style = MaterialTheme.typography.bodyMedium) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.NotificationsOff, contentDescription = null, modifier = Modifier.size(20.dp))
+                                },
+                                onClick = {
+                                    showSettingsMenu = false
+                                    onHideChannel(group.packageName, "default")
                                 },
                             )
                         }
@@ -489,7 +649,8 @@ fun GroupedNotificationCard(
                                     onDismiss = { onDismiss(notification.key) },
                                     onClick = { onNotificationClick(notification) },
                                     onSnooze = { delayMs -> onSnooze(notification.key, delayMs) },
-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                                    compact = compact,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = if (compact) 2.dp else 4.dp),
                                 )
                                 val isLast = channelIdx == byChannel.lastIndex && index == channelNotifs.lastIndex
                                 if (!isLast) {

@@ -26,6 +26,23 @@ fun getCardBorder(
     alpha: Float = 0.35f,
 ): BorderStroke? {
     if (borderWidth == CardBorderWidth.NONE || borderWidth.widthDp <= 0f) return null
+    if (borderColor != null) {
+        return BorderStroke(borderWidth.widthDp.dp, borderColor)
+    }
+
+    val shadeTheme = LocalShadeTheme.current
+    if (shadeTheme is ShadeTheme.Cyberpunk) {
+        val neonBrush = Brush.linearGradient(
+            colors = listOf(
+                MaterialTheme.colorScheme.primary.copy(alpha = (alpha * 1.8f).coerceIn(0.40f, 0.90f)),
+                MaterialTheme.colorScheme.secondary.copy(alpha = (alpha * 1.5f).coerceIn(0.30f, 0.85f)),
+            ),
+            start = Offset.Zero,
+            end = Offset(450f, 250f),
+        )
+        return BorderStroke(borderWidth.widthDp.dp, neonBrush)
+    }
+
     val backdropTheme = LocalBackdropTheme.current
     if (backdropTheme == BackdropTheme.LIQUID_GLASS) {
         val specularBrush = Brush.linearGradient(
@@ -39,6 +56,11 @@ fun getCardBorder(
         )
         return BorderStroke(borderWidth.widthDp.dp, specularBrush)
     }
-    val strokeColor = borderColor ?: MaterialTheme.colorScheme.outlineVariant.copy(alpha = alpha)
+
+    val strokeColor = when (shadeTheme) {
+        is ShadeTheme.Nothing -> MaterialTheme.colorScheme.outline.copy(alpha = (alpha * 1.2f).coerceIn(0.20f, 0.65f))
+        is ShadeTheme.Pixel -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = (alpha * 0.85f).coerceIn(0.15f, 0.45f))
+        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = alpha)
+    }
     return BorderStroke(borderWidth.widthDp.dp, strokeColor)
 }

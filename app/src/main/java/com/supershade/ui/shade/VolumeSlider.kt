@@ -3,7 +3,11 @@ package com.supershade.ui.shade
 import android.content.Intent
 import android.media.AudioManager
 import android.provider.Settings
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -56,8 +60,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.haptics.SuperHaptics
+import com.supershade.ui.theme.ChamferedCornerShape
 import com.supershade.ui.theme.LocalShadeShapeScheme
+import com.supershade.ui.theme.LocalShadeTheme
+import com.supershade.ui.theme.ShadeTheme
 import com.supershade.ui.theme.getCardBorder
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -94,6 +102,11 @@ fun VolumeSlider(
     }
 
     val fraction = if (maxVol > 0f) (localValue / maxVol).coerceIn(0f, 1f) else 0f
+    val animatedProgressFraction by animateFloatAsState(
+        targetValue = fraction,
+        animationSpec = if (isDragging) spring(stiffness = Spring.StiffnessHigh) else spring(dampingRatio = 0.82f, stiffness = 450f),
+        label = "animatedVolumeFraction",
+    )
     val volumeIcon = when {
         localValue == 0f -> Icons.AutoMirrored.Filled.VolumeOff
         fraction < 0.5f  -> Icons.AutoMirrored.Filled.VolumeDown
@@ -135,8 +148,24 @@ fun VolumeSlider(
     }
 
     var trackWidthPx by remember { mutableFloatStateOf(1f) }
+    var hitMinBoundary by remember { mutableStateOf(false) }
+    var hitMaxBoundary by remember { mutableStateOf(false) }
 
     fun updateValueFromFraction(newFraction: Float) {
+        if (newFraction <= 0f && !hitMinBoundary) {
+            haptics.sliderBoundary()
+            hitMinBoundary = true
+        } else if (newFraction > 0.05f) {
+            hitMinBoundary = false
+        }
+
+        if (newFraction >= 1f && !hitMaxBoundary) {
+            haptics.sliderBoundary()
+            hitMaxBoundary = true
+        } else if (newFraction < 0.95f) {
+            hitMaxBoundary = false
+        }
+
         val clamped = newFraction.coerceIn(0f, 1f)
         val newVol = (clamped * maxVol).roundToInt().coerceIn(0, maxVol.toInt())
         if (newVol.toFloat() != localValue) {
@@ -149,12 +178,23 @@ fun VolumeSlider(
         } catch (_: Exception) {}
     }
 
-    val fillGradient = Brush.horizontalGradient(
-        listOf(
-            Color(0xFF1565C0),
-            Color(0xFF42A5F5),
-        )
-    )
+    val shadeTheme = LocalShadeTheme.current
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+
+    val fillGradient = remember(shadeTheme, primaryColor, secondaryColor) {
+        val baseColors = when (shadeTheme) {
+            is ShadeTheme.Cyberpunk -> listOf(secondaryColor, primaryColor) // Hot Pink to Electric Cyan
+            is ShadeTheme.Nothing -> listOf(primaryColor, primaryColor.copy(alpha = 0.85f))
+            is ShadeTheme.Pixel, is ShadeTheme.PureMaterial -> listOf(primaryColor, primaryColor)
+            is ShadeTheme.OneUI -> listOf(
+                Color(0xFF1565C0),
+                Color(0xFF1E88E5),
+                Color(0xFF42A5F5),
+            )
+        }
+        Brush.horizontalGradient(baseColors)
+    }
 
     Row(
         modifier = modifier
@@ -168,15 +208,41 @@ fun VolumeSlider(
     ) {
         val shapes = LocalShadeShapeScheme.current
         val border = getCardBorder(alpha = 0.35f)
+        val sliderShape = when (shadeTheme) {
+            is ShadeTheme.Cyberpunk -> ChamferedCornerShape(8.dp)
+            else -> shapes.slider
+        }
+        val sliderHeight = when {
+            compact -> 48.dp
+            shadeTheme is ShadeTheme.OneUI -> 54.dp
+            else -> 50.dp
+        }
+
+        val trackScaleY by animateFloatAsState(
+            targetValue = if (isDragging) 1.05f else 1.0f,
+            animationSpec = spring(dampingRatio = 0.65f, stiffness = 850f),
+            label = "volumeSliderScaleY",
+        )
+        val iconScale by animateFloatAsState(
+            targetValue = if (isDragging) 1.15f else 1.0f,
+            animationSpec = spring(dampingRatio = 0.60f, stiffness = 800f),
+            label = "volumeIconScale",
+        )
+        val iconRotation by animateFloatAsState(
+            targetValue = if (localValue == 0f) -10f else (fraction - 0.5f) * 16f,
+            animationSpec = spring(dampingRatio = 0.70f, stiffness = 750f),
+            label = "volumeIconRotation",
+        )
 
         // Main Tactile Volume Pill
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(50.dp)
-                .clip(shapes.slider)
+                .height(sliderHeight)
+                .graphicsLayer { scaleY = trackScaleY }
+                .clip(sliderShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
-                .then(if (border != null) Modifier.border(border, shapes.slider) else Modifier)
+                .then(if (border != null) Modifier.border(border, sliderShape) else Modifier)
                 .semantics {
                     contentDescription = "Media volume"
                     stateDescription = if (localValue == 0f) "Muted" else "${(fraction * 100).roundToInt()}%"
@@ -214,6 +280,8 @@ fun VolumeSlider(
                         },
                         onDragEnd = {
                             isDragging = false
+                            hitMinBoundary = false
+                            hitMaxBoundary = false
                             haptics.sliderTick()
                             try {
                                 audioManager.setStreamVolume(
@@ -225,6 +293,8 @@ fun VolumeSlider(
                         },
                         onDragCancel = {
                             isDragging = false
+                            hitMinBoundary = false
+                            hitMaxBoundary = false
                         },
                         onHorizontalDrag = { change, _ ->
                             change.consume()
@@ -237,9 +307,47 @@ fun VolumeSlider(
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .fillMaxWidth(fraction)
+                    .fillMaxWidth(animatedProgressFraction)
                     .background(fillGradient)
             )
+
+            // Nothing OS Segmented Track Ticks
+            if (shadeTheme is ShadeTheme.Nothing) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    repeat(9) {
+                        Box(
+                            modifier = Modifier
+                                .size(width = 1.5.dp, height = 18.dp)
+                                .background(Color.White.copy(alpha = 0.20f))
+                        )
+                    }
+                }
+            }
+
+            // Cyberpunk Laser-etched Hash Marks
+            if (shadeTheme is ShadeTheme.Cyberpunk) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = 12.dp, vertical = 3.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    repeat(16) { idx ->
+                        Box(
+                            modifier = Modifier
+                                .size(width = 1.dp, height = if (idx % 4 == 0) 5.dp else 2.5.dp)
+                                .background(Color(0xFFFF0055).copy(alpha = 0.50f))
+                        )
+                    }
+                }
+            }
 
             // Embedded Content Row
             Row(
@@ -268,16 +376,28 @@ fun VolumeSlider(
                         imageVector = volumeIcon,
                         contentDescription = null,
                         tint = if (fraction > 0.18f) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier
+                            .size(20.dp)
+                            .graphicsLayer {
+                                scaleX = iconScale
+                                scaleY = iconScale
+                                rotationZ = iconRotation
+                            },
                     )
                 }
 
                 // Volume percentage text on the right
                 Text(
-                    text = if (localValue == 0f) "Mute" else "${(fraction * 100).roundToInt()}%",
+                    text = when (shadeTheme) {
+                        is ShadeTheme.Cyberpunk -> if (localValue == 0f) "VOL // MUTE" else "VOL // ${(fraction * 100).roundToInt()}%"
+                        is ShadeTheme.Nothing -> if (localValue == 0f) "MUTE" else "${(fraction * 100).roundToInt()}%"
+                        else -> if (localValue == 0f) "Mute" else "${(fraction * 100).roundToInt()}%"
+                    },
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
+                        fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else null,
+                        letterSpacing = if (shadeTheme is ShadeTheme.Nothing) 1.sp else 0.sp,
                     ),
                     color = if (fraction > 0.85f) Color.White else MaterialTheme.colorScheme.onSurface,
                 )

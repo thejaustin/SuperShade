@@ -13,9 +13,37 @@ import kotlinx.coroutines.flow.update
 
 class NotificationRepository {
 
+    companion object {
+        /**
+         * Packages for voice recorder and audio recording tools.
+         * Their ongoing recording notifications are routed to the Media Card instead of the feed.
+         */
+        val VOICE_RECORDER_PACKAGES = setOf(
+            "com.sec.android.app.voicenote",
+            "com.samsung.android.voicenote",
+            "com.samsung.android.app.voicerecorder",
+            "com.samsung.android.voiceserviceplatform",
+            "com.google.android.apps.recorder",
+        )
+
+        private val MEDIA_ONLY_PACKAGES = VOICE_RECORDER_PACKAGES
+
+        /**
+         * Returns true if [sbn] is an ongoing notification from a known media/recording app.
+         */
+        private fun isMediaOnlyNotification(sbn: android.service.notification.StatusBarNotification): Boolean {
+            if (sbn.packageName !in MEDIA_ONLY_PACKAGES) return false
+            val flags = sbn.notification?.flags ?: return false
+            return (flags and android.app.Notification.FLAG_ONGOING_EVENT) != 0
+        }
+    }
+
     private val categoryEngine = CategoryEngine()
     private val _notifications = MutableStateFlow<List<ShadeNotification>>(emptyList())
     val notifications: StateFlow<List<ShadeNotification>> = _notifications.asStateFlow()
+
+    private val _voiceRecorderNotification = MutableStateFlow<ShadeNotification?>(null)
+    val voiceRecorderNotification: StateFlow<ShadeNotification?> = _voiceRecorderNotification.asStateFlow()
 
     private val _newNotifications = MutableSharedFlow<ShadeNotification>(extraBufferCapacity = 16)
     val newNotifications: SharedFlow<ShadeNotification> = _newNotifications.asSharedFlow()
@@ -45,6 +73,16 @@ class NotificationRepository {
     }
 
     fun onNotificationPosted(sbn: StatusBarNotification) {
+        // Apps like Samsung Voice Recorder post an ongoing MediaStyle service notification
+        // while also registering a MediaSession. Suppress them from the notification feed;
+        // they are routed to the media card.
+        if (isMediaOnlyNotification(sbn)) {
+            val category = categoryEngine.categorize(sbn)
+            val shade = sbn.toShadeNotification(category)
+            _voiceRecorderNotification.value = shade
+            return
+        }
+
         val category = categoryEngine.categorize(sbn)
         val shade = sbn.toShadeNotification(category)
 
@@ -77,6 +115,9 @@ class NotificationRepository {
     }
 
     fun onNotificationRemoved(key: String) {
+        if (_voiceRecorderNotification.value?.key == key) {
+            _voiceRecorderNotification.value = null
+        }
         _notifications.update { current -> current.filter { it.key != key } }
     }
 

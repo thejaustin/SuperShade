@@ -13,6 +13,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -62,6 +64,7 @@ import androidx.compose.material.icons.filled.SwipeDown
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material.icons.filled.Wifi
@@ -77,7 +80,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -88,7 +90,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -99,9 +100,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.style.TextOverflow
 import kotlin.math.roundToInt
-import com.supershade.domain.tile.DEFAULT_TILES
-import com.supershade.domain.tile.KNOWN_TILES
 import com.supershade.settings.CardBorderWidth
+import com.supershade.settings.DeviceControlMode
 import com.supershade.settings.SplitGestureMode
 import com.supershade.settings.TileGridColumns
 import com.supershade.settings.TileShape
@@ -111,7 +111,7 @@ import com.supershade.ui.theme.LocalCardBorderWidth
 import com.supershade.ui.theme.LocalShadeShapeScheme
 import com.supershade.ui.theme.ShadeShapeScheme
 import com.supershade.ui.theme.getCardBorder
-import com.supershade.ui.shade.tileIcon
+import com.supershade.ui.theme.toComposeShape
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.CompositionLocalProvider
@@ -129,13 +129,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.supershade.R
+import com.supershade.settings.NotificationDensity
 import com.supershade.settings.AccentColor
-import com.supershade.settings.QsTileTapAction
 import com.supershade.ui.theme.BackdropTheme
 import com.supershade.ui.theme.DarkThemeMode
 import com.supershade.ui.theme.ShadeTheme
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     shizukuConnected: Boolean,
@@ -150,6 +150,12 @@ fun SettingsScreen(
     selectedAccentColor: AccentColor = AccentColor.GALAXY_BLUE,
     backdropTheme: BackdropTheme = BackdropTheme.FROSTED_GLASS,
     backdropOpacity: Float = 0.78f,
+    notificationDensity: NotificationDensity = NotificationDensity.BALANCED,
+    onNotificationDensityChange: (NotificationDensity) -> Unit = {},
+    hiddenChannels: Set<String> = emptySet(),
+    onUnhideChannel: (String) -> Unit = {},
+    hideOngoingNotifications: Boolean = false,
+    onHideOngoingNotificationsChange: (Boolean) -> Unit = {},
     appVersion: String,
     darkThemeMode: DarkThemeMode = DarkThemeMode.SYSTEM,
     onToggleShade: (Boolean) -> Unit,
@@ -166,9 +172,6 @@ fun SettingsScreen(
     isCheckingUpdate: Boolean = false,
     onShowWhatsNew: () -> Unit,
     onPreviewShade: () -> Unit = {},
-    qsTileTapAction: QsTileTapAction = QsTileTapAction.TOGGLE_ACTIVE,
-    onQsTileTapActionChange: (QsTileTapAction) -> Unit = {},
-    onOpenTilePreferences: () -> Unit = {},
     tileShape: TileShape = TileShape.SQUIRCLE,
     onTileShapeChange: (TileShape) -> Unit = {},
     tileSize: TileSize = TileSize.STANDARD,
@@ -177,14 +180,14 @@ fun SettingsScreen(
     onTileColumnsChange: (TileGridColumns) -> Unit = {},
     showWideCards: Boolean = true,
     onShowWideCardsChange: (Boolean) -> Unit = {},
-    enabledTiles: List<String> = emptyList(),
-    onEnabledTilesChange: (List<String>) -> Unit = {},
     splitGestureMode: SplitGestureMode = SplitGestureMode.SEPARATE_70_30,
     onSplitGestureModeChange: (SplitGestureMode) -> Unit = {},
     showPanelSwitcherPill: Boolean = false,
     onShowPanelSwitcherPillChange: (Boolean) -> Unit = {},
     cardBorderWidth: CardBorderWidth = CardBorderWidth.THIN,
     onCardBorderWidthChange: (CardBorderWidth) -> Unit = {},
+    deviceControlMode: DeviceControlMode = DeviceControlMode.SHOW_WHEN_EXPANDED,
+    onDeviceControlModeChange: (DeviceControlMode) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -363,47 +366,23 @@ fun SettingsScreen(
         // =======================================================================
         // 2. QUICK ACTIONS HUB
         // =======================================================================
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        Button(
+            onClick = onPreviewShade,
+            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
         ) {
-            Button(
-                onClick = onPreviewShade,
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(52.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.TouchApp,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "Open Shade",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                )
-            }
-
-            FilledTonalButton(
-                onClick = onOpenTilePreferences,
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(52.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Tune,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "Customize Tiles",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                )
-            }
+            Icon(
+                imageVector = Icons.Default.TouchApp,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = "Open Shade",
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+            )
         }
 
         // =======================================================================
@@ -1142,10 +1121,10 @@ fun SettingsScreen(
                 } else {
                     Color(selectedAccentColor.hex)
                 }
-                val previewShapeScheme = remember(tileShape) {
-                    com.supershade.ui.theme.ShadeShapeScheme.fromTileShape(tileShape)
+                val previewShapeScheme = remember(selectedTheme, tileShape) {
+                    com.supershade.ui.theme.ShadeShapeScheme.forTheme(selectedTheme, tileShape)
                 }
-                val previewTileShape = if (selectedTheme is ShadeTheme.Pixel) CircleShape else previewShapeScheme.tile
+                val previewTileShape = previewShapeScheme.tile
 
                 var previewWifiActive by remember { mutableStateOf(true) }
                 var previewBtActive by remember { mutableStateOf(true) }
@@ -1255,7 +1234,9 @@ fun SettingsScreen(
                                                 val nextTheme = when (selectedTheme) {
                                                     is ShadeTheme.OneUI -> ShadeTheme.Pixel
                                                     is ShadeTheme.Pixel -> ShadeTheme.PureMaterial
-                                                    is ShadeTheme.PureMaterial -> ShadeTheme.OneUI
+                                                    is ShadeTheme.PureMaterial -> ShadeTheme.Nothing
+                                                    is ShadeTheme.Nothing -> ShadeTheme.Cyberpunk
+                                                    is ShadeTheme.Cyberpunk -> ShadeTheme.OneUI
                                                 }
                                                 onThemeChange(nextTheme)
                                             },
@@ -1264,7 +1245,9 @@ fun SettingsScreen(
                                             text = when (selectedTheme) {
                                                 is ShadeTheme.OneUI -> "One UI 8 ↻"
                                                 is ShadeTheme.Pixel -> "Pixel ↻"
-                                                is ShadeTheme.PureMaterial -> "Pure Material ↻"
+                                                is ShadeTheme.PureMaterial -> "Material ↻"
+                                                is ShadeTheme.Nothing -> "Nothing ↻"
+                                                is ShadeTheme.Cyberpunk -> "Cyberpunk ↻"
                                             },
                                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.SemiBold),
                                             color = activeAccent,
@@ -1653,11 +1636,17 @@ fun SettingsScreen(
                 // Shade Style
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Shade Style",
+                        text = "Shade Style & OS Design",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                     )
-                    val themes = listOf(ShadeTheme.OneUI, ShadeTheme.Pixel, ShadeTheme.PureMaterial)
-                    val labels = listOf("One UI 8", "Pixel", "Pure Material")
+                    val themes = listOf(
+                        ShadeTheme.OneUI,
+                        ShadeTheme.Pixel,
+                        ShadeTheme.PureMaterial,
+                        ShadeTheme.Nothing,
+                        ShadeTheme.Cyberpunk,
+                    )
+                    val labels = listOf("One UI 8", "Pixel", "Material", "Nothing", "Cyberpunk")
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         themes.forEachIndexed { index, theme ->
                             SegmentedButton(
@@ -1668,7 +1657,12 @@ fun SettingsScreen(
                             ) {
                                 Text(
                                     text = labels[index],
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 10.sp,
+                                    ),
+                                    maxLines = 1,
+                                    softWrap = false,
                                 )
                             }
                         }
@@ -1858,14 +1852,45 @@ fun SettingsScreen(
                         }
                     }
                 }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
+                // Card Borders & Outlines
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Card Border Stroke",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    )
+                    Text(
+                        text = "Outline thickness around shade cards, sliders, and tiles",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        CardBorderWidth.entries.forEachIndexed { index, width ->
+                            SegmentedButton(
+                                selected = cardBorderWidth == width,
+                                onClick = {
+                                    haptics?.sliderTick()
+                                    onCardBorderWidthChange(width)
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index, CardBorderWidth.entries.size),
+                                icon = {},
+                            ) {
+                                Text(
+                                    text = width.label,
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
 
         // =======================================================================
         // 6. QUICK TILES & GRID CUSTOMIZATION
         // =======================================================================
-        var showTileEditor by remember { mutableStateOf(false) }
-
         SectionHeader(
             title = "Quick Tiles & Grid",
             badge = "${tileShape.label} • ${tileColumns.count} cols",
@@ -1908,6 +1933,8 @@ fun SettingsScreen(
                                 TileShape.SOFT -> RoundedCornerShape(12.dp)
                                 TileShape.LEAF -> RoundedCornerShape(topStart = 24.dp, bottomEnd = 24.dp, topEnd = 8.dp, bottomStart = 8.dp)
                                 TileShape.SHARP -> RoundedCornerShape(6.dp)
+                                TileShape.CLOVER -> com.supershade.ui.theme.M3ExpressiveShapes.Clover4.toComposeShape()
+                                TileShape.BURST -> com.supershade.ui.theme.M3ExpressiveShapes.SoftBurst8.toComposeShape()
                             }
                             Surface(
                                 shape = previewCorner,
@@ -2068,139 +2095,68 @@ fun SettingsScreen(
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
 
-                // Active Tiles Manager Button
-                FilledTonalButton(
-                    onClick = { showTileEditor = true },
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.DashboardCustomize,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = "Customize & Reorder Active Tiles (${if (enabledTiles.isNotEmpty()) enabledTiles.size else DEFAULT_TILES.size})",
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                    )
-                }
-            }
-        }
-
-        if (showTileEditor) {
-            TileEditorSheet(
-                currentTiles = if (enabledTiles.isNotEmpty()) enabledTiles else DEFAULT_TILES,
-                tileShape = tileShape,
-                tileSize = tileSize,
-                tileColumns = tileColumns,
-                onDismiss = { showTileEditor = false },
-                onSave = { updated ->
-                    onEnabledTilesChange(updated)
-                    showTileEditor = false
-                },
-            )
-        }
-
-        // =======================================================================
-        // 7. SYSTEM QUICK SETTINGS TILE
-        // =======================================================================
-        SectionHeader(title = "System Quick Settings Tile")
-
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(
-                modifier = Modifier.padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Quick Settings System Tile",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                        )
-                        Text(
-                            text = "Add a SuperShade tile to your device's native Quick Settings panel",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_notification_shade),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp),
-                        )
-                    }
-                }
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    OutlinedButton(
-                        onClick = {
-                            try {
-                                val sbm = context.getSystemService(android.app.StatusBarManager::class.java)
-                                val component = android.content.ComponentName(
-                                    context,
-                                    com.supershade.service.SuperShadeTileService::class.java,
-                                )
-                                sbm?.requestAddTileService(
-                                    component,
-                                    "SuperShade",
-                                    android.graphics.drawable.Icon.createWithResource(
-                                        context,
-                                        R.drawable.ic_notification_shade,
-                                    ),
-                                    context.mainExecutor,
-                                ) { _ -> }
-                            } catch (_: Exception) {}
-                        },
-                        shape = RoundedCornerShape(14.dp),
+                // Device Control & Media Mode (One UI 8.5/9 style)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Add Tile to Device Quick Settings")
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Device control & Media",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                            )
+                            Text(
+                                text = "When to show device/media output buttons",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        text = "Single-Tap Tile Action",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                    )
-                    val tileActions = listOf(
-                        QsTileTapAction.TOGGLE_ACTIVE to "Toggle Active",
-                        QsTileTapAction.OPEN_SHADE to "Open Shade",
-                        QsTileTapAction.SHOW_MENU to "Show Quick Menu",
-                    )
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        tileActions.forEachIndexed { index, (action, label) ->
-                            SegmentedButton(
-                                selected = qsTileTapAction == action,
-                                onClick = { onQsTileTapActionChange(action) },
-                                shape = SegmentedButtonDefaults.itemShape(index, tileActions.size),
-                                icon = {},
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        DeviceControlMode.entries.forEach { mode ->
+                            val isSelected = deviceControlMode == mode
+                            Surface(
+                                onClick = {
+                                    haptics?.sliderTick()
+                                    onDeviceControlModeChange(mode)
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSelected)
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.50f)
+                                else
+                                    MaterialTheme.colorScheme.surfaceContainerHigh,
+                                border = if (isSelected)
+                                    BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+                                else
+                                    BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                                modifier = Modifier.weight(1f),
                             ) {
-                                Text(label, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium))
+                                Text(
+                                    text = mode.label,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        fontSize = 10.sp,
+                                    ),
+                                    color = if (isSelected)
+                                        MaterialTheme.colorScheme.primary
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp, horizontal = 4.dp),
+                                )
                             }
                         }
                     }
                 }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
 
                 Surface(
                     shape = RoundedCornerShape(12.dp),
@@ -2213,7 +2169,7 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text(
-                            text = "💡 Tip: Long-press the SuperShade system tile anytime to instantly display the tile quick control menu.",
+                            text = "💡 Tip: Customize, reorder, and add tiles directly in SuperShade by tapping the edit pencil in the header.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -2221,9 +2177,151 @@ fun SettingsScreen(
                 }
             }
         }
+        // =======================================================================
+        // 6. NOTIFICATIONS
+        // =======================================================================
+        SectionHeader(
+            title = "Notifications",
+            badge = notificationDensity.label.substringBefore(" ("),
+        )
+
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                // Notification Density
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column {
+                        Text(
+                            text = "Notification Density",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        )
+                        Text(
+                            text = notificationDensity.subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    val densities = NotificationDensity.entries
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        densities.forEachIndexed { index, density ->
+                            SegmentedButton(
+                                selected = notificationDensity == density,
+                                onClick = { onNotificationDensityChange(density) },
+                                shape = SegmentedButtonDefaults.itemShape(index, densities.size),
+                                icon = {},
+                            ) {
+                                Text(
+                                    text = density.label.substringBefore(" ("),
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                )
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
+                // Sticky / Ongoing Notifications toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Hide Sticky Notifications",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        )
+                        Text(
+                            text = "Hide persistent background and ongoing system notifications from the feed",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = hideOngoingNotifications,
+                        onCheckedChange = { onHideOngoingNotificationsChange(it) },
+                    )
+                }
+
+                // Hidden Categories manager
+                if (hiddenChannels.isNotEmpty()) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Text(
+                                text = "Hidden Categories",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                            )
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                            ) {
+                                Text(
+                                    text = "${hiddenChannels.size}",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                )
+                            }
+                        }
+                        Text(
+                            text = "Categories hidden via long-press. Tap an item to restore.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            hiddenChannels.forEach { channelKey ->
+                                val displayLabel = channelKey.substringAfterLast("/")
+                                    .ifBlank { channelKey.substringBefore("/") }
+                                Surface(
+                                    onClick = { onUnhideChannel(channelKey) },
+                                    shape = RoundedCornerShape(50),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    border = getCardBorder(alpha = 0.35f),
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Visibility,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                        Text(
+                                            text = displayLabel,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // =======================================================================
-        // 8. ABOUT & UPDATES
+        // 7. ABOUT & UPDATES
         // =======================================================================
         var devTapCount by remember { mutableIntStateOf(0) }
 
@@ -2374,12 +2472,12 @@ fun SettingsScreen(
                             )
                             Column {
                                 Text(
-                                    text = "Experimental Features",
+                                    text = "Developer Diagnostics",
                                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.tertiary,
                                 )
                                 Text(
-                                    text = "Developer-only UI outline and border parameters",
+                                    text = "Runtime system information & active service telemetry",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -2388,32 +2486,27 @@ fun SettingsScreen(
 
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
 
-                        // Card Borders & Outlines
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                text = "Card Border Stroke Width",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                            )
-                            Text(
-                                text = "Customize the outline sharpness and border stroke around shade cards and tiles",
+                                text = "Device: ${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
-                            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                                CardBorderWidth.entries.forEachIndexed { index, width ->
-                                    SegmentedButton(
-                                        selected = cardBorderWidth == width,
-                                        onClick = { onCardBorderWidthChange(width) },
-                                        shape = SegmentedButtonDefaults.itemShape(index, CardBorderWidth.entries.size),
-                                        icon = {},
-                                    ) {
-                                        Text(
-                                            text = width.label,
-                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                                        )
-                                    }
-                                }
-                            }
+                            Text(
+                                text = "OS: Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = "Shizuku: ${if (shizukuOk) "Authorized & Active" else if (shizukuConnected) "Connected (Awaiting Perm)" else "Not Running"}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (shizukuOk) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                            )
+                            Text(
+                                text = "Accessibility Interceptor: ${if (accessibilityGranted) "Active" else "Disabled"}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (accessibilityGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                 }
@@ -2657,432 +2750,5 @@ private fun ColorPaletteSwatch(
             ),
             color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TileEditorSheet(
-    currentTiles: List<String>,
-    tileShape: TileShape = TileShape.SQUIRCLE,
-    tileSize: TileSize = TileSize.STANDARD,
-    tileColumns: TileGridColumns = TileGridColumns.STANDARD,
-    onDismiss: () -> Unit,
-    onSave: (List<String>) -> Unit,
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-    val haptics = remember(context) { com.supershade.haptics.SuperHaptics(context) }
-    var selectedTiles by remember(currentTiles) { mutableStateOf(currentTiles.toList()) }
-    var activeTab by remember { mutableIntStateOf(0) }
-
-    val allTileIds = remember {
-        val list = mutableListOf<String>()
-        DEFAULT_TILES.forEach { if (!list.contains(it)) list.add(it) }
-        KNOWN_TILES.keys.forEach { id ->
-            val cleanId = id.lowercase()
-            if (!list.contains(id) && !list.contains(cleanId)) list.add(id)
-        }
-        list.distinct()
-    }
-
-    val availableTiles = remember(selectedTiles) {
-        allTileIds.filter { !selectedTiles.contains(it) }
-    }
-
-    val previewCorner = when (tileShape) {
-        TileShape.SQUIRCLE -> RoundedCornerShape(16.dp)
-        TileShape.ROUNDED -> RoundedCornerShape(12.dp)
-        TileShape.CIRCLE -> CircleShape
-        TileShape.PILL -> RoundedCornerShape(20.dp)
-        TileShape.SOFT -> RoundedCornerShape(10.dp)
-        TileShape.LEAF -> RoundedCornerShape(topStart = 18.dp, bottomEnd = 18.dp, topEnd = 6.dp, bottomStart = 6.dp)
-        TileShape.SHARP -> RoundedCornerShape(4.dp)
-    }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .navigationBarsPadding()
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                    Text(
-                        text = "Customize Quick Tiles",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = "${selectedTiles.size} active in shade • ${tileColumns.count} columns (${tileSize.label})",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                TextButton(
-                    onClick = {
-                        haptics.sliderTick()
-                        selectedTiles = DEFAULT_TILES.toList()
-                    },
-                ) {
-                    Icon(Icons.Default.RestartAlt, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Reset")
-                }
-            }
-
-            // Live Mini-Preview of Quick Grid Top Row
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Text(
-                        text = "LIVE SHADE PREVIEW",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp,
-                            fontSize = 9.sp,
-                        ),
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        selectedTiles.forEachIndexed { index, tileId ->
-                            val label = KNOWN_TILES[tileId]?.first ?: tileId.replaceFirstChar { it.uppercase() }
-                            Surface(
-                                shape = previewCorner,
-                                color = if (index < tileColumns.count) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
-                                border = BorderStroke(
-                                    width = 1.dp,
-                                    color = if (index < tileColumns.count) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                                ),
-                                modifier = Modifier
-                                    .width(76.dp)
-                                    .height(52.dp),
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(6.dp),
-                                    verticalArrangement = Arrangement.SpaceBetween,
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                ) {
-                                    Icon(
-                                        imageVector = tileIcon(tileId, false, null),
-                                        contentDescription = null,
-                                        tint = if (index < tileColumns.count) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                    Text(
-                                        text = label,
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontSize = 8.5.sp,
-                                            lineHeight = 10.sp,
-                                            fontWeight = FontWeight.Medium,
-                                        ),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        color = if (index < tileColumns.count) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Tab Switcher: Active (Reorder) vs Add Available
-            val editorTabs = listOf("Active Tiles (${selectedTiles.size})", "Add Available (${availableTiles.size})")
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                editorTabs.forEachIndexed { index, title ->
-                    SegmentedButton(
-                        selected = activeTab == index,
-                        onClick = {
-                            haptics.lightTap()
-                            activeTab = index
-                        },
-                        shape = SegmentedButtonDefaults.itemShape(index, editorTabs.size),
-                        icon = {},
-                    ) {
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            }
-
-            // Scrollable Content
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(310.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                if (activeTab == 0) {
-                    if (selectedTiles.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(160.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = "No active tiles. Switch to 'Add Available' to add tiles.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    } else {
-                        selectedTiles.forEachIndexed { index, tileId ->
-                            val label = KNOWN_TILES[tileId]?.first ?: tileId.replaceFirstChar { it.uppercase() }
-                            Surface(
-                                shape = RoundedCornerShape(14.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                border = BorderStroke(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                                ),
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                        modifier = Modifier.weight(1f).padding(end = 6.dp),
-                                    ) {
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = MaterialTheme.colorScheme.primaryContainer,
-                                            modifier = Modifier.size(26.dp),
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Text(
-                                                    text = "${index + 1}",
-                                                    style = MaterialTheme.typography.labelSmall.copy(
-                                                        fontWeight = FontWeight.Bold,
-                                                        fontSize = 10.sp,
-                                                    ),
-                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                )
-                                            }
-                                        }
-
-                                        Icon(
-                                            imageVector = tileIcon(tileId, false, null),
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp),
-                                        )
-
-                                        Text(
-                                            text = label,
-                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    }
-
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                    ) {
-                                        IconButton(
-                                            onClick = {
-                                                if (index > 0) {
-                                                    haptics.sliderTick()
-                                                    val mutable = selectedTiles.toMutableList()
-                                                    val item = mutable.removeAt(index)
-                                                    mutable.add(index - 1, item)
-                                                    selectedTiles = mutable
-                                                }
-                                            },
-                                            enabled = index > 0,
-                                            modifier = Modifier.size(32.dp),
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.ArrowUpward,
-                                                contentDescription = "Move up",
-                                                modifier = Modifier.size(16.dp),
-                                            )
-                                        }
-
-                                        IconButton(
-                                            onClick = {
-                                                if (index < selectedTiles.size - 1) {
-                                                    haptics.sliderTick()
-                                                    val mutable = selectedTiles.toMutableList()
-                                                    val item = mutable.removeAt(index)
-                                                    mutable.add(index + 1, item)
-                                                    selectedTiles = mutable
-                                                }
-                                            },
-                                            enabled = index < selectedTiles.size - 1,
-                                            modifier = Modifier.size(32.dp),
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.ArrowDownward,
-                                                contentDescription = "Move down",
-                                                modifier = Modifier.size(16.dp),
-                                            )
-                                        }
-
-                                        IconButton(
-                                            onClick = {
-                                                haptics.tileToggleOff()
-                                                selectedTiles = selectedTiles - tileId
-                                            },
-                                            modifier = Modifier.size(32.dp),
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Remove",
-                                                tint = MaterialTheme.colorScheme.error,
-                                                modifier = Modifier.size(16.dp),
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    if (availableTiles.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(160.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = "All available tiles are active in the shade!",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    } else {
-                        availableTiles.forEach { tileId ->
-                            val label = KNOWN_TILES[tileId]?.first ?: tileId.replaceFirstChar { it.uppercase() }
-                            Surface(
-                                shape = RoundedCornerShape(14.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                                border = BorderStroke(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
-                                ),
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                        modifier = Modifier.weight(1f).padding(end = 6.dp),
-                                    ) {
-                                        Icon(
-                                            imageVector = tileIcon(tileId, false, null),
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(20.dp),
-                                        )
-
-                                        Text(
-                                            text = label,
-                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    }
-
-                                    FilledTonalButton(
-                                        onClick = {
-                                            haptics.tileToggleOn()
-                                            selectedTiles = selectedTiles + tileId
-                                        },
-                                        shape = RoundedCornerShape(12.dp),
-                                        modifier = Modifier.height(34.dp),
-                                    ) {
-                                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
-                                        Spacer(Modifier.width(4.dp))
-                                        Text("Add", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-
-            // Action buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        haptics.lightTap()
-                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
-                    },
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.weight(1f).height(48.dp),
-                ) {
-                    Text("Cancel")
-                }
-
-                Button(
-                    onClick = {
-                        haptics.sheetDetent()
-                        scope.launch { sheetState.hide() }.invokeOnCompletion { onSave(selectedTiles) }
-                    },
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.weight(1f).height(48.dp),
-                ) {
-                    Text("Apply (${selectedTiles.size} Tiles)")
-                }
-            }
-        }
     }
 }

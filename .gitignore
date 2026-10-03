@@ -17,3 +17,4 @@ app/supershade.keystore
 app/*.jks
 
 dist/
+.kotlin/

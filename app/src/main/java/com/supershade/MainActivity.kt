@@ -33,14 +33,12 @@ import com.supershade.domain.update.UpdateRepository
 import com.supershade.service.NotificationCollector
 import com.supershade.service.ShadeService
 import com.supershade.service.SuperShadeTileService
-import com.supershade.settings.QsTileTapAction
 import com.supershade.settings.ShadeSettings
 import com.supershade.shizuku.ShizukuPlusConnector
 import com.supershade.ui.settings.SettingsScreen
 import com.supershade.ui.theme.BackdropTheme
 import com.supershade.ui.theme.ShadeTheme
 import com.supershade.ui.theme.SuperShadeAppTheme
-import com.supershade.ui.tile.TilePreferencesActivity
 import com.supershade.ui.update.UpdateDialog
 import com.supershade.ui.update.WhatsNewSheet
 import com.supershade.viewmodel.ShadeViewModel
@@ -73,9 +71,9 @@ class MainActivity : ComponentActivity() {
             val accentColor by settings.accentColor.collectAsState(initial = com.supershade.settings.AccentColor.GALAXY_BLUE)
             val backdropTheme by settings.backdropTheme.collectAsState(initial = BackdropTheme.FROSTED_GLASS)
             val backdropOpacity by settings.backdropOpacity.collectAsState(initial = 0.78f)
+            val notificationDensity by settings.notificationDensity.collectAsState(initial = com.supershade.settings.NotificationDensity.BALANCED)
             val isActive by settings.isActive.collectAsState(initial = false)
             val blockSystemShade by settings.blockSystemShade.collectAsState(initial = true)
-            val qsTileTapAction by settings.qsTileTapAction.collectAsState(initial = QsTileTapAction.TOGGLE_ACTIVE)
             val tileShape by settings.tileShape.collectAsState(initial = com.supershade.settings.TileShape.SQUIRCLE)
             val tileSize by settings.tileSize.collectAsState(initial = com.supershade.settings.TileSize.STANDARD)
             val tileColumns by settings.tileColumns.collectAsState(initial = com.supershade.settings.TileGridColumns.STANDARD)
@@ -83,7 +81,9 @@ class MainActivity : ComponentActivity() {
             val splitGestureMode by settings.splitGestureMode.collectAsState(initial = com.supershade.settings.SplitGestureMode.SEPARATE_70_30)
             val showPanelSwitcherPill by settings.showPanelSwitcherPill.collectAsState(initial = false)
             val cardBorderWidth by settings.cardBorderWidth.collectAsState(initial = com.supershade.settings.CardBorderWidth.THIN)
-            val enabledTiles by settings.enabledTiles.collectAsState(initial = emptyList())
+            val hiddenChannels by settings.hiddenChannels.collectAsState(initial = emptySet())
+            val hideOngoingNotifications by settings.hideOngoingNotifications.collectAsState(initial = false)
+            val deviceControlMode by settings.deviceControlMode.collectAsState(initial = com.supershade.settings.DeviceControlMode.SHOW_WHEN_EXPANDED)
             val availableUpdate by updateRepo.availableUpdate.collectAsState()
             val isCheckingUpdate by updateRepo.isChecking.collectAsState()
             val showWhatsNew by updateRepo.showWhatsNew.collectAsState()
@@ -159,6 +159,21 @@ class MainActivity : ComponentActivity() {
                         selectedAccentColor = accentColor,
                         backdropTheme = backdropTheme,
                         backdropOpacity = backdropOpacity,
+                        notificationDensity = notificationDensity,
+                        onNotificationDensityChange = { newDensity ->
+                            superHaptics.sliderTick()
+                            scope.launch { settings.setNotificationDensity(newDensity) }
+                        },
+                        hiddenChannels = hiddenChannels,
+                        onUnhideChannel = { channelKey ->
+                            superHaptics.lightTap()
+                            scope.launch { settings.unhideChannel(channelKey) }
+                        },
+                        hideOngoingNotifications = hideOngoingNotifications,
+                        onHideOngoingNotificationsChange = { hide ->
+                            if (hide) superHaptics.tileToggleOn() else superHaptics.tileToggleOff()
+                            scope.launch { settings.setHideOngoingNotifications(hide) }
+                        },
                         darkThemeMode = darkThemeMode,
                         appVersion = BuildConfig.VERSION_NAME,
                         onToggleShade = { enabled ->
@@ -220,13 +235,13 @@ class MainActivity : ComponentActivity() {
                                         Uri.parse("package:$packageName"),
                                     )
                                 )
-                            } catch (_: Exception) {}
+                            } catch (e: Exception) {}
                         },
                         onGrantAccessibility = {
                             superHaptics.lightTap()
                             try {
                                 startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                            } catch (_: Exception) {}
+                            } catch (e: Exception) {}
                         },
                         onCheckUpdate = {
                             superHaptics.lightTap()
@@ -263,18 +278,6 @@ class MainActivity : ComponentActivity() {
                             shadeViewModel.open()
                             shadeWindowManager.show()
                         },
-                        qsTileTapAction = qsTileTapAction,
-                        onQsTileTapActionChange = { action ->
-                            superHaptics.sliderTick()
-                            scope.launch {
-                                settings.setQsTileTapAction(action)
-                                SuperShadeTileService.requestUpdate(this@MainActivity)
-                            }
-                        },
-                        onOpenTilePreferences = {
-                            superHaptics.sheetDetent()
-                            startActivity(Intent(this@MainActivity, TilePreferencesActivity::class.java))
-                        },
                         tileShape = tileShape,
                         onTileShapeChange = { shape ->
                             superHaptics.sliderTick()
@@ -295,11 +298,6 @@ class MainActivity : ComponentActivity() {
                             if (show) superHaptics.tileToggleOn() else superHaptics.tileToggleOff()
                             scope.launch { settings.setShowWideCards(show) }
                         },
-                        enabledTiles = enabledTiles,
-                        onEnabledTilesChange = { tiles ->
-                            superHaptics.sheetDetent()
-                            scope.launch { settings.setEnabledTiles(tiles) }
-                        },
                         splitGestureMode = splitGestureMode,
                         onSplitGestureModeChange = { mode ->
                             superHaptics.sliderTick()
@@ -314,6 +312,11 @@ class MainActivity : ComponentActivity() {
                         onCardBorderWidthChange = { width ->
                             superHaptics.sliderTick()
                             scope.launch { settings.setCardBorderWidth(width) }
+                        },
+                        deviceControlMode = deviceControlMode,
+                        onDeviceControlModeChange = { mode ->
+                            superHaptics.sliderTick()
+                            scope.launch { settings.setDeviceControlMode(mode) }
                         },
                         modifier = Modifier.padding(padding),
                     )

@@ -26,11 +26,25 @@ class SystemStatusRepository(private val context: Context) {
     private val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
 
     val batteryState: Flow<BatteryState> = callbackFlow {
+        fun queryCurrentBattery(): BatteryState {
+            val bm = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+            val level = bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
+            val isCharging = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                val status = bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS) ?: -1
+                status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+            } else false
+            val isPowerSave = powerManager?.isPowerSaveMode == true
+            return BatteryState(if (level in 0..100) level else 100, isCharging, isPowerSave)
+        }
+
         fun computeState(intent: Intent?): BatteryState {
-            val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-            val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-            val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-            val pct = if (level >= 0 && scale > 0) (level * 100 / scale) else 100
+            if (intent == null) return queryCurrentBattery()
+            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+            val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+            val pct = if (level >= 0 && scale > 0) (level * 100 / scale) else {
+                queryCurrentBattery().levelPct
+            }
             val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
                 status == BatteryManager.BATTERY_STATUS_FULL
             val isPowerSave = powerManager?.isPowerSaveMode == true
@@ -50,7 +64,17 @@ class SystemStatusRepository(private val context: Context) {
             addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
         }
 
-        val stickyIntent = context.registerReceiver(receiver, filter)
+        val stickyIntent = try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                context.registerReceiver(receiver, filter)
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("SystemStatusRepo", "Failed to register battery receiver; using direct query", e)
+            null
+        }
+
         trySend(computeState(stickyIntent))
 
         awaitClose {

@@ -59,6 +59,8 @@ class SuperShadeAccessibilityService : AccessibilityService() {
     private var touchCaptureView: View? = null
     @Volatile private var isSuperShadeActive = false
     @Volatile private var currentSplitGestureMode = com.supershade.settings.SplitGestureMode.SEPARATE_70_30
+    /** Epoch-ms of the last time SuperShade was opened via TYPE_WINDOWS_CHANGED; used to debounce false triggers. */
+    @Volatile private var lastShadeOpenTimeMs = 0L
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -95,7 +97,7 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                     }
                 } else {
                     detachAccessibilityTouchCapture()
-                    governor.enableExpansion()
+                    governor.restoreSystemStatusBar()
                 }
             }
             .launchIn(scope)
@@ -126,11 +128,13 @@ class SuperShadeAccessibilityService : AccessibilityService() {
 
         val statusBarHeightPx = run {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                val insets = wm.currentWindowMetrics.windowInsets.getInsetsIgnoringVisibility(
-                    android.view.WindowInsets.Type.statusBars()
-                )
-                val top = insets?.top ?: 0
-                if (top > 0) return@run top
+                try {
+                    val insets = wm.currentWindowMetrics.windowInsets.getInsetsIgnoringVisibility(
+                        android.view.WindowInsets.Type.statusBars()
+                    )
+                    val top = insets?.top ?: 0
+                    if (top > 0) return@run top
+                } catch (_: Throwable) {}
             }
             val resId = resources.getIdentifier("status_bar_height", "dimen", "android")
             val h = if (resId > 0) resources.getDimensionPixelSize(resId) else 0
@@ -163,7 +167,6 @@ class SuperShadeAccessibilityService : AccessibilityService() {
         val view = View(this).apply {
             setOnTouchListener { v, event ->
                 if (shadeViewModel.state.value.isOpen) return@setOnTouchListener false
-                val wmCurrent = windowManager ?: return@setOnTouchListener false
 
                 // Do not intercept touches when status bar is explicitly hidden in immersive mode
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -197,8 +200,7 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                             val mode = currentSplitGestureMode
 
                             val isCutoutDeadband = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                                val insets = wmCurrent.currentWindowMetrics.windowInsets
-                                val cutout = insets?.displayCutout
+                                val cutout = v.rootWindowInsets?.displayCutout
                                 val topRect = cutout?.boundingRectTop
                                 if (topRect != null && !topRect.isEmpty) {
                                     startX >= (topRect.left - 12 * density) && startX <= (topRect.right + 12 * density)
@@ -220,8 +222,6 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                         true
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        // Never trigger on ACTION_UP. If the drag didn't reach 28dp during
-                        // ACTION_MOVE, lifting the finger is a tap, NOT a shade pull gesture!
                         triggered = false
                         true
                     }
@@ -242,9 +242,11 @@ class SuperShadeAccessibilityService : AccessibilityService() {
     private fun detachAccessibilityTouchCapture() {
         touchCaptureView?.let { view ->
             try {
-                windowManager?.removeView(view)
-            } catch (e: Exception) {
-                android.util.Log.w("SuperShadeA11y", "Error removing touch window", e)
+                if (view.isAttachedToWindow) {
+                    windowManager?.removeViewImmediate(view)
+                }
+            } catch (t: Throwable) {
+                android.util.Log.w("SuperShadeA11y", "Error removing touch window", t)
             }
         }
         touchCaptureView = null
@@ -254,21 +256,30 @@ class SuperShadeAccessibilityService : AccessibilityService() {
         if (!isSuperShadeActive || event == null) return
 
         when (event.eventType) {
-            // Real system shade expansion updates the window list
+            // Real system shade expansion updates the window list.
+            // Guard: require isActive + layer >= 3 to avoid false positives from transient UI.
+            // Debounce: skip re-triggers within 2 s of a previous open.
             AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
                 if (shadeViewModel.state.value.isOpen) return
+                // Debounce: don't re-trigger if we just opened within 2 s
+                val now = System.currentTimeMillis()
+                if (now - lastShadeOpenTimeMs < 2000L) return
                 try {
-                    val currentWindows = windows
-                    val isSystemShadeVisible = currentWindows.any { w ->
-                        w.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_SYSTEM &&
-                            w.title?.toString() == "NotificationShade" &&
-                            (w.isActive || w.layer > 0)
+                    val windowList = try { windows } catch (t: Throwable) { null } ?: emptyList()
+                    val isSystemShadeVisible = windowList.any { w ->
+                        try {
+                            w.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_SYSTEM &&
+                                w.title?.toString() == "NotificationShade" &&
+                                w.isActive && // MUST be the active/focused window — not a background window
+                                w.layer >= 3  // Genuine shade panels are always at layer 3+
+                        } catch (t: Throwable) { false }
                     }
                     if (isSystemShadeVisible) {
+                        lastShadeOpenTimeMs = now
                         android.util.Log.d("SuperShadeA11y", "Intercepted native NotificationShade window expansion")
                         openSuperShade(expandQs = false)
                     }
-                } catch (_: Exception) {}
+                } catch (t: Throwable) {}
             }
 
             // Strictly filter TYPE_WINDOW_STATE_CHANGED to genuine shade controllers
@@ -301,6 +312,17 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                     openSuperShade(expandQs = false)
                 }
             }
+
+            // Fallback for Good Lock One Hand Operation+ (com.samsung.android.sidegesturepad).
+            // OHO+ may dispatch a view-click or gesture-detection event in the sidegesturepad
+            // process before the window list changes, giving us an earlier intercept point.
+            AccessibilityEvent.TYPE_VIEW_CLICKED, AccessibilityEvent.TYPE_GESTURE_DETECTION_START -> {
+                val pkg = event.packageName?.toString().orEmpty()
+                if (pkg == "com.samsung.android.sidegesturepad" && !shadeViewModel.state.value.isOpen) {
+                    android.util.Log.d("SuperShadeA11y", "OHO+ gesture/click event intercepted from $pkg")
+                    openSuperShade(expandQs = false)
+                }
+            }
         }
     }
 
@@ -312,9 +334,12 @@ class SuperShadeAccessibilityService : AccessibilityService() {
         // - 1003: Samsung One UI SEM_KEYCODE_EXPAND_NOTI_PANEL
         // - 1004: Samsung One UI SEM_KEYCODE_EXPAND_QUICK_PANEL
         // - 83:   KeyEvent.KEYCODE_NOTIFICATION (Stock AOSP notification panel key)
-        if (keyCode == 1003 || keyCode == 83) {
+        // - 217:  KEYCODE_MEDIA_CLOSE — used by some OHO+ variants on One UI 8
+        // - 0 w/ scanCode 766: Samsung custom scan code for notification panel (some OHO+ builds)
+        if (keyCode == 1003 || keyCode == 83 || keyCode == 217 ||
+            (keyCode == 0 && event.scanCode == 766)) {
             if (event.action == KeyEvent.ACTION_UP) {
-                android.util.Log.d("SuperShadeA11y", "Intercepted notification panel keyevent ($keyCode) from Good Lock / System")
+                android.util.Log.d("SuperShadeA11y", "Intercepted notification panel keyevent (keyCode=$keyCode scanCode=${event.scanCode}) from Good Lock / System")
                 openSuperShade(expandQs = false)
             }
             return true
@@ -390,7 +415,7 @@ class SuperShadeAccessibilityService : AccessibilityService() {
         super.onDestroy()
         detachAccessibilityTouchCapture()
         shadeWindowManager.hide()
-        governor.enableExpansionBlocking()
+        governor.restoreSystemStatusBarBlocking()
         scope.cancel()
         instance = null
     }

@@ -14,6 +14,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,6 +39,12 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -171,7 +179,7 @@ private fun AudioOutputChip(
     val context = LocalContext.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
     val audioManager = remember { context.getSystemService(AudioManager::class.java) }
-    val currentOutput = remember(audioManager, packageName) {
+    val (currentOutput, outputIcon) = remember(audioManager, packageName) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 val devices = audioManager?.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
@@ -182,12 +190,23 @@ private fun AudioOutputChip(
                     it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
                     it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES
                 }
-                btDevice?.productName?.toString() ?: "Phone Speaker"
+                if (btDevice != null) {
+                    val icon = when (btDevice.type) {
+                        AudioDeviceInfo.TYPE_WIRED_HEADSET,
+                        AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+                        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+                        AudioDeviceInfo.TYPE_BLE_HEADSET -> Icons.Default.Headphones
+                        else -> Icons.AutoMirrored.Filled.VolumeUp
+                    }
+                    (btDevice.productName?.toString() ?: "Bluetooth Audio") to icon
+                } else {
+                    "Phone Speaker" to Icons.AutoMirrored.Filled.VolumeUp
+                }
             } else {
-                "Phone Speaker"
+                "Phone Speaker" to Icons.AutoMirrored.Filled.VolumeUp
             }
         } catch (_: Exception) {
-            "Phone Speaker"
+            "Phone Speaker" to Icons.AutoMirrored.Filled.VolumeUp
         }
     }
 
@@ -219,7 +238,7 @@ private fun AudioOutputChip(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                imageVector = outputIcon,
                 contentDescription = null,
                 tint = Color.White,
                 modifier = Modifier.size(13.dp),
@@ -230,6 +249,12 @@ private fun AudioOutputChip(
                 color = Color.White,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+            )
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.70f),
+                modifier = Modifier.size(13.dp),
             )
         }
     }
@@ -242,6 +267,8 @@ fun MediaCard(
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
     onSeek: (Long) -> Unit = {},
+    mediaCollapsed: Boolean = false,
+    onToggleCollapse: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -280,8 +307,14 @@ fun MediaCard(
         }
     }
 
+    val surfaceColor = MaterialTheme.colorScheme.surfaceContainer
+    val animatedSurface by animateColorAsState(
+        targetValue = surfaceColor.copy(alpha = 0.52f),
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "MediaSurface",
+    )
     val animatedBg by animateColorAsState(
-        targetValue = dominantColor.copy(alpha = 0.95f),
+        targetValue = dominantColor.copy(alpha = 0.36f),
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "MediaBg",
     )
@@ -301,9 +334,10 @@ fun MediaCard(
             .padding(horizontal = 14.dp, vertical = 6.dp)
             .shadow(elevation = 4.dp, shape = shapes.card, clip = false)
             .clip(shapes.card)
+            .background(animatedSurface)
             .background(animatedBg)
             .then(
-                getCardBorder(alpha = 0.30f)?.let {
+                getCardBorder(alpha = 0.32f)?.let {
                     Modifier.border(it, shapes.card)
                 } ?: Modifier
             )
@@ -356,16 +390,108 @@ fun MediaCard(
                 )
         )
 
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+        if (mediaCollapsed) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (media.albumArt != null) {
+                    Image(
+                        bitmap = media.albumArt.asImageBitmap(),
+                        contentDescription = "Album art",
+                        modifier = Modifier
+                            .size(48.dp)
+                            .shadow(4.dp, shapes.chip)
+                            .clip(shapes.chip),
+                        contentScale = ContentScale.Crop,
+                    )
+                } else if (media.isRecording) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .shadow(4.dp, shapes.chip)
+                            .clip(shapes.chip)
+                            .background(Color(0xFFE53935).copy(alpha = 0.25f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Recording",
+                            tint = Color(0xFFFF5252),
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = media.title,
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (media.artist.isNotBlank()) {
+                        Text(
+                            text = media.artist,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.75f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(animatedAccent.copy(alpha = 0.9f).let { c ->
+                            if (c == fallbackColor) Color.White.copy(alpha = 0.9f) else c
+                        })
+                        .clickable {
+                            onPlayPause()
+                            if (!media.isPlaying) haptics.tileToggleOn() else haptics.tileToggleOff()
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = if (media.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (media.isPlaying) "Pause" else "Play",
+                        tint = Color.Black.copy(alpha = 0.85f),
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+
+                IconButton(
+                    onClick = {
+                        haptics.lightTap()
+                        onToggleCollapse()
+                    },
+                    modifier = Modifier.size(36.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ExpandMore,
+                        contentDescription = "Expand",
+                        tint = Color.White.copy(alpha = 0.85f),
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+            }
+        } else {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
             // Album art + title/artist + transport controls
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // Album art thumbnail with nice shadow
-                media.albumArt?.let { bitmap ->
+                if (media.albumArt != null) {
                     Image(
-                        bitmap = bitmap.asImageBitmap(),
+                        bitmap = media.albumArt.asImageBitmap(),
                         contentDescription = "Album art",
                         modifier = Modifier
                             .size(64.dp)
@@ -373,6 +499,23 @@ fun MediaCard(
                             .clip(shapes.chip),
                         contentScale = ContentScale.Crop,
                     )
+                    Spacer(Modifier.width(14.dp))
+                } else if (media.isRecording) {
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .shadow(8.dp, shapes.chip)
+                            .clip(shapes.chip)
+                            .background(Color(0xFFE53935).copy(alpha = 0.25f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Recording",
+                            tint = Color(0xFFFF5252),
+                            modifier = Modifier.size(32.dp),
+                        )
+                    }
                     Spacer(Modifier.width(14.dp))
                 }
 
@@ -452,6 +595,21 @@ fun MediaCard(
                                 .graphicsLayer { scaleX = likeScale; scaleY = likeScale },
                         )
                     }
+
+                    IconButton(
+                        onClick = {
+                            haptics.lightTap()
+                            onToggleCollapse()
+                        },
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ExpandLess,
+                            contentDescription = "Collapse",
+                            tint = Color.White.copy(alpha = 0.85f),
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
                 }
             }
 
@@ -463,33 +621,79 @@ fun MediaCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                // Skip previous
-                IconButton(
-                    onClick = {
-                        onSkipPrevious()
-                        haptics.sliderTick()
-                    },
-                    modifier = Modifier.size(44.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.SkipPrevious,
-                        contentDescription = "Previous",
-                        tint = Color.White.copy(alpha = 0.85f),
-                        modifier = Modifier.size(28.dp),
+                if (media.isRecording) {
+                    if (media.customStopAction != null) {
+                        IconButton(
+                            onClick = {
+                                media.customStopAction.invoke()
+                                haptics.tileToggleOff()
+                            },
+                            modifier = Modifier.size(44.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Stop,
+                                contentDescription = "Stop",
+                                tint = Color(0xFFFF5252),
+                                modifier = Modifier.size(30.dp),
+                            )
+                        }
+                    }
+                } else {
+                    // Skip previous
+                    val prevInteraction = remember { MutableInteractionSource() }
+                    val isPrevPressed by prevInteraction.collectIsPressedAsState()
+                    val prevScale by animateFloatAsState(
+                        targetValue = if (isPrevPressed) 0.85f else 1.0f,
+                        animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessHigh),
+                        label = "prevScale",
                     )
+                    IconButton(
+                        onClick = {
+                            onSkipPrevious()
+                            haptics.sliderTick()
+                        },
+                        interactionSource = prevInteraction,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .graphicsLayer { scaleX = prevScale; scaleY = prevScale },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SkipPrevious,
+                            contentDescription = "Previous",
+                            tint = Color.White.copy(alpha = 0.85f),
+                            modifier = Modifier.size(28.dp),
+                        )
+                    }
                 }
 
-                // Play/Pause — large filled circle button
+                // Play/Pause — large filled circle button with spring bounce
+                val playInteractionSource = remember { MutableInteractionSource() }
+                val isPlayPressed by playInteractionSource.collectIsPressedAsState()
+                val playButtonScale by animateFloatAsState(
+                    targetValue = if (isPlayPressed) 0.88f else 1.0f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessHigh,
+                    ),
+                    label = "playButtonScale",
+                )
                 Box(
                     modifier = Modifier
                         .size(56.dp)
+                        .graphicsLayer {
+                            scaleX = playButtonScale
+                            scaleY = playButtonScale
+                        }
                         .shadow(6.dp, CircleShape)
                         .clip(CircleShape)
                         .background(animatedAccent.copy(alpha = 0.9f).let { c ->
                             // Ensure it's bright enough against the dark bg
                             if (c == fallbackColor) Color.White.copy(alpha = 0.9f) else c
                         })
-                        .clickable {
+                        .clickable(
+                            interactionSource = playInteractionSource,
+                            indication = null,
+                        ) {
                             onPlayPause()
                             if (!media.isPlaying) haptics.tileToggleOn() else haptics.tileToggleOff()
                         },
@@ -503,20 +707,32 @@ fun MediaCard(
                     )
                 }
 
-                // Skip next
-                IconButton(
-                    onClick = {
-                        onSkipNext()
-                        haptics.sliderTick()
-                    },
-                    modifier = Modifier.size(44.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.SkipNext,
-                        contentDescription = "Next",
-                        tint = Color.White.copy(alpha = 0.85f),
-                        modifier = Modifier.size(28.dp),
+                if (!media.isRecording) {
+                    // Skip next
+                    val nextInteraction = remember { MutableInteractionSource() }
+                    val isNextPressed by nextInteraction.collectIsPressedAsState()
+                    val nextScale by animateFloatAsState(
+                        targetValue = if (isNextPressed) 0.85f else 1.0f,
+                        animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessHigh),
+                        label = "nextScale",
                     )
+                    IconButton(
+                        onClick = {
+                            onSkipNext()
+                            haptics.sliderTick()
+                        },
+                        interactionSource = nextInteraction,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .graphicsLayer { scaleX = nextScale; scaleY = nextScale },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SkipNext,
+                            contentDescription = "Next",
+                            tint = Color.White.copy(alpha = 0.85f),
+                            modifier = Modifier.size(28.dp),
+                        )
+                    }
                 }
             }
 
@@ -536,9 +752,18 @@ fun MediaCard(
 
                 Slider(
                     value = if (isSeeking) seekPreview else media.position.toFloat().coerceIn(0f, media.duration.toFloat()),
-                    onValueChange = { seekPreview = it; isSeeking = true },
+                    onValueChange = {
+                        val dur = media.duration.toFloat().coerceAtLeast(1f)
+                        val oldStep = (seekPreview / dur * 20).toInt()
+                        val newStep = (it / dur * 20).toInt()
+                        if (oldStep != newStep) {
+                            haptics.sliderTick()
+                        }
+                        seekPreview = it
+                        isSeeking = true
+                    },
                     onValueChangeFinished = {
-                        haptics.sliderTick()
+                        haptics.sheetDetent()
                         onSeek(seekPreview.toLong())
                         isSeeking = false
                     },
@@ -607,6 +832,7 @@ fun MediaCard(
                     )
                 }
             }
+        }
         }
     }
 }

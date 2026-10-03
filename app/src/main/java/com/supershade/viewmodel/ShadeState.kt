@@ -16,6 +16,9 @@ enum class TileDetailType {
     FLASHLIGHT,
     WIFI,
     BLUETOOTH,
+    SOUND_MODE,
+    DND,
+    HOTSPOT,
 }
 
 data class TileDetailState(
@@ -32,6 +35,18 @@ data class TileDetailState(
     val wifiRssi: Int = 0,
     val btDeviceName: String? = null,
     val btAudioConnected: Boolean = false,
+    val ringerMode: Int = 2, // AudioManager.RINGER_MODE_NORMAL
+    val mediaVol: Int = 0,
+    val mediaMaxVol: Int = 15,
+    val ringVol: Int = 0,
+    val ringMaxVol: Int = 15,
+    val notifVol: Int = 0,
+    val notifMaxVol: Int = 15,
+    val sysVol: Int = 0,
+    val sysMaxVol: Int = 15,
+    val dndDurationMinutes: Int = 0, // 0 = until turned off
+    val hotspotSsid: String? = null,
+    val hotspotBand: String? = null,
     val settingsAction: String? = null,
 )
 
@@ -60,10 +75,15 @@ data class ShadeState(
     val showWideCards: Boolean = true,
     val activeTileDetail: TileDetailState? = null,
     val cardBorderWidth: com.supershade.settings.CardBorderWidth = com.supershade.settings.CardBorderWidth.THIN,
-    val isQuickControlsTucked: Boolean = false,
     val activePanel: ShadePanel = ShadePanel.NOTIFICATIONS,
     val splitGestureMode: com.supershade.settings.SplitGestureMode = com.supershade.settings.SplitGestureMode.SEPARATE_70_30,
     val showPanelSwitcherPill: Boolean = false,
     val backdropTheme: com.supershade.ui.theme.BackdropTheme = com.supershade.ui.theme.BackdropTheme.FROSTED_GLASS,
     val backdropOpacity: Float = 0.78f,
-)
+    val notificationDensity: com.supershade.settings.NotificationDensity = com.supershade.settings.NotificationDensity.BALANCED,
+    val hiddenChannels: Set<String> = emptySet(),
+    val hideOngoingNotifications: Boolean = false,
+    val deviceControlMode: com.supershade.settings.DeviceControlMode = com.supershade.settings.DeviceControlMode.SHOW_WHEN_EXPANDED,
+) {
+    val isNotificationCompact: Boolean get() = notificationDensity == com.supershade.settings.NotificationDensity.COMPACT || tileSize == com.supershade.settings.TileSize.COMPACT
+}

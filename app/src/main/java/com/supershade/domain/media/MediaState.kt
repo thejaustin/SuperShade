@@ -10,5 +10,8 @@ data class MediaState(
     val isPlaying: Boolean,
     val packageName: String,
     val duration: Long = 0L,
-    val position: Long = 0L
+    val position: Long = 0L,
+    val isRecording: Boolean = false,
+    val customPlayPauseAction: (() -> Unit)? = null,
+    val customStopAction: (() -> Unit)? = null,
 )

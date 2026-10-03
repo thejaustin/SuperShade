@@ -29,14 +29,15 @@ class GestureOverlay(
     private val windowManager = context.getSystemService(WindowManager::class.java)
     private var overlayView: View? = null
 
-    // Top bezel strip: matches exact status bar height, avoiding overlap with top app bars
     private val captureHeight = run {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            val insets = windowManager?.currentWindowMetrics?.windowInsets?.getInsetsIgnoringVisibility(
-                android.view.WindowInsets.Type.statusBars()
-            )
-            val top = insets?.top ?: 0
-            if (top > 0) return@run top
+            try {
+                val insets = windowManager?.currentWindowMetrics?.windowInsets?.getInsetsIgnoringVisibility(
+                    android.view.WindowInsets.Type.statusBars()
+                )
+                val top = insets?.top ?: 0
+                if (top > 0) return@run top
+            } catch (_: Throwable) {}
         }
         val resId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
         val h = if (resId > 0) context.resources.getDimensionPixelSize(resId) else 0
@@ -106,8 +107,7 @@ class GestureOverlay(
                             val mode = splitGestureMode()
 
                             val isCutoutDeadband = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                                val insets = wmCurrent.currentWindowMetrics.windowInsets
-                                val cutout = insets?.displayCutout
+                                val cutout = v.rootWindowInsets?.displayCutout
                                 val topRect = cutout?.boundingRectTop
                                 if (topRect != null && !topRect.isEmpty) {
                                     val d = context.resources.displayMetrics.density
@@ -146,8 +146,10 @@ class GestureOverlay(
     fun detach() {
         overlayView?.let { view ->
             try {
-                windowManager.removeView(view)
-            } catch (_: Exception) {}
+                if (view.isAttachedToWindow) {
+                    windowManager?.removeViewImmediate(view)
+                }
+            } catch (_: Throwable) {}
         }
         overlayView = null
     }

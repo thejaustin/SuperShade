@@ -151,6 +151,18 @@ private fun CategoryChip(
         label = "chipScale",
     )
 
+    val iconRotation by animateFloatAsState(
+        targetValue = if (isSelected) 0f else -8f,
+        animationSpec = spring(dampingRatio = 0.65f, stiffness = 800f),
+        label = "chipIconRotation",
+    )
+
+    val badgeScale by animateFloatAsState(
+        targetValue = if (count > 0) 1f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessHigh),
+        label = "chipBadgeScale",
+    )
+
     val border = if (isSelected) null else getCardBorder(alpha = 0.35f)
 
     Surface(
@@ -173,7 +185,9 @@ private fun CategoryChip(
                 imageVector = category.icon(),
                 contentDescription = null,
                 tint = labelColor,
-                modifier = Modifier.size(15.dp),
+                modifier = Modifier
+                    .size(15.dp)
+                    .graphicsLayer { rotationZ = iconRotation },
             )
             Text(
                 text = category.label,
@@ -187,6 +201,10 @@ private fun CategoryChip(
                     shape = CircleShape,
                     color = if (isSelected) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.22f)
                     else MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.graphicsLayer {
+                        scaleX = badgeScale
+                        scaleY = badgeScale
+                    },
                 ) {
                     Text(
                         text = count.toString(),

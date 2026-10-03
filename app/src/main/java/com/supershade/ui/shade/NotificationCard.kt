@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,9 +31,17 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Snooze
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -55,6 +65,7 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -90,6 +101,8 @@ fun NotificationCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
     onSnooze: ((Long) -> Unit)? = null,
+    onHideChannel: (pkg: String, channelId: String) -> Unit = { _, _ -> },
+    compact: Boolean = false,
 ) {
     val context = LocalContext.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { com.supershade.haptics.SuperHaptics(context) }
@@ -167,76 +180,125 @@ fun NotificationCard(
         positionalThreshold = { totalDistance -> totalDistance * 0.35f },
     )
 
+    val dragProgress = kotlin.math.abs(dismissState.progress).coerceIn(0f, 1f)
+    val isPastDismissThreshold = dragProgress >= 0.35f
+    var hasTickedThreshold by remember { mutableStateOf(false) }
+    LaunchedEffect(isPastDismissThreshold) {
+        if (isPastDismissThreshold && !hasTickedThreshold) {
+            haptics.sheetDetent()
+            hasTickedThreshold = true
+        } else if (!isPastDismissThreshold && dragProgress < 0.20f) {
+            hasTickedThreshold = false
+        }
+    }
+
     SwipeToDismissBox(
         state = dismissState,
         backgroundContent = {
             val direction = dismissState.dismissDirection
             val isSnooze = direction == SwipeToDismissBoxValue.StartToEnd
             val alignment = if (isSnooze) Alignment.CenterStart else Alignment.CenterEnd
-            val progress = kotlin.math.abs(dismissState.progress).coerceIn(0f, 1f)
-            val iconScale = (0.7f + progress * 0.45f).coerceIn(0.7f, 1.15f)
-            val bgAlpha = (progress * 1.5f).coerceIn(0.25f, 1f)
-            val backgroundColor = if (isSnooze) {
-                Color(0xFFFFA000).copy(alpha = bgAlpha)
+            val progress = dragProgress
+
+            val badgeScale by animateFloatAsState(
+                targetValue = if (isPastDismissThreshold) 1.08f else (0.80f + progress * 0.40f).coerceIn(0.80f, 1.0f),
+                animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
+                label = "swipeBadgeScale",
+            )
+            val iconRotation by animateFloatAsState(
+                targetValue = if (isPastDismissThreshold) 0f else if (isSnooze) -15f else 12f,
+                animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
+                label = "swipeIconRotation",
+            )
+
+            val trackBgColor = if (isSnooze) {
+                Color(0xFFFFA000).copy(alpha = (progress * 0.35f).coerceIn(0.08f, 0.40f))
             } else {
-                MaterialTheme.colorScheme.error.copy(alpha = bgAlpha)
+                Color(0xFFE53935).copy(alpha = (progress * 0.35f).coerceIn(0.08f, 0.40f))
             }
+
+            val badgeColor = if (isSnooze) {
+                if (isPastDismissThreshold) Color(0xFFFFA000) else Color(0xFFFFA000).copy(alpha = 0.85f)
+            } else {
+                if (isPastDismissThreshold) Color(0xFFE53935) else Color(0xFFE53935).copy(alpha = 0.85f)
+            }
+
             val icon = if (isSnooze) Icons.Default.Snooze else Icons.Default.Delete
             val label = if (isSnooze) "Snooze 1h" else "Dismiss"
 
+            val iconSlideOffset by animateDpAsState(
+                targetValue = if (isSnooze) {
+                    ((progress.coerceIn(0f, 0.35f) / 0.35f - 1f) * 16f).dp
+                } else {
+                    ((1f - progress.coerceIn(0f, 0.35f) / 0.35f) * 16f).dp
+                },
+                animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
+                label = "swipeIconSlide",
+            )
+
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight()
+                    .fillMaxSize()
                     .clip(shapes.card)
-                    .background(backgroundColor),
+                    .background(trackBgColor),
                 contentAlignment = alignment,
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = badgeColor,
+                    shadowElevation = if (isPastDismissThreshold) 6.dp else 1.dp,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .offset(x = iconSlideOffset)
+                        .graphicsLayer {
+                            scaleX = badgeScale
+                            scaleY = badgeScale
+                        },
                 ) {
-                    if (isSnooze) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = label,
-                            tint = Color.White,
-                            modifier = Modifier.graphicsLayer {
-                                scaleX = iconScale
-                                scaleY = iconScale
-                            },
-                        )
-                        if (progress > 0.40f) {
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
-                                ),
-                                color = Color.White,
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        if (isSnooze) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = label,
+                                tint = Color.White,
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .graphicsLayer { rotationZ = iconRotation },
+                            )
+                            if (progress > 0.25f) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.5.sp,
+                                    ),
+                                    color = Color.White,
+                                )
+                            }
+                        } else {
+                            if (progress > 0.25f) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.5.sp,
+                                    ),
+                                    color = Color.White,
+                                )
+                            }
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = label,
+                                tint = Color.White,
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .graphicsLayer { rotationZ = iconRotation },
                             )
                         }
-                    } else {
-                        if (progress > 0.40f) {
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
-                                ),
-                                color = Color.White,
-                            )
-                        }
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = label,
-                            tint = Color.White,
-                            modifier = Modifier.graphicsLayer {
-                                scaleX = iconScale
-                                scaleY = iconScale
-                            },
-                        )
                     }
                 }
             }
@@ -245,15 +307,26 @@ fun NotificationCard(
         enableDismissFromEndToStart = notification.isClearable,
         modifier = modifier.fillMaxWidth(),
     ) {
+        val cardScale = (1.0f - dragProgress * 0.04f).coerceIn(0.95f, 1.0f)
+        val cardAlpha = if (dragProgress > 0.75f) (1f - (dragProgress - 0.75f) * 2.5f).coerceIn(0.4f, 1.0f) else 1.0f
+        val cardElevation = (dragProgress * 8f).dp
+        val dynamicCardShape = RoundedCornerShape((20f + dragProgress * 8f).coerceIn(20f, 28f).dp)
+
         Card(
-            shape = shapes.card,
+            shape = dynamicCardShape,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
             ),
+            elevation = CardDefaults.cardElevation(defaultElevation = cardElevation),
             border = getCardBorder(alpha = 0.25f),
             modifier = Modifier
                 .fillMaxWidth()
                 .animateContentSize()
+                .graphicsLayer {
+                    scaleX = cardScale
+                    scaleY = cardScale
+                    alpha = cardAlpha
+                }
                 .combinedClickable(
                     interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                     indication = LocalIndication.current,
@@ -267,18 +340,25 @@ fun NotificationCard(
                     },
                 ),
         ) {
-            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-                // One UI 8 notification row: Left 38dp icon badge + right content column
+            val hPadding = if (compact) 10.dp else 14.dp
+            val vPadding = if (compact) 6.dp else 12.dp
+            val iconBoxSize = if (compact) 30.dp else 38.dp
+            val iconRadius = if (compact) 8.dp else 12.dp
+            val iconImgSize = if (compact) 26.dp else 34.dp
+            val columnSpacing = if (compact) 9.dp else 12.dp
+
+            Column(modifier = Modifier.padding(horizontal = hPadding, vertical = vPadding)) {
+                // One UI 8 notification row: Left icon badge + right content column
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(columnSpacing),
                     verticalAlignment = Alignment.Top,
                 ) {
-                    // Prominent 38dp app icon / avatar container
+                    // App icon / avatar container
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(12.dp)),
+                            .size(iconBoxSize)
+                            .clip(RoundedCornerShape(iconRadius)),
                         contentAlignment = Alignment.Center,
                     ) {
                         when {
@@ -287,22 +367,23 @@ fun NotificationCard(
                                     bitmap = largeIconBitmap!!,
                                     contentDescription = null,
                                     contentScale = ContentScale.Crop,
-                                    modifier = Modifier.size(38.dp),
+                                    modifier = Modifier.size(iconBoxSize),
                                 )
                                 if (appIconBitmap != null) {
                                     Box(
                                         modifier = Modifier
                                             .align(Alignment.BottomEnd)
-                                            .size(16.dp)
+                                            .size(if (compact) 14.dp else 18.dp)
                                             .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.surfaceContainer),
+                                            .background(MaterialTheme.colorScheme.surfaceContainer)
+                                            .padding(2.dp),
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         Image(
                                             bitmap = appIconBitmap!!,
                                             contentDescription = null,
                                             modifier = Modifier
-                                                .size(12.dp)
+                                                .fillMaxSize()
                                                 .clip(CircleShape),
                                         )
                                     }
@@ -314,21 +395,24 @@ fun NotificationCard(
                                     contentDescription = null,
                                     contentScale = ContentScale.Fit,
                                     modifier = Modifier
-                                        .size(34.dp)
-                                        .clip(RoundedCornerShape(8.dp)),
+                                        .size(iconImgSize)
+                                        .clip(RoundedCornerShape(if (compact) 6.dp else 8.dp)),
                                 )
                             }
                             else -> {
                                 Box(
                                     modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(RoundedCornerShape(12.dp))
+                                        .size(iconBoxSize)
+                                        .clip(RoundedCornerShape(iconRadius))
                                         .background(MaterialTheme.colorScheme.primaryContainer),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Text(
                                         text = appName.take(1).uppercase(),
-                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        style = if (compact)
+                                            MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                                        else
+                                            MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     )
                                 }
@@ -345,34 +429,50 @@ fun NotificationCard(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                horizontalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 5.dp),
                                 modifier = Modifier.weight(1f, fill = false),
                             ) {
                                 Text(
                                     text = if (notification.isConversation && notification.conversationTitle != null)
                                         "$appName · ${notification.conversationTitle}"
                                     else appName,
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    style = if (compact)
+                                        MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
+                                    else
+                                        MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
                                     text = "·",
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = if (compact) 10.sp else 11.sp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                                 )
                                 Text(
                                     text = postTimeLabel,
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = if (compact) 10.sp else 11.sp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                                 )
+                                if (notification.isOngoing) {
+                                    Icon(
+                                        imageVector = Icons.Default.PushPin,
+                                        contentDescription = "Ongoing",
+                                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.70f),
+                                        modifier = Modifier.size(if (compact) 9.dp else 11.dp),
+                                    )
+                                }
                             }
 
-                            val canExpand = notification.actions.isNotEmpty() || notification.picture != null
+                            val canExpand = notification.actions.isNotEmpty() || notification.picture != null || displayText.length > 50
+                            val chevronRotation by animateFloatAsState(
+                                targetValue = if (expanded) 180f else 0f,
+                                animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
+                                label = "chevronRotation",
+                            )
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(if (compact) 0.dp else 2.dp),
                             ) {
                                 if (onSnooze != null) {
                                     IconButton(
@@ -380,13 +480,13 @@ fun NotificationCard(
                                             haptics.lightTap()
                                             showSettingsMenu = true
                                         },
-                                        modifier = Modifier.size(38.dp),
+                                        modifier = Modifier.size(if (compact) 28.dp else 38.dp),
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Snooze,
                                             contentDescription = "Snooze notification",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.70f),
-                                            modifier = Modifier.size(18.dp),
+                                            modifier = Modifier.size(if (compact) 15.dp else 18.dp),
                                         )
                                     }
                                 }
@@ -396,38 +496,90 @@ fun NotificationCard(
                                             haptics.lightTap()
                                             expanded = !expanded
                                         },
-                                        modifier = Modifier.size(38.dp),
+                                        modifier = Modifier.size(if (compact) 28.dp else 36.dp),
                                     ) {
                                         Icon(
-                                            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                            imageVector = Icons.Default.KeyboardArrowDown,
                                             contentDescription = if (expanded) "Collapse notification details" else "Expand notification details",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(22.dp),
+                                            modifier = Modifier
+                                                .size(if (compact) 18.dp else 22.dp)
+                                                .graphicsLayer { rotationZ = chevronRotation },
                                         )
                                     }
                                 }
                             }
                         }
 
-                        Spacer(Modifier.height(2.dp))
-
-                        Text(
-                            text = displayTitle,
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-
-                        if (displayText.isNotBlank()) {
+                        if (!compact) {
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                text = displayText,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = if (expanded) Int.MAX_VALUE else 3,
+                                text = displayTitle,
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
+                            if (displayText.isNotBlank()) {
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    text = displayText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = if (expanded) Int.MAX_VALUE else 3,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        } else {
+                            // Compact mode: ultra-sleek layout fitting more context in minimal height
+                            if (!expanded && displayText.isNotBlank()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 1.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Text(
+                                        text = displayTitle,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 12.sp,
+                                        ),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false),
+                                    )
+                                    Text(
+                                        text = "— $displayText",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = displayTitle,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 12.sp,
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(top = 1.dp),
+                                )
+                                if (expanded && displayText.isNotBlank()) {
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = displayText,
+                                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = Int.MAX_VALUE,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -476,11 +628,33 @@ fun NotificationCard(
                             } catch (_: Exception) {}
                         },
                     )
+                    if (notification.isOngoing) {
+                        DropdownMenuItem(
+                            text = { Text("Hide sticky notification", style = MaterialTheme.typography.bodyMedium) },
+                            leadingIcon = {
+                                Icon(Icons.Default.VisibilityOff, contentDescription = null, modifier = Modifier.size(20.dp))
+                            },
+                            onClick = {
+                                showSettingsMenu = false
+                                onHideChannel(notification.packageName, notification.channelId ?: "sticky")
+                            },
+                        )
+                    }
                     if (notification.channelId != null) {
                         DropdownMenuItem(
                             text = { Text("Turn off notifications", style = MaterialTheme.typography.bodyMedium) },
                             leadingIcon = {
                                 Icon(Icons.Default.NotificationsOff, contentDescription = null, modifier = Modifier.size(20.dp))
+                            },
+                            onClick = {
+                                showSettingsMenu = false
+                                onHideChannel(notification.packageName, notification.channelId)
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Open notification settings →", style = MaterialTheme.typography.bodyMedium) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(20.dp))
                             },
                             onClick = {
                                 showSettingsMenu = false
@@ -492,6 +666,17 @@ fun NotificationCard(
                                     }
                                     context.startActivity(intent)
                                 } catch (_: Exception) {}
+                            },
+                        )
+                    } else if (!notification.isOngoing) {
+                        DropdownMenuItem(
+                            text = { Text("Turn off notifications from app", style = MaterialTheme.typography.bodyMedium) },
+                            leadingIcon = {
+                                Icon(Icons.Default.NotificationsOff, contentDescription = null, modifier = Modifier.size(20.dp))
+                            },
+                            onClick = {
+                                showSettingsMenu = false
+                                onHideChannel(notification.packageName, "default")
                             },
                         )
                     }
@@ -541,6 +726,14 @@ fun NotificationCard(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         notification.actions.take(3).forEach { action ->
+                            val actionInteraction = remember { MutableInteractionSource() }
+                            val isActionPressed by actionInteraction.collectIsPressedAsState()
+                            val actionScale by animateFloatAsState(
+                                targetValue = if (isActionPressed) 0.94f else 1.0f,
+                                animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
+                                label = "actionScale",
+                            )
+
                             Surface(
                                 onClick = {
                                     haptics.lightTap()
@@ -550,12 +743,17 @@ fun NotificationCard(
                                         try { action.pendingIntent?.send() } catch (_: Exception) {}
                                     }
                                 },
+                                interactionSource = actionInteraction,
                                 shape = shapes.chip,
                                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 border = getCardBorder(alpha = 0.35f),
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(38.dp),
+                                    .height(if (compact) 30.dp else 38.dp)
+                                    .graphicsLayer {
+                                        scaleX = actionScale
+                                        scaleY = actionScale
+                                    },
                             ) {
                                 Box(
                                     contentAlignment = Alignment.Center,

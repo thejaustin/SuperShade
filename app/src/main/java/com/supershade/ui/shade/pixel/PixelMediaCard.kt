@@ -9,7 +9,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,11 +27,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -75,12 +83,17 @@ fun PixelMediaCard(
     onSkipPrevious: () -> Unit,
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    mediaCollapsed: Boolean = false,
+    onToggleCollapse: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
 
     val duration = media.duration.coerceAtLeast(1L)
     val progressFraction = (media.position.toFloat() / duration).coerceIn(0f, 1f)
+    var isSeeking by remember { mutableStateOf(false) }
+    var seekFraction by remember { mutableFloatStateOf(0f) }
+    val effectiveFraction = if (isSeeking) seekFraction else progressFraction
 
     val infiniteTransition = rememberInfiniteTransition(label = "wavySeekbar")
     val wavePhase by infiniteTransition.animateFloat(
@@ -127,6 +140,13 @@ fun PixelMediaCard(
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.size(56.dp),
                         )
+                    } else if (media.isRecording) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Recording",
+                            tint = Color(0xFFFF5252),
+                            modifier = Modifier.size(28.dp),
+                        )
                     } else {
                         Icon(
                             imageVector = Icons.Default.MusicNote,
@@ -169,6 +189,24 @@ fun PixelMediaCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
+                if (media.isRecording) {
+                    if (media.customStopAction != null) {
+                        IconButton(
+                            onClick = {
+                                haptics.tileToggleOff()
+                                media.customStopAction.invoke()
+                            },
+                            modifier = Modifier.size(36.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Stop,
+                                contentDescription = "Stop",
+                                tint = Color(0xFFFF5252),
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+                    }
+                } else {
                     IconButton(
                         onClick = {
                             haptics.lightTap()
@@ -183,27 +221,29 @@ fun PixelMediaCard(
                             modifier = Modifier.size(20.dp),
                         )
                     }
+                }
 
-                    // Play/Pause circular button
-                    Surface(
-                        onClick = {
-                            haptics.sheetDetent()
-                            onPlayPause()
-                        },
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(44.dp),
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = if (media.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (media.isPlaying) "Pause" else "Play",
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(24.dp),
-                            )
-                        }
+                // Play/Pause circular button
+                Surface(
+                    onClick = {
+                        haptics.sheetDetent()
+                        onPlayPause()
+                    },
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(44.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (media.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (media.isPlaying) "Pause" else "Play",
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(24.dp),
+                        )
                     }
+                }
 
+                if (!media.isRecording) {
                     IconButton(
                         onClick = {
                             haptics.lightTap()
@@ -219,6 +259,7 @@ fun PixelMediaCard(
                         )
                     }
                 }
+                }
             }
 
             // Material You Squiggly Wavy Seekbar
@@ -229,11 +270,32 @@ fun PixelMediaCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .pointerInput(media.duration) {
-                        detectTapGestures { offset ->
-                            val newFraction = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
-                            val targetMs = (newFraction * duration).toLong()
-                            haptics.lightTap()
-                            onSeek(targetMs)
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val w = size.width.toFloat().coerceAtLeast(1f)
+                            isSeeking = true
+                            seekFraction = (down.position.x / w).coerceIn(0f, 1f)
+                            haptics.sliderTick()
+                            var lastStep = (seekFraction * 20).toInt()
+
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                if (!change.pressed) {
+                                    val finalMs = (seekFraction * duration).toLong()
+                                    haptics.sheetDetent()
+                                    onSeek(finalMs)
+                                    isSeeking = false
+                                    break
+                                }
+                                change.consume()
+                                seekFraction = (change.position.x / w).coerceIn(0f, 1f)
+                                val step = (seekFraction * 20).toInt()
+                                if (step != lastStep) {
+                                    haptics.sliderTick()
+                                    lastStep = step
+                                }
+                            }
                         }
                     },
             ) {
@@ -245,7 +307,7 @@ fun PixelMediaCard(
                     val w = size.width
                     val h = size.height
                     val centerY = h / 2f
-                    val activeEnd = w * progressFraction
+                    val activeEnd = w * effectiveFraction
 
                     // Draw Unplayed Track (straight line)
                     if (activeEnd < w) {
@@ -290,12 +352,13 @@ fun PixelMediaCard(
                 }
 
                 // Time indicators
+                val currentMs = if (isSeeking) (seekFraction * duration).toLong() else media.position
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
-                        text = formatTime(media.position),
+                        text = formatTime(currentMs),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

@@ -102,7 +102,10 @@ import com.supershade.domain.notification.NotificationRepository
 import com.supershade.domain.notification.model.NotificationAction
 import com.supershade.domain.notification.model.ShadeNotification
 import com.supershade.settings.ShadeSettings
+import com.supershade.ui.theme.CyberpunkShadeTheme
 import com.supershade.ui.theme.DarkThemeMode
+import com.supershade.ui.theme.LocalShadeTheme
+import com.supershade.ui.theme.NothingShadeTheme
 import com.supershade.ui.theme.OneUiShadeTheme
 import com.supershade.ui.theme.PixelShadeTheme
 import com.supershade.ui.theme.PureMaterialShadeTheme
@@ -190,11 +193,28 @@ class HeadsUpOverlay(
                                 content = content,
                             )
                         }
+                        ShadeTheme.Nothing -> { content ->
+                            NothingShadeTheme(
+                                isAmoled = isAmoled,
+                                darkThemeMode = activeDarkMode,
+                                content = content,
+                            )
+                        }
+                        ShadeTheme.Cyberpunk -> { content ->
+                            CyberpunkShadeTheme(
+                                isAmoled = isAmoled,
+                                darkThemeMode = activeDarkMode,
+                                content = content,
+                            )
+                        }
                         else -> { content -> OneUiShadeTheme(isAmoled = isAmoled, content = content) }
                     }
 
                     val superHaptics = remember { SuperHaptics(context) }
-                    CompositionLocalProvider(LocalSuperHaptics provides superHaptics) {
+                    CompositionLocalProvider(
+                        LocalShadeTheme provides activeTheme,
+                        LocalSuperHaptics provides superHaptics,
+                    ) {
                         themeWrapper {
                             HeadsUpCard(
                                 notification = notification,

@@ -9,10 +9,10 @@ import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.supershade.R
+import com.supershade.MainActivity
 import com.supershade.settings.QsTileTapAction
 import com.supershade.settings.ShadeSettings
 import com.supershade.shizuku.StatusBarGovernor
-import com.supershade.ui.tile.TilePreferencesActivity
 import com.supershade.viewmodel.ShadeViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,9 +26,9 @@ import org.koin.android.ext.android.inject
  * System Quick Settings Tile for SuperShade.
  *
  * Supports:
- * - Direct single-tap toggle (Enable / Disable) or instant pull-down expansion or quick menu.
+ * - Direct single-tap toggle (Enable / Disable) or instant pull-down expansion.
  * - Customization via [ShadeSettings.qsTileTapAction].
- * - Long-press tile preferences via [TilePreferencesActivity].
+ * - Long-press opens SuperShade settings via [MainActivity].
  */
 class SuperShadeTileService : TileService() {
 
@@ -73,15 +73,12 @@ class SuperShadeTileService : TileService() {
                     }
                     updateTileState()
                 }
-                QsTileTapAction.OPEN_SHADE -> {
+                QsTileTapAction.OPEN_SHADE, QsTileTapAction.SHOW_MENU -> {
                     if (!isActive) {
                         settings.setActive(true)
                         toggleShadeService(true)
                     }
                     collapseSystemShadeAndOpenSuperShade()
-                }
-                QsTileTapAction.SHOW_MENU -> {
-                    openChoicesMenu()
                 }
             }
         }
@@ -108,7 +105,7 @@ class SuperShadeTileService : TileService() {
     }
 
     private fun openChoicesMenu() {
-        val intent = Intent(this, TilePreferencesActivity::class.java).apply {
+        val intent = Intent(this, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -137,7 +134,6 @@ class SuperShadeTileService : TileService() {
                 tile.subtitle = when {
                     !active -> "Disabled"
                     tapAction == QsTileTapAction.OPEN_SHADE -> "Tap to Open"
-                    tapAction == QsTileTapAction.SHOW_MENU -> "Tap for Menu"
                     else -> "Active"
                 }
             }

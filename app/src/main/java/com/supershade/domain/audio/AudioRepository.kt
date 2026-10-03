@@ -50,7 +50,15 @@ class AudioRepository(private val context: Context) {
             addAction(AudioManager.RINGER_MODE_CHANGED_ACTION)
         }
 
-        context.registerReceiver(receiver, filter)
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                context.registerReceiver(receiver, filter)
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("AudioRepo", "Failed to register volume receiver", e)
+        }
 
         awaitClose {
             try {
@@ -73,7 +81,15 @@ class AudioRepository(private val context: Context) {
         }
 
         val filter = IntentFilter(AudioManager.RINGER_MODE_CHANGED_ACTION)
-        context.registerReceiver(receiver, filter)
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                context.registerReceiver(receiver, filter)
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("AudioRepo", "Failed to register ringer receiver", e)
+        }
 
         awaitClose {
             try {
@@ -120,5 +136,40 @@ class AudioRepository(private val context: Context) {
         return audioManager.ringerMode
     }
 
+    fun setRingerMode(mode: Int): Int {
+        val hasDndAccess = notificationManager?.isNotificationPolicyAccessGranted == true
+        val targetMode = if (mode == AudioManager.RINGER_MODE_SILENT && !hasDndAccess) {
+            AudioManager.RINGER_MODE_VIBRATE
+        } else {
+            mode
+        }
+        try {
+            audioManager.ringerMode = targetMode
+        } catch (_: Exception) {
+            try {
+                audioManager.ringerMode = AudioManager.RINGER_MODE_NORMAL
+            } catch (_: Exception) {}
+        }
+        return audioManager.ringerMode
+    }
+
     fun getCurrentRingerMode(): Int = audioManager.ringerMode
+
+    fun getStreamVolume(stream: Int): Int = try {
+        audioManager.getStreamVolume(stream)
+    } catch (_: Exception) {
+        0
+    }
+
+    fun getStreamMaxVolume(stream: Int): Int = try {
+        audioManager.getStreamMaxVolume(stream)
+    } catch (_: Exception) {
+        15
+    }
+
+    fun setStreamVolume(stream: Int, volume: Int) {
+        try {
+            audioManager.setStreamVolume(stream, volume, 0)
+        } catch (_: Exception) {}
+    }
 }

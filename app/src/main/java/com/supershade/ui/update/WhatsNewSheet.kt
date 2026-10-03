@@ -30,21 +30,103 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.supershade.BuildConfig
+import com.supershade.haptics.LocalSuperHaptics
+import com.supershade.haptics.SuperHaptics
 import kotlinx.coroutines.launch
+
+val RELEASE_VERSIONS: List<String> = listOf(
+    "1.9.31",
+    "1.9.30",
+    "1.9.29",
+    "1.9.28",
+    "1.9.27",
+    "1.9.26",
+    "1.9.25",
+    "1.9.24",
+    "1.9.23",
+    "1.9.22",
+    "1.9.21",
+    "1.9.20",
+    "1.9.19",
+    "1.9.18",
+    "1.9.17",
+    "1.9.16",
+    "1.9.15",
+    "1.9.14",
+    "1.9.13",
+    "1.9.12",
+    "1.9.11",
+    "1.9.10",
+    "1.9.9",
+    "1.9.8",
+    "1.9.7",
+    "1.9.6",
+    "1.9.5",
+    "1.9.4",
+    "1.9.3",
+    "1.9.2",
+    "1.9.1",
+    "1.9.0",
+    "1.8.0",
+    "1.7.0",
+    "1.6.0",
+    "1.5.0",
+    "1.4.0",
+    "1.3.0",
+    "1.2.0",
+    "1.1.0",
+)
 
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.31" -> """
+        ✨ Authentic Multi-Theme Layouts, In-Shade Popups & Settings Studio
+        • Authentic OS Theme Layouts: Dedicated architectures for Samsung One UI 8.5/9, Google Pixel Android 15/16 Material 3 Expressive, Nothing OS 3.0, and Cyberpunk HUD across tiles, sliders, notifications, and status row
+        • In-Shade Quick Settings Popups: Tapping Wi-Fi, Bluetooth, Flashlight, Sound Mode, and DND opens smooth detail sheets directly inside SuperShade without switching away to device settings
+        • Live Multi-Theme Settings Studio: Interactive live preview in Settings dynamically renders matching layout, shapes, and brightness slider style for every theme
+        • Historical Changelog Pills: Inspired by ObtainiumPlus and ShizukuPlus, browse past updates and cumulative changes with tactile version chips
+        • Global Shape Adaptation: Selected Tile Shape seamlessly cascades across notification cards, group cards, sliders, chips, and quick tiles
+        """.trimIndent()
+        "1.9.30" -> """
+        ✨ Fluid Home Gesture Dismissal, ShizukuPlus Launch & Swipe Tint Fix
+        • Fluid Home Swipe & Key Dismissal: Swiping up anywhere in the bottom 80dp home bar gesture zone immediately dismisses the shade; pressing the Home key or App Switcher key reliably collapses the shade
+        • Direct ShizukuPlus Launch: Tapping "Set up" launches ShizukuPlus manager directly without ever opening the device settings app
+        • Notification Swipe Background Fix: Dynamic delete/snooze background tinting is purely transparent until swiped, eliminating unwanted persistent red accents
+        """.trimIndent()
+        "1.9.29" -> """
+        ✨ Official Android CLI & ADB Loopback Integration
+        • ADB Loopback Integration: On-device headless ADB loopback connection at 127.0.0.1:5555 for automated builds and status notifications
+        • Shizuku Shell Execution: Privileged execution via rish without requiring network sockets
+        • Git FUSE Safety: Enforced core.fileMode false to eliminate false dirty git states on Android shared storage
+        """.trimIndent()
+        "1.9.28" -> """
+        ✨ ShizukuPlus Power & Advanced Reboot Controls
+        • Advanced Reboot Controls: One-tap actions for soft reboot, recovery, bootloader, UI restart, and privileged status bar toggle controls
+        • Enhanced Shizuku IPC Connector: Robust fallback bindings and privileged token management
+        """.trimIndent()
+        "1.9.27" -> """
+        ✨ A11y Resilience & Android 14+ Receiver Compatibility
+        • Accessibility Lifecycle Hardening: Eliminated runtime a11y crashes and false-positive window change triggers
+        • Android 14+ Receiver Compatibility: Fixed broadcast receiver registration flags for system events
+        • Status Bar & Good Lock Restoration: Cleanly restored system status bar and Good Lock side gesture pads on disable
+        """.trimIndent()
         "1.9.26" -> """
         ✨ Notification Scroll Protection & Enhanced Gesture Disambiguation
         • Uninterrupted Notification Scrolling: Completely decoupled vertical list scrolling from shade dismissal, allowing you to scroll and fling through long lists of notifications without the status bar closing
@@ -441,7 +523,7 @@ private fun localReleaseNotes(version: String): String {
         ✨ Initial public release
         Functional custom shade with notifications, Quick Settings, brightness, and media controls.
     """.trimIndent()
-    else -> "Thanks for keeping SuperShade up to date!"
+    else -> localReleaseNotes(RELEASE_VERSIONS.first())
     }
 }
 
@@ -469,18 +551,33 @@ private fun parseReleaseNotes(raw: String): Pair<String, List<ReleaseNoteItem>> 
 @Composable
 fun WhatsNewSheet(
     releaseNotes: String,
+    previousVersion: String? = null,
     onDismiss: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+
+    val cleanCurrent = BuildConfig.VERSION_NAME.removeSuffix("-debug").removePrefix("v").trim()
+    val cleanPrev = previousVersion?.removeSuffix("-debug")?.removePrefix("v")?.trim()
+
+    val versions = remember { RELEASE_VERSIONS }
+    val prevIdx = if (!cleanPrev.isNullOrBlank()) versions.indexOf(cleanPrev) else -1
+    val hasNewerSincePrev = prevIdx > 0
+
+    var selectedVersion by remember {
+        mutableStateOf(
+            if (hasNewerSincePrev) "SINCE_LAST"
+            else if (versions.contains(cleanCurrent)) cleanCurrent
+            else versions.first()
+        )
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {
-        val notes = releaseNotes.ifBlank { localReleaseNotes(BuildConfig.VERSION_NAME) }
-        val (headerSubtitle, items) = remember(notes) { parseReleaseNotes(notes) }
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -488,7 +585,7 @@ fun WhatsNewSheet(
                 .navigationBarsPadding()
                 .padding(bottom = 32.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             // Hero Header Card
             Surface(
@@ -539,7 +636,11 @@ fun WhatsNewSheet(
                         }
                         Spacer(Modifier.height(2.dp))
                         Text(
-                            text = headerSubtitle.removePrefix("✨").trim(),
+                            text = if (selectedVersion == "SINCE_LAST") {
+                                "New updates since v$cleanPrev"
+                            } else {
+                                "Release highlights for v$selectedVersion"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -547,58 +648,152 @@ fun WhatsNewSheet(
                 }
             }
 
-            // Feature Highlights Cards
-            if (items.isNotEmpty()) {
-                for (item in items) {
+            // Version History Pills Row (ObtainiumPlus / ShizukuPlus Style)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (hasNewerSincePrev) {
+                    val isSelected = selectedVersion == "SINCE_LAST"
                     Surface(
-                        shape = RoundedCornerShape(18.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
-                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(50),
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                        border = if (!isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)) else null,
+                        modifier = Modifier.clickable {
+                            haptics.sliderTick()
+                            selectedVersion = "SINCE_LAST"
+                        },
                     ) {
                         Row(
-                            modifier = Modifier.padding(14.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.Top,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
-                                contentAlignment = Alignment.Center,
-                            ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                modifier = Modifier.size(13.dp),
+                                tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                            )
+                            Text(
+                                text = "Since v$cleanPrev",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            )
+                        }
+                    }
+                }
+
+                versions.forEach { ver ->
+                    val isSelected = selectedVersion == ver
+                    val isCurrent = ver == cleanCurrent
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                        border = if (!isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)) else null,
+                        modifier = Modifier.clickable {
+                            haptics.sliderTick()
+                            selectedVersion = ver
+                        },
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        ) {
+                            if (isSelected) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(16.dp),
+                                    modifier = Modifier.size(13.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimary,
                                 )
                             }
-                            Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isCurrent) "v$ver (Current)" else "v$ver",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = if (isSelected || isCurrent) FontWeight.Bold else FontWeight.Medium,
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Highlights Content
+            if (selectedVersion == "SINCE_LAST" && hasNewerSincePrev) {
+                val newerVersions = versions.take(prevIdx)
+                for (ver in newerVersions) {
+                    val rawNotes = localReleaseNotes(ver)
+                    val (verSubtitle, verItems) = parseReleaseNotes(rawNotes)
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                            ) {
                                 Text(
-                                    text = item.title,
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    text = "v$ver",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                 )
-                                if (item.description.isNotBlank()) {
-                                    Spacer(Modifier.height(2.dp))
-                                    Text(
-                                        text = item.description,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        lineHeight = 18.sp,
-                                    )
-                                }
                             }
+                            Text(
+                                text = verSubtitle.removePrefix("✨").trim(),
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+
+                        for (item in verItems) {
+                            ReleaseHighlightCard(item = item)
                         }
                     }
                 }
             } else {
-                Text(
-                    text = notes,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                val notes = if (releaseNotes.isNotBlank() && selectedVersion == cleanCurrent) {
+                    releaseNotes
+                } else {
+                    localReleaseNotes(selectedVersion)
+                }
+                val (subtitle, items) = remember(notes) { parseReleaseNotes(notes) }
+
+                if (subtitle.isNotBlank() && subtitle != "What's new in SuperShade") {
+                    Text(
+                        text = subtitle.removePrefix("✨").trim(),
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                        ),
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                    )
+                }
+
+                if (items.isNotEmpty()) {
+                    for (item in items) {
+                        ReleaseHighlightCard(item = item)
+                    }
+                } else {
+                    Text(
+                        text = notes,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(12.dp),
+                    )
+                }
             }
 
             Spacer(Modifier.height(4.dp))
@@ -616,6 +811,53 @@ fun WhatsNewSheet(
                     text = "Explore SuperShade",
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReleaseHighlightCard(item: ReleaseNoteItem) {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                if (item.description.isNotBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = item.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 18.sp,
+                    )
+                }
             }
         }
     }

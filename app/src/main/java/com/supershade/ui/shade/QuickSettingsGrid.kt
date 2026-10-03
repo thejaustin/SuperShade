@@ -863,6 +863,22 @@ private fun ConnectivityWideCard(
                             indication = LocalIndication.current,
                             onClick = {
                                 haptics.lightTap()
+                                if (onLongClick != null) {
+                                    onLongClick()
+                                } else if (tile.settingsAction != null) {
+                                    try {
+                                        context.startActivity(
+                                            Intent(tile.settingsAction).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+                                        )
+                                    } catch (_: Exception) {
+                                        onClick()
+                                    }
+                                } else {
+                                    onClick()
+                                }
+                            },
+                            onLongClick = {
+                                haptics.sheetDetent()
                                 if (tile.settingsAction != null) {
                                     try {
                                         context.startActivity(
@@ -872,21 +888,7 @@ private fun ConnectivityWideCard(
                                         onLongClick?.invoke()
                                     }
                                 } else {
-                                    onLongClick?.invoke() ?: onClick()
-                                }
-                            },
-                            onLongClick = {
-                                haptics.sheetDetent()
-                                if (onLongClick != null) {
-                                    onLongClick()
-                                } else {
-                                    tile.settingsAction?.let { action ->
-                                        try {
-                                            context.startActivity(
-                                                Intent(action).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
-                                            )
-                                        } catch (_: Exception) {}
-                                    }
+                                    onLongClick?.invoke()
                                 }
                             },
                             role = Role.Button,

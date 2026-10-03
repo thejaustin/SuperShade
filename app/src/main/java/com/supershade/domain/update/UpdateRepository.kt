@@ -28,12 +28,16 @@ class UpdateRepository(
     private val _showWhatsNew = MutableStateFlow(false)
     val showWhatsNew: StateFlow<Boolean> = _showWhatsNew.asStateFlow()
 
+    private val _previousVersion = MutableStateFlow<String?>(null)
+    val previousVersion: StateFlow<String?> = _previousVersion.asStateFlow()
+
     private val checkMutex = Mutex()
 
     suspend fun initSession() {
         val lastSeen = settings.lastSeenVersion.first()
         val current = BuildConfig.VERSION_NAME
         if (lastSeen.isNotBlank() && lastSeen != current) {
+            _previousVersion.value = lastSeen
             _showWhatsNew.value = true
         }
         settings.setLastSeenVersion(current)

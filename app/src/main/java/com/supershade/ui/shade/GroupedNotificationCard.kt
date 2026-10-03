@@ -253,7 +253,11 @@ fun GroupedNotificationCard(
         val cardScale = (1.0f - dragProgress * 0.04f).coerceIn(0.95f, 1.0f)
         val cardAlpha = if (dragProgress > 0.75f) (1f - (dragProgress - 0.75f) * 2.5f).coerceIn(0.4f, 1.0f) else 1.0f
         val cardElevation = (dragProgress * 8f).dp
-        val dynamicCardShape = RoundedCornerShape((20f + dragProgress * 8f).coerceIn(20f, 28f).dp)
+        val dynamicCardShape = if (dragProgress > 0.01f && shapes.card is RoundedCornerShape) {
+            RoundedCornerShape(24.dp + (dragProgress * 6f).dp)
+        } else {
+            shapes.card
+        }
 
         Box(
             modifier = Modifier

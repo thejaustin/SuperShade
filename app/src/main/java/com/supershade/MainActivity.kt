@@ -87,6 +87,7 @@ class MainActivity : ComponentActivity() {
             val availableUpdate by updateRepo.availableUpdate.collectAsState()
             val isCheckingUpdate by updateRepo.isChecking.collectAsState()
             val showWhatsNew by updateRepo.showWhatsNew.collectAsState()
+            val previousVersion by updateRepo.previousVersion.collectAsState()
 
             SuperShadeAppTheme(mode = darkThemeMode, accentColor = accentColor) {
                 // Re-checked on every resume and reactively via Shizuku listener so user sees instant feedback
@@ -362,6 +363,7 @@ class MainActivity : ComponentActivity() {
                 if (showWhatsNew) {
                     WhatsNewSheet(
                         releaseNotes = availableUpdate?.releaseNotes ?: "",
+                        previousVersion = previousVersion,
                         onDismiss = { updateRepo.dismissWhatsNew() },
                     )
                 }

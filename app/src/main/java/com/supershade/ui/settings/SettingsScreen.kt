@@ -45,7 +45,10 @@ import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.ui.text.font.FontFamily
+import com.supershade.ui.theme.ChamferedCornerShape
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DashboardCustomize
 import androidx.compose.material.icons.filled.ExpandLess
@@ -1160,7 +1163,7 @@ fun SettingsScreen(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(134.dp),
+                        .height(142.dp),
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         if (backdropTheme == BackdropTheme.LIQUID_GLASS) {
@@ -1417,8 +1420,513 @@ fun SettingsScreen(
                                         }
                                     }
                                 }
+                            } else if (selectedTheme is ShadeTheme.OneUI) {
+                                // One UI 8.5/9: 2 prominent squircle connectivity cards + dual slider with 'A' badge
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    // One UI Card 1: Wi-Fi
+                                    Surface(
+                                        shape = RoundedCornerShape(14.dp),
+                                        color = if (previewWifiActive) activeAccent else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(42.dp)
+                                            .clickable {
+                                                if (!previewWifiActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                                                previewWifiActive = !previewWifiActive
+                                            },
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(28.dp)
+                                                    .clip(CircleShape)
+                                                    .background(
+                                                        if (previewWifiActive) Color.White.copy(alpha = 0.22f)
+                                                        else MaterialTheme.colorScheme.surfaceContainerHigh
+                                                    ),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Wifi,
+                                                    contentDescription = null,
+                                                    tint = if (previewWifiActive) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                    modifier = Modifier.size(15.dp),
+                                                )
+                                            }
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "Wi-Fi",
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                                                    color = if (previewWifiActive) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                    maxLines = 1,
+                                                )
+                                                Text(
+                                                    text = if (previewWifiActive) "Connected" else "Off",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 8.sp),
+                                                    color = (if (previewWifiActive) Color.White else MaterialTheme.colorScheme.onSurface).copy(alpha = 0.7f),
+                                                    maxLines = 1,
+                                                )
+                                            }
+                                            Icon(
+                                                imageVector = Icons.Default.ChevronRight,
+                                                contentDescription = null,
+                                                tint = (if (previewWifiActive) Color.White else MaterialTheme.colorScheme.onSurface).copy(alpha = 0.6f),
+                                                modifier = Modifier.size(14.dp),
+                                            )
+                                        }
+                                    }
+
+                                    // One UI Card 2: Bluetooth
+                                    Surface(
+                                        shape = RoundedCornerShape(14.dp),
+                                        color = if (previewBtActive) activeAccent else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(42.dp)
+                                            .clickable {
+                                                if (!previewBtActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                                                previewBtActive = !previewBtActive
+                                            },
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(28.dp)
+                                                    .clip(CircleShape)
+                                                    .background(
+                                                        if (previewBtActive) Color.White.copy(alpha = 0.22f)
+                                                        else MaterialTheme.colorScheme.surfaceContainerHigh
+                                                    ),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Bluetooth,
+                                                    contentDescription = null,
+                                                    tint = if (previewBtActive) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                    modifier = Modifier.size(15.dp),
+                                                )
+                                            }
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "Bluetooth",
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
+                                                    color = if (previewBtActive) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                    maxLines = 1,
+                                                )
+                                                Text(
+                                                    text = if (previewBtActive) "Active" else "Off",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 8.sp),
+                                                    color = (if (previewBtActive) Color.White else MaterialTheme.colorScheme.onSurface).copy(alpha = 0.7f),
+                                                    maxLines = 1,
+                                                )
+                                            }
+                                            Icon(
+                                                imageVector = Icons.Default.ChevronRight,
+                                                contentDescription = null,
+                                                tint = (if (previewBtActive) Color.White else MaterialTheme.colorScheme.onSurface).copy(alpha = 0.6f),
+                                                modifier = Modifier.size(14.dp),
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // One UI Brightness Slider with 'A' auto badge
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(26.dp)
+                                        .pointerInput(Unit) {
+                                            detectTapGestures { offset ->
+                                                haptics?.sliderTick()
+                                                previewBrightnessFraction = (offset.x / size.width).coerceIn(0.08f, 1.0f)
+                                            }
+                                        }
+                                        .pointerInput(Unit) {
+                                            detectHorizontalDragGestures { change, _ ->
+                                                change.consume()
+                                                val newFrac = (change.position.x / size.width).coerceIn(0.08f, 1.0f)
+                                                if ((previewBrightnessFraction * 12).roundToInt() != (newFrac * 12).roundToInt()) {
+                                                    haptics?.sliderTick()
+                                                }
+                                                previewBrightnessFraction = newFrac
+                                            }
+                                        },
+                                ) {
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxHeight()
+                                                .fillMaxWidth(previewBrightnessFraction)
+                                                .background(
+                                                    Brush.horizontalGradient(
+                                                        listOf(
+                                                            Color(0xFFF57C00),
+                                                            Color(0xFFFF9800),
+                                                            Color(0xFFFFCA28),
+                                                        )
+                                                    )
+                                                )
+                                        )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(horizontal = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.BrightnessMedium,
+                                                contentDescription = null,
+                                                tint = if (previewBrightnessFraction > 0.15f) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.size(13.dp),
+                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            ) {
+                                                Text(
+                                                    text = "${(previewBrightnessFraction * 100).roundToInt()}%",
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                                                    color = if (previewBrightnessFraction > 0.85f) Color.White else MaterialTheme.colorScheme.onSurface,
+                                                )
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(width = 16.dp, height = 14.dp)
+                                                        .clip(RoundedCornerShape(4.dp))
+                                                        .background(Color.White.copy(alpha = 0.22f)),
+                                                    contentAlignment = Alignment.Center,
+                                                ) {
+                                                    Text(
+                                                        text = "A",
+                                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp, fontWeight = FontWeight.Black),
+                                                        color = Color.White,
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            } else if (selectedTheme is ShadeTheme.Nothing) {
+                                // Nothing OS 3.0: High-contrast monochrome cards with signature red glyph dot
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = if (previewWifiActive) Color.White else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        border = if (!previewWifiActive) BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)) else null,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(42.dp)
+                                            .clickable {
+                                                if (!previewWifiActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                                                previewWifiActive = !previewWifiActive
+                                            },
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(0xFFD71920)),
+                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "WI-FI",
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        letterSpacing = 0.8.sp,
+                                                    ),
+                                                    color = if (previewWifiActive) Color.Black else Color.White,
+                                                )
+                                                Text(
+                                                    text = if (previewWifiActive) "CONNECTED" else "OFF",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 8.sp),
+                                                    color = if (previewWifiActive) Color.Black.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.5f),
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = if (previewBtActive) Color.White else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        border = if (!previewBtActive) BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)) else null,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(42.dp)
+                                            .clickable {
+                                                if (!previewBtActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                                                previewBtActive = !previewBtActive
+                                            },
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .clip(CircleShape)
+                                                    .background(if (previewBtActive) Color(0xFFD71920) else Color.Gray),
+                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "BLUETOOTH",
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        letterSpacing = 0.8.sp,
+                                                    ),
+                                                    color = if (previewBtActive) Color.Black else Color.White,
+                                                )
+                                                Text(
+                                                    text = if (previewBtActive) "ACTIVE" else "OFF",
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 8.sp),
+                                                    color = if (previewBtActive) Color.Black.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.5f),
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Nothing OS Segmented Brightness Slider
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(26.dp)
+                                        .pointerInput(Unit) {
+                                            detectTapGestures { offset ->
+                                                haptics?.sliderTick()
+                                                previewBrightnessFraction = (offset.x / size.width).coerceIn(0.08f, 1.0f)
+                                            }
+                                        }
+                                        .pointerInput(Unit) {
+                                            detectHorizontalDragGestures { change, _ ->
+                                                change.consume()
+                                                val newFrac = (change.position.x / size.width).coerceIn(0.08f, 1.0f)
+                                                if ((previewBrightnessFraction * 12).roundToInt() != (newFrac * 12).roundToInt()) {
+                                                    haptics?.sliderTick()
+                                                }
+                                                previewBrightnessFraction = newFrac
+                                            }
+                                        },
+                                ) {
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxHeight()
+                                                .fillMaxWidth(previewBrightnessFraction)
+                                                .background(Color.White),
+                                        )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(horizontal = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.BrightnessMedium,
+                                                contentDescription = null,
+                                                tint = if (previewBrightnessFraction > 0.15f) Color.Black else Color.White,
+                                                modifier = Modifier.size(13.dp),
+                                            )
+                                            Text(
+                                                text = "${(previewBrightnessFraction * 100).roundToInt()}%",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    letterSpacing = 1.sp,
+                                                ),
+                                                color = if (previewBrightnessFraction > 0.85f) Color.Black else Color.White,
+                                            )
+                                        }
+                                    }
+                                }
+                            } else if (selectedTheme is ShadeTheme.Cyberpunk) {
+                                // Cyberpunk HUD: Chamfered corner cards with neon cyan/magenta telemetry
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Surface(
+                                        shape = ChamferedCornerShape(6.dp),
+                                        color = if (previewWifiActive) Color(0xFF00F0FF).copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        border = BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = if (previewWifiActive) 0.85f else 0.35f)),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(42.dp)
+                                            .clickable {
+                                                if (!previewWifiActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                                                previewWifiActive = !previewWifiActive
+                                            },
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Wifi,
+                                                contentDescription = null,
+                                                tint = Color(0xFF00F0FF),
+                                                modifier = Modifier.size(15.dp),
+                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "[WIFI.NET]",
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        fontSize = 9.sp,
+                                                        fontFamily = FontFamily.Monospace,
+                                                        fontWeight = FontWeight.Bold,
+                                                    ),
+                                                    color = Color(0xFF00F0FF),
+                                                )
+                                                Text(
+                                                    text = if (previewWifiActive) "// ACTIVE" else "// OFFLINE",
+                                                    style = MaterialTheme.typography.bodySmall.copy(
+                                                        fontSize = 8.sp,
+                                                        fontFamily = FontFamily.Monospace,
+                                                    ),
+                                                    color = Color.White.copy(alpha = 0.7f),
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Surface(
+                                        shape = ChamferedCornerShape(6.dp),
+                                        color = if (previewBtActive) Color(0xFFFF0055).copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        border = BorderStroke(1.dp, Color(0xFFFF0055).copy(alpha = if (previewBtActive) 0.85f else 0.35f)),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(42.dp)
+                                            .clickable {
+                                                if (!previewBtActive) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                                                previewBtActive = !previewBtActive
+                                            },
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Bluetooth,
+                                                contentDescription = null,
+                                                tint = Color(0xFFFF0055),
+                                                modifier = Modifier.size(15.dp),
+                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "[BT.LINK]",
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        fontSize = 9.sp,
+                                                        fontFamily = FontFamily.Monospace,
+                                                        fontWeight = FontWeight.Bold,
+                                                    ),
+                                                    color = Color(0xFFFF0055),
+                                                )
+                                                Text(
+                                                    text = if (previewBtActive) "// PAIRED" else "// STANDBY",
+                                                    style = MaterialTheme.typography.bodySmall.copy(
+                                                        fontSize = 8.sp,
+                                                        fontFamily = FontFamily.Monospace,
+                                                    ),
+                                                    color = Color.White.copy(alpha = 0.7f),
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Cyberpunk Neon Slider
+                                Surface(
+                                    shape = ChamferedCornerShape(6.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                                    border = BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.40f)),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(26.dp)
+                                        .pointerInput(Unit) {
+                                            detectTapGestures { offset ->
+                                                haptics?.sliderTick()
+                                                previewBrightnessFraction = (offset.x / size.width).coerceIn(0.08f, 1.0f)
+                                            }
+                                        }
+                                        .pointerInput(Unit) {
+                                            detectHorizontalDragGestures { change, _ ->
+                                                change.consume()
+                                                val newFrac = (change.position.x / size.width).coerceIn(0.08f, 1.0f)
+                                                if ((previewBrightnessFraction * 12).roundToInt() != (newFrac * 12).roundToInt()) {
+                                                    haptics?.sliderTick()
+                                                }
+                                                previewBrightnessFraction = newFrac
+                                            }
+                                        },
+                                ) {
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxHeight()
+                                                .fillMaxWidth(previewBrightnessFraction)
+                                                .background(
+                                                    Brush.horizontalGradient(
+                                                        listOf(Color(0xFF00F0FF), Color(0xFFFF0055))
+                                                    )
+                                                ),
+                                        )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(horizontal = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.BrightnessMedium,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(13.dp),
+                                            )
+                                            Text(
+                                                text = "LUM // ${(previewBrightnessFraction * 100).roundToInt()}%",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontSize = 9.sp,
+                                                    fontFamily = FontFamily.Monospace,
+                                                    fontWeight = FontWeight.Bold,
+                                                ),
+                                                color = Color.White,
+                                            )
+                                        }
+                                    }
+                                }
                             } else {
-                                // One UI 4-toggle row
+                                // Pure Material 4-toggle row
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),

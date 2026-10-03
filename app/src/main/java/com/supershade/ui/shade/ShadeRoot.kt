@@ -711,7 +711,7 @@ fun ShadeRoot(
                                     }
 
                                     AnimatedVisibility(
-                                        visible = isEditingTiles || (state.deviceControlMode == com.supershade.settings.DeviceControlMode.SHOW_ALWAYS) || (state.deviceControlMode == com.supershade.settings.DeviceControlMode.SHOW_WHEN_EXPANDED && isQsExpanded),
+                                        visible = (state.theme == ShadeTheme.OneUI) && (isEditingTiles || (state.deviceControlMode == com.supershade.settings.DeviceControlMode.SHOW_ALWAYS) || (state.deviceControlMode == com.supershade.settings.DeviceControlMode.SHOW_WHEN_EXPANDED && isQsExpanded)),
                                         enter = expandVertically(spring(0.8f, 380f)) + fadeIn(tween(140)),
                                         exit = shrinkVertically(tween(160)) + fadeOut(tween(120)),
                                     ) {
@@ -970,14 +970,16 @@ fun ShadeRoot(
                                             onRestoreDeviceControl = { viewModel.setDeviceControlMode(com.supershade.settings.DeviceControlMode.SHOW_WHEN_EXPANDED) },
                                         )
 
-                                        OneUIDeviceControlRow(
-                                            mode = state.deviceControlMode,
-                                            isExpanded = true,
-                                            isEditing = isEditingTiles,
-                                            onRemove = { viewModel.setDeviceControlMode(com.supershade.settings.DeviceControlMode.DONT_SHOW) },
-                                            onChangeMode = { viewModel.setDeviceControlMode(it) },
-                                            onDismissShade = onDismiss,
-                                        )
+                                        if (state.theme == ShadeTheme.OneUI) {
+                                            OneUIDeviceControlRow(
+                                                mode = state.deviceControlMode,
+                                                isExpanded = true,
+                                                isEditing = isEditingTiles,
+                                                onRemove = { viewModel.setDeviceControlMode(com.supershade.settings.DeviceControlMode.DONT_SHOW) },
+                                                onChangeMode = { viewModel.setDeviceControlMode(it) },
+                                                onDismissShade = onDismiss,
+                                            )
+                                        }
 
                                         // Full tactile sliders island (Brightness & Volume)
                                         Surface(

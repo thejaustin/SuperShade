@@ -19,6 +19,7 @@ import com.supershade.shizuku.StatusBarGovernor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -168,15 +169,19 @@ class TileRepository(
                 else -> null
             }
 
-            // Resolve friendly label: KNOWN_TILES -> PackageManager ServiceInfo -> humanizeTileLabel
+            var customIcon: androidx.compose.ui.graphics.ImageBitmap? = null
+            // Resolve friendly label & dynamic icon: KNOWN_TILES -> PackageManager ServiceInfo -> humanizeTileLabel
             val label = when {
                 known != null -> known.first
                 componentName != null -> {
                     try {
                         val cn = android.content.ComponentName.unflattenFromString(componentName)
                         if (cn != null) {
-                            val serviceInfo = context.packageManager.getServiceInfo(cn, 0)
-                            val loaded = serviceInfo.loadLabel(context.packageManager).toString()
+                            val pm = context.packageManager
+                            val serviceInfo = pm.getServiceInfo(cn, 0)
+                            val iconDrawable = serviceInfo.loadIcon(pm) ?: pm.getApplicationIcon(cn.packageName)
+                            customIcon = drawableToImageBitmap(iconDrawable)
+                            val loaded = serviceInfo.loadLabel(pm).toString()
                             if (loaded.isNotBlank() && !loaded.contains(".") && !loaded.endsWith("TileService") && !loaded.endsWith("Service")) {
                                 loaded
                             } else {
@@ -184,6 +189,15 @@ class TileRepository(
                             }
                         } else humanizeTileLabel(id)
                     } catch (_: Exception) {
+                        try {
+                            val pkg = if (id.startsWith("custom(") && id.contains("/")) {
+                                id.substringAfter("custom(").substringBefore("/")
+                            } else if (id.contains("/")) id.substringBefore("/") else null
+                            if (pkg != null) {
+                                val pm = context.packageManager
+                                customIcon = drawableToImageBitmap(pm.getApplicationIcon(pkg))
+                            }
+                        } catch (_: Exception) {}
                         humanizeTileLabel(id)
                     }
                 }
@@ -200,8 +214,21 @@ class TileRepository(
                 componentName = componentName,
                 settingsAction = TILE_SETTINGS_ACTIONS[canonical] ?: TILE_SETTINGS_ACTIONS[id],
                 subtitle = queryTileSubtitle(canonical),
+                customIcon = customIcon,
             )
         }
+    }
+
+    private fun drawableToImageBitmap(drawable: android.graphics.drawable.Drawable): androidx.compose.ui.graphics.ImageBitmap? {
+        return try {
+            val width = drawable.intrinsicWidth.takeIf { it > 0 } ?: 96
+            val height = drawable.intrinsicHeight.takeIf { it > 0 } ?: 96
+            val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(bitmap)
+            drawable.setBounds(0, 0, canvas.width, canvas.height)
+            drawable.draw(canvas)
+            bitmap.asImageBitmap()
+        } catch (_: Exception) { null }
     }
 
     fun setTileActive(id: String, active: Boolean) {

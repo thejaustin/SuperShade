@@ -361,8 +361,19 @@ fun SettingsScreen(
                     }
                     Switch(
                         checked = shadeActive && allEssentialGranted,
-                        onCheckedChange = onToggleShade,
-                        enabled = allEssentialGranted,
+                        onCheckedChange = { enabled ->
+                            if (!allEssentialGranted) {
+                                haptics?.sliderBoundary()
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Please grant Notification Access and Display Over Other Apps first",
+                                    android.widget.Toast.LENGTH_SHORT,
+                                ).show()
+                            } else {
+                                onToggleShade(enabled)
+                            }
+                        },
+                        enabled = true,
                     )
                 }
             }
@@ -1083,7 +1094,8 @@ fun SettingsScreen(
                         )
                         Text(
                             text = when {
-                                !shizukuOk -> "Requires Shizuku connection to disable system panel"
+                                !shizukuOk && blockSystemShade -> "Panel suppression will enforce as soon as Shizuku connects"
+                                !shizukuOk -> "Requires Shizuku connection to enforce native panel suppression"
                                 blockSystemShade -> "Native panel blocked — SuperShade handles all pulls"
                                 else -> "Native system panel allowed to co-exist"
                             },
@@ -1094,7 +1106,7 @@ fun SettingsScreen(
                     Switch(
                         checked = blockSystemShade,
                         onCheckedChange = onBlockSystemShadeChange,
-                        enabled = shizukuOk,
+                        enabled = true,
                     )
                 }
             }

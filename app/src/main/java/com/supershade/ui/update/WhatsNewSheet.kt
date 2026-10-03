@@ -51,6 +51,7 @@ import com.supershade.haptics.SuperHaptics
 import kotlinx.coroutines.launch
 
 val RELEASE_VERSIONS: List<String> = listOf(
+    "1.9.32",
     "1.9.31",
     "1.9.30",
     "1.9.29",
@@ -96,6 +97,14 @@ val RELEASE_VERSIONS: List<String> = listOf(
 private fun localReleaseNotes(version: String): String {
     val cleanVersion = version.removeSuffix("-debug").removePrefix("v").trim()
     return when (cleanVersion) {
+        "1.9.32" -> """
+        ✨ Notification Swipe Cleanup & Dismiss Detection Fix
+        • Fixed Notification Swipe Red Tint: Corrected dismiss state detection so red trash buttons and snooze badges only appear during an active user drag, restoring pristine transparent backgrounds when settled
+        • Enhanced SwipeToDismissBox Direction Binding: Accurately binds isSwiping to non-settled direction states, eliminating persistent swipe button overlays across single and grouped notifications
+        • Authentic Multi-Theme Layouts: Dedicated architectures for Samsung One UI 8.5/9, Google Pixel Android 15/16 Material 3 Expressive, Nothing OS 3.0, and Cyberpunk HUD
+        • In-Shade Quick Settings Popups: Tapping Wi-Fi, Bluetooth, Flashlight, Sound Mode, and DND opens smooth detail sheets directly inside SuperShade
+        • Historical Changelog Pills: Browse past updates and cumulative changes with tactile version chips
+        """.trimIndent()
         "1.9.31" -> """
         ✨ Authentic Multi-Theme Layouts, In-Shade Popups & Settings Studio
         • Authentic OS Theme Layouts: Dedicated architectures for Samsung One UI 8.5/9, Google Pixel Android 15/16 Material 3 Expressive, Nothing OS 3.0, and Cyberpunk HUD across tiles, sliders, notifications, and status row

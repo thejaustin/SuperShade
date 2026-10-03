@@ -30,18 +30,19 @@ class GestureOverlay(
     private var overlayView: View? = null
 
     private val captureHeight = run {
+        val extra = (20 * context.resources.displayMetrics.density).toInt()
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
             try {
                 val insets = windowManager?.currentWindowMetrics?.windowInsets?.getInsetsIgnoringVisibility(
                     android.view.WindowInsets.Type.statusBars()
                 )
                 val top = insets?.top ?: 0
-                if (top > 0) return@run top
+                if (top > 0) return@run top + extra
             } catch (_: Throwable) {}
         }
         val resId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
         val h = if (resId > 0) context.resources.getDimensionPixelSize(resId) else 0
-        h.coerceAtLeast((28 * context.resources.displayMetrics.density).toInt())
+        h.coerceAtLeast((28 * context.resources.displayMetrics.density).toInt()) + extra
     }
 
     private val params = WindowManager.LayoutParams(
@@ -66,7 +67,7 @@ class GestureOverlay(
         var startY = 0f
         var triggered = false
         val density = context.resources.displayMetrics.density
-        val dragThreshold = (28f * density).coerceAtLeast(40f)
+        val dragThreshold = (16f * density).coerceAtLeast(24f)
 
         val view = View(context).apply {
             setOnTouchListener { v, event ->
@@ -83,9 +84,6 @@ class GestureOverlay(
 
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
-                        if (com.supershade.service.SuperShadeAccessibilityService.isRunning()) {
-                            return@setOnTouchListener false
-                        }
                         startX = event.rawX
                         startY = event.rawY
                         triggered = false

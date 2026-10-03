@@ -61,11 +61,21 @@ class StatusBarGovernor(
 
     init {
         connector.isConnected
-            .onEach { connected -> if (connected && connector.hasPermission()) bindService() }
+            .onEach { connected ->
+                if (connected && connector.hasPermission()) {
+                    bindService()
+                    if (shouldDisableExpansion) disableExpansion()
+                }
+            }
             .launchIn(CoroutineScope(SupervisorJob() + Dispatchers.Main))
 
         connector.hasPermissionFlow
-            .onEach { granted -> if (granted && connector.isConnected.value) bindService() }
+            .onEach { granted ->
+                if (granted && connector.isConnected.value) {
+                    bindService()
+                    if (shouldDisableExpansion) disableExpansion()
+                }
+            }
             .launchIn(CoroutineScope(SupervisorJob() + Dispatchers.Main))
     }
 

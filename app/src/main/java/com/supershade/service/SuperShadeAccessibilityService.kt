@@ -127,18 +127,19 @@ class SuperShadeAccessibilityService : AccessibilityService() {
         windowManager = wm
 
         val statusBarHeightPx = run {
+            val extra = (20 * resources.displayMetrics.density).toInt()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 try {
                     val insets = wm.currentWindowMetrics.windowInsets.getInsetsIgnoringVisibility(
                         android.view.WindowInsets.Type.statusBars()
                     )
                     val top = insets?.top ?: 0
-                    if (top > 0) return@run top
+                    if (top > 0) return@run top + extra
                 } catch (_: Throwable) {}
             }
             val resId = resources.getIdentifier("status_bar_height", "dimen", "android")
             val h = if (resId > 0) resources.getDimensionPixelSize(resId) else 0
-            h.coerceAtLeast((28 * resources.displayMetrics.density).toInt())
+            h.coerceAtLeast((28 * resources.displayMetrics.density).toInt()) + extra
         }
 
         val params = WindowManager.LayoutParams(
@@ -161,8 +162,8 @@ class SuperShadeAccessibilityService : AccessibilityService() {
         var startY = 0f
         var triggered = false
         val density = resources.displayMetrics.density
-        // Robust threshold: at least 28dp (never hair-trigger 10-16dp)
-        val dragThreshold = (28f * density).coerceAtLeast(40f)
+        // Robust threshold: 16dp downward motion (never trapped by narrow status bar height)
+        val dragThreshold = (16f * density).coerceAtLeast(24f)
 
         val view = View(this).apply {
             setOnTouchListener { v, event ->
@@ -270,13 +271,13 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                         try {
                             w.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_SYSTEM &&
                                 w.title?.toString() == "NotificationShade" &&
-                                w.isActive && // MUST be the active/focused window — not a background window
-                                w.layer >= 3  // Genuine shade panels are always at layer 3+
+                                w.layer >= 2
                         } catch (t: Throwable) { false }
                     }
                     if (isSystemShadeVisible) {
                         lastShadeOpenTimeMs = now
                         android.util.Log.d("SuperShadeA11y", "Intercepted native NotificationShade window expansion")
+                        scope.launch { governor.runShell("cmd", "statusbar", "collapse") }
                         openSuperShade(expandQs = false)
                     }
                 } catch (t: Throwable) {}

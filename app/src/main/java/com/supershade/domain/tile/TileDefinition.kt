@@ -14,6 +14,8 @@ data class TileDefinition(
     val componentName: String? = null,
     // Optional secondary line shown below the tile label (SSID, mode name, etc.)
     val subtitle: String? = null,
+    // Dynamic icon loaded from PackageManager for custom / vendor tiles
+    val customIcon: androidx.compose.ui.graphics.ImageBitmap? = null,
 )
 
 val TILE_SETTINGS_ACTIONS: Map<String, String> = mapOf(

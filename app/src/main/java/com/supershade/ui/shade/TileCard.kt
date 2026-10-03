@@ -75,11 +75,22 @@ import androidx.compose.material.icons.filled.StickyNote2
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material.icons.filled.WatchLater
+import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material.icons.filled.Wifi
-import com.supershade.domain.tile.humanizeTileLabel
 import androidx.compose.material.icons.filled.WifiTethering
 import androidx.compose.material.icons.filled.Work
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.ChildCare
+import androidx.compose.material.icons.filled.InvertColors
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.Phonelink
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Security
+import com.supershade.domain.tile.humanizeTileLabel
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -340,18 +351,32 @@ fun TileCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        imageVector = tileIcon(tile.id, tile.isActive, tile.subtitle),
-                        contentDescription = null,
-                        tint = contentColor,
-                        modifier = Modifier
-                            .size(iconSize)
-                            .graphicsLayer {
-                                scaleX = iconScale
-                                scaleY = iconScale
-                                rotationZ = iconRotation
-                            },
-                    )
+                    if (tile.customIcon != null) {
+                        androidx.compose.foundation.Image(
+                            bitmap = tile.customIcon,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(iconSize)
+                                .graphicsLayer {
+                                    scaleX = iconScale
+                                    scaleY = iconScale
+                                    rotationZ = iconRotation
+                                },
+                        )
+                    } else {
+                        Icon(
+                            imageVector = tileIcon(tile.id, tile.isActive, tile.subtitle),
+                            contentDescription = null,
+                            tint = contentColor,
+                            modifier = Modifier
+                                .size(iconSize)
+                                .graphicsLayer {
+                                    scaleX = iconScale
+                                    scaleY = iconScale
+                                    rotationZ = iconRotation
+                                },
+                        )
+                    }
                     if (activeDotScale > 0.05f) {
                         val dotColor = when (theme) {
                             is ShadeTheme.Nothing -> Color(0xFFD71920) // Nothing signature glyph red
@@ -510,6 +535,16 @@ fun tileIcon(id: String, isActive: Boolean, subtitle: String?): ImageVector {
         }
         key.contains("bedtime") || key.contains("sleep") -> Icons.Default.NightsStay
         key.contains("usage") || key.contains("stats")  -> Icons.Default.DataUsage
-        else -> Icons.Default.Settings
+        key.contains("privacy") || key.contains("screenprivacy") -> Icons.Filled.VisibilityOff
+        key.contains("aod") || key.contains("alwayson") || key.contains("always_on") -> Icons.Filled.WatchLater
+        key.contains("mode") || key.contains("routine") -> Icons.Filled.Tune
+        key.contains("kid") -> Icons.Filled.ChildCare
+        key.contains("color") || key.contains("invert") -> Icons.Filled.InvertColors
+        key.contains("refresh") || key.contains("speed") || key.contains("perf") -> Icons.Filled.Speed
+        key.contains("terminal") || key.contains("shell") -> Icons.Filled.Terminal
+        key.contains("windows") || key.contains("link") -> Icons.Filled.Phonelink
+        key.contains("smartthings") || key.contains("home") -> Icons.Filled.Home
+        key.contains("protect") -> Icons.Filled.Security
+        else -> Icons.Filled.Widgets
     }
 }

@@ -149,8 +149,9 @@ fun GroupedNotificationCard(
         positionalThreshold = { totalDistance -> totalDistance * 0.35f },
     )
 
-    val dragProgress = kotlin.math.abs(dismissState.progress).coerceIn(0f, 1f)
-    val isPastDismissThreshold = dragProgress >= 0.35f
+    val isSwiping = dismissState.dismissDirection != SwipeToDismissBoxValue.Settled
+    val dragProgress = if (isSwiping) kotlin.math.abs(dismissState.progress).coerceIn(0f, 1f) else 0f
+    val isPastDismissThreshold = isSwiping && dragProgress >= 0.35f
     var hasTickedThreshold by remember { mutableStateOf(false) }
     LaunchedEffect(isPastDismissThreshold) {
         if (isPastDismissThreshold && !hasTickedThreshold) {
@@ -179,8 +180,6 @@ fun GroupedNotificationCard(
                 animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
                 label = "groupSwipeIconRotation",
             )
-
-            val isSwiping = progress > 0.01f
             val trackBgColor = if (!isSwiping) {
                 Color.Transparent
             } else {

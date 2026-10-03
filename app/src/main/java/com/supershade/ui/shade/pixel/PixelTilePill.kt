@@ -251,16 +251,28 @@ fun PixelTilePill(
                         .background(iconContainerColor),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        imageVector = tileIcon(tile.id, isActive, tile.subtitle),
-                        contentDescription = null,
-                        tint = iconTint,
-                        modifier = Modifier
-                            .size(22.dp)
-                            .graphicsLayer {
-                                rotationZ = iconRotation
-                            },
-                    )
+                    if (tile.customIcon != null) {
+                        androidx.compose.foundation.Image(
+                            bitmap = tile.customIcon,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(22.dp)
+                                .graphicsLayer {
+                                    rotationZ = iconRotation
+                                },
+                        )
+                    } else {
+                        Icon(
+                            imageVector = tileIcon(tile.id, isActive, tile.subtitle),
+                            contentDescription = null,
+                            tint = iconTint,
+                            modifier = Modifier
+                                .size(22.dp)
+                                .graphicsLayer {
+                                    rotationZ = iconRotation
+                                },
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(10.dp))

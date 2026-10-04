@@ -90,6 +90,7 @@ fun PureMaterialShadeTheme(
     isAmoled: Boolean = false,
     darkThemeMode: DarkThemeMode = DarkThemeMode.SYSTEM,
     accentColor: com.supershade.settings.AccentColor = com.supershade.settings.AccentColor.MONET,
+    monetBlendStrength: Float = 1.0f,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current

@@ -145,6 +145,7 @@ fun CyberpunkShadeTheme(
     isAmoled: Boolean = false,
     darkThemeMode: DarkThemeMode = DarkThemeMode.SYSTEM,
     accentColor: com.supershade.settings.AccentColor = com.supershade.settings.AccentColor.MONET,
+    monetBlendStrength: Float = 1.0f,
     content: @Composable () -> Unit,
 ) {
     val isSystemInDark = isSystemInDarkTheme()
@@ -169,7 +170,7 @@ fun CyberpunkShadeTheme(
             onPrimaryContainer = if (isDark) Color.White else c,
         )
     } else {
-        monetScheme(base, isDark, if (isAmoled) 0f else 0.25f)
+        monetScheme(base, isDark, if (isAmoled) 0f else 0.25f, monetBlendStrength)
     }
 
     MaterialTheme(

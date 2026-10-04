@@ -184,6 +184,58 @@ class SuperHaptics(context: Context) {
     fun sheetDetent() = sheetSnap(expanded = true)
 
     /**
+     * Tactile detent tick when horizontal swipe crosses the notification dismiss threshold.
+     * Uses Samsung's dedicated EFFECT_CLICK_DISMISS on Galaxy devices and Android R+
+     * composition primitives for ultra-precise haptic detent.
+     */
+    fun notificationDismissTick() {
+        if (!hasVibrator()) return
+        try {
+            if (isSamsungFlagship && playSamsungEffect(SamsungHapticIndices.EFFECT_CLICK_DISMISS, scale = 0.85f)) {
+                return
+            }
+            if (supportsComposition && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val effect = VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_LOW_TICK, 0.65f, 0)
+                    .compose()
+                vibrator?.vibrate(effect)
+                return
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                vibrator?.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator?.vibrate(10L)
+            }
+        } catch (_: Exception) {}
+    }
+
+    /**
+     * Decisive tactile commit when a notification dismissal action is finalized and launched.
+     */
+    fun notificationDismissCommit() {
+        if (!hasVibrator()) return
+        try {
+            if (isSamsungFlagship && playSamsungEffect(SamsungHapticIndices.EFFECT_CLICK, scale = 0.70f)) {
+                return
+            }
+            if (supportsComposition && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val effect = VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.75f, 0)
+                    .compose()
+                vibrator?.vibrate(effect)
+                return
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                vibrator?.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator?.vibrate(14L)
+            }
+        } catch (_: Exception) {}
+    }
+
+    /**
      * Sheet snap with directional tactile response.
      */
     fun sheetSnap(expanded: Boolean = true) {

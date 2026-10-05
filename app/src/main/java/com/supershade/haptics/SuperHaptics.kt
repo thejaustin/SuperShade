@@ -435,6 +435,73 @@ class SuperHaptics(context: Context) {
     }
 
     /**
+     * Soft detent tick as dragged items cross rows or grid slots during reorder.
+     * Modeled after M3 Expressive list rearrangement patterns.
+     */
+    fun segmentTick() {
+        if (!hasVibrator()) return
+        try {
+            if (isSamsungFlagship && playSamsungEffect(SamsungHapticIndices.EFFECT_TICK_PICKER, scale = 0.45f)) {
+                return
+            }
+            if (supportsComposition && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val effect = VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_LOW_TICK, 0.40f, 0)
+                    .compose()
+                vibrator?.vibrate(effect)
+                return
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                vibrator?.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator?.vibrate(6L)
+            }
+        } catch (_: Exception) {}
+    }
+
+    /**
+     * Tactile arc initiation when picking up an item or starting a spatial gesture.
+     */
+    fun gestureStart() {
+        if (!hasVibrator()) return
+        try {
+            if (isSamsungFlagship && playSamsungEffect(SamsungHapticIndices.EFFECT_GRAB, scale = 0.70f)) {
+                return
+            }
+            if (supportsComposition && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val effect = VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_QUICK_RISE, 0.60f, 0)
+                    .compose()
+                vibrator?.vibrate(effect)
+                return
+            }
+            lightTap()
+        } catch (_: Exception) {}
+    }
+
+    /**
+     * Tactile arc resolution when dropping or completing a spatial gesture.
+     * Completes the lift/drag tactile arc with a satisfying physical landing thud.
+     */
+    fun gestureEnd() {
+        if (!hasVibrator()) return
+        try {
+            if (isSamsungFlagship && playSamsungEffect(SamsungHapticIndices.EFFECT_HEAVY_CLICK_IMPACT, scale = 0.85f)) {
+                return
+            }
+            if (supportsComposition && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val effect = VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_THUD, 0.65f, 0)
+                    .compose()
+                vibrator?.vibrate(effect)
+                return
+            }
+            heavyClick()
+        } catch (_: Exception) {}
+    }
+
+    /**
      * Performs haptic feedback directly on a View with Samsung passthrough.
      */
     fun performViewFeedback(view: View, constant: Int): Boolean {

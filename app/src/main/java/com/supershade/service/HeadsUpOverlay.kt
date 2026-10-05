@@ -36,9 +36,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.BorderStroke
 import com.supershade.ui.theme.getCardBorder
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.CompositionLocalProvider
 import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.haptics.SuperHaptics
@@ -56,9 +58,20 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.MusicNote
+import com.supershade.domain.media.MediaState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -71,6 +84,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -81,9 +95,12 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import com.supershade.ui.shade.AudioOutputChip
+import com.supershade.ui.theme.ChamferedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
@@ -147,7 +164,9 @@ class HeadsUpOverlay(
         WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+            @Suppress("DEPRECATION")
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
         PixelFormat.TRANSLUCENT,
     ).apply {
         gravity = Gravity.TOP or Gravity.START
@@ -232,6 +251,102 @@ class HeadsUpOverlay(
                                 },
                                 onSnooze = { durationMs ->
                                     notificationRepo?.snooze(notification.key, durationMs)
+                                    handler.post { dismissCurrent() }
+                                },
+                                onPauseAutoDismiss = {
+                                    currentDismissToken = null
+                                    handler.removeCallbacksAndMessages(null)
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+            currentView = view
+            try {
+                wm.addView(view, params)
+            } catch (_: Exception) {
+                owner.destroy()
+                currentView = null
+                currentLifecycleOwner = null
+                return@post
+            }
+
+            val token = Any()
+            currentDismissToken = token
+            handler.postDelayed({
+                if (currentDismissToken === token) dismissCurrent()
+            }, autoDismissMs)
+        }
+    }
+
+    /**
+     * Displays an ambient lockscreen/peek card for active [media].
+     */
+    fun showMedia(
+        media: MediaState,
+        onPlayPause: () -> Unit,
+        onSkipNext: () -> Unit,
+        onSkipPrevious: () -> Unit,
+        autoDismissMs: Long = 6_000L,
+    ) {
+        handler.post {
+            dismissCurrent()
+            val owner = HeadsUpLifecycleOwner()
+            currentLifecycleOwner = owner
+
+            val view = ComposeView(context).apply {
+                setViewTreeLifecycleOwner(owner)
+                setViewTreeViewModelStoreOwner(owner)
+                setViewTreeSavedStateRegistryOwner(owner)
+                setContent {
+                    val activeTheme by produceState<ShadeTheme>(ShadeTheme.OneUI) {
+                        settings?.theme?.collect { value = it }
+                    }
+                    val activeDarkMode by produceState(DarkThemeMode.SYSTEM) {
+                        settings?.darkThemeMode?.collect { value = it }
+                    }
+
+                    val isAmoled = activeDarkMode == DarkThemeMode.AMOLED
+                    val themeWrapper: @Composable (@Composable () -> Unit) -> Unit = when (activeTheme) {
+                        ShadeTheme.Pixel -> { content -> PixelShadeTheme(isAmoled = isAmoled, content = content) }
+                        ShadeTheme.PureMaterial -> { content ->
+                            PureMaterialShadeTheme(
+                                isAmoled = isAmoled,
+                                darkThemeMode = activeDarkMode,
+                                content = content,
+                            )
+                        }
+                        ShadeTheme.Nothing -> { content ->
+                            NothingShadeTheme(
+                                isAmoled = isAmoled,
+                                darkThemeMode = activeDarkMode,
+                                content = content,
+                            )
+                        }
+                        ShadeTheme.Cyberpunk -> { content ->
+                            CyberpunkShadeTheme(
+                                isAmoled = isAmoled,
+                                darkThemeMode = activeDarkMode,
+                                content = content,
+                            )
+                        }
+                        else -> { content -> OneUiShadeTheme(isAmoled = isAmoled, content = content) }
+                    }
+
+                    val superHaptics = remember { SuperHaptics(context) }
+                    CompositionLocalProvider(
+                        LocalShadeTheme provides activeTheme,
+                        LocalSuperHaptics provides superHaptics,
+                    ) {
+                        themeWrapper {
+                            AmbientMediaCard(
+                                media = media,
+                                isAmoled = isAmoled,
+                                onPlayPause = onPlayPause,
+                                onSkipNext = onSkipNext,
+                                onSkipPrevious = onSkipPrevious,
+                                onHide = {
                                     handler.post { dismissCurrent() }
                                 },
                                 onPauseAutoDismiss = {
@@ -726,6 +841,415 @@ class HeadsUpOverlay(
                                 ) {
                                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send reply", tint = MaterialTheme.colorScheme.primary)
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun AmbientMediaCard(
+        media: MediaState,
+        isAmoled: Boolean = false,
+        onPlayPause: () -> Unit,
+        onSkipNext: () -> Unit,
+        onSkipPrevious: () -> Unit,
+        onHide: () -> Unit,
+        onPauseAutoDismiss: () -> Unit,
+    ) {
+        val ctx = LocalContext.current
+        val haptics = LocalSuperHaptics.current ?: remember(ctx) { SuperHaptics(ctx) }
+        val scope = rememberCoroutineScope()
+        val theme = LocalShadeTheme.current
+
+        var visible by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { visible = true }
+
+        val offsetY = remember { Animatable(0f) }
+        val hideThresholdPx = ctx.resources.displayMetrics.density * 36f
+
+        AnimatedVisibility(
+            visible = visible,
+            enter = slideInVertically(tween(260)) { -it } + fadeIn(tween(200)),
+        ) {
+            val cardShape = when (theme) {
+                is ShadeTheme.Cyberpunk -> ChamferedCornerShape(12.dp)
+                is ShadeTheme.Nothing -> RoundedCornerShape(16.dp)
+                is ShadeTheme.Pixel -> RoundedCornerShape(28.dp)
+                else -> RoundedCornerShape(26.dp)
+            }
+            val cardBorder = when (theme) {
+                is ShadeTheme.Cyberpunk -> BorderStroke(1.5.dp, Color(0xFF00F0FF))
+                is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.25f))
+                else -> getCardBorder(alpha = 0.35f)
+            }
+            val cardBg = if (isAmoled) {
+                Color(0xF005070A)
+            } else when (theme) {
+                is ShadeTheme.Cyberpunk -> Color(0xF0080C14)
+                is ShadeTheme.Nothing -> Color(0xF00A0C0E)
+                else -> MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.90f)
+            }
+
+            Card(
+                shape = cardShape,
+                colors = CardDefaults.cardColors(containerColor = cardBg),
+                border = cardBorder,
+                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .displayCutoutPadding()
+                    .statusBarsPadding()
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                    .offset { IntOffset(0, offsetY.value.roundToInt()) }
+                    .graphicsLayer {
+                        val delta = (abs(offsetY.value) / (hideThresholdPx * 2f)).coerceIn(0f, 1f)
+                        alpha = 1f - delta
+                    }
+                    .pointerInput(Unit) {
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            onPauseAutoDismiss()
+                            var isDragging = false
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                if (!change.pressed) {
+                                    if (isDragging) {
+                                        val dy = offsetY.value
+                                        if (dy < -hideThresholdPx) {
+                                            haptics.sheetDetent()
+                                            scope.launch {
+                                                offsetY.animateTo(-hideThresholdPx * 3.5f, tween(160))
+                                                onHide()
+                                            }
+                                        } else {
+                                            scope.launch {
+                                                offsetY.animateTo(0f, spring(dampingRatio = 0.65f, stiffness = 800f))
+                                            }
+                                        }
+                                    }
+                                    break
+                                }
+                                val dy = change.position.y - down.position.y
+                                if (abs(dy) > 12f) isDragging = true
+                                if (isDragging) {
+                                    change.consume()
+                                    scope.launch { offsetY.snapTo(dy.coerceAtMost(20f)) }
+                                }
+                            }
+                        }
+                    },
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                ) {
+                    // Top header badge for One UI, Nothing, Cyberpunk
+                    if (theme is ShadeTheme.OneUI || theme is ShadeTheme.Nothing || theme is ShadeTheme.Cyberpunk) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            when (theme) {
+                                is ShadeTheme.Cyberpunk -> {
+                                    Text(
+                                        text = "[SYS.AUDIO // PEEK]",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 10.sp,
+                                        ),
+                                        color = Color(0xFF00F0FF),
+                                    )
+                                }
+                                is ShadeTheme.Nothing -> {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFFD71920)),
+                                        )
+                                        Text(
+                                            text = "NOW PLAYING",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                letterSpacing = 1.0.sp,
+                                                fontSize = 10.sp,
+                                            ),
+                                            color = Color.White.copy(alpha = 0.85f),
+                                        )
+                                    }
+                                }
+                                is ShadeTheme.OneUI -> {
+                                    Text(
+                                        text = "Media output",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 11.sp,
+                                        ),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                else -> {}
+                            }
+                            AudioOutputChip(
+                                packageName = media.packageName,
+                                theme = theme,
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        // Album Art
+                        val albumArt = media.albumArt
+                        val artShape = when (theme) {
+                            is ShadeTheme.Cyberpunk -> ChamferedCornerShape(6.dp)
+                            is ShadeTheme.Nothing -> RoundedCornerShape(8.dp)
+                            is ShadeTheme.OneUI -> RoundedCornerShape(16.dp)
+                            else -> RoundedCornerShape(12.dp)
+                        }
+                        if (albumArt != null) {
+                            Image(
+                                bitmap = albumArt.asImageBitmap(),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .clip(artShape),
+                                contentScale = ContentScale.Crop,
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .clip(artShape)
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.MusicNote,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            }
+                        }
+
+                        // Track Info
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.Center,
+                        ) {
+                            val titleText = when (theme) {
+                                is ShadeTheme.Cyberpunk -> "[TRK // ${media.title.ifBlank { "ONLINE" }}]"
+                                is ShadeTheme.Nothing -> media.title.ifBlank { "UNKNOWN" }.uppercase()
+                                else -> media.title.ifBlank { "Unknown Title" }
+                            }
+                            Text(
+                                text = titleText,
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontFamily = if (theme is ShadeTheme.Cyberpunk) FontFamily.Monospace else null,
+                                    letterSpacing = if (theme is ShadeTheme.Nothing) 0.8.sp else 0.sp,
+                                ),
+                                color = if (theme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF) else MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (media.artist.isNotBlank()) {
+                                val artistText = when (theme) {
+                                    is ShadeTheme.Cyberpunk -> "[ART // ${media.artist}]"
+                                    is ShadeTheme.Nothing -> "// ${media.artist.uppercase()}"
+                                    else -> media.artist
+                                }
+                                Text(
+                                    text = artistText,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontFamily = if (theme is ShadeTheme.Cyberpunk) FontFamily.Monospace else null,
+                                        letterSpacing = if (theme is ShadeTheme.Nothing) 0.6.sp else 0.sp,
+                                    ),
+                                    color = if (theme is ShadeTheme.Cyberpunk) Color(0xFFFF007F) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+
+                        // Controls
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    onPauseAutoDismiss()
+                                    haptics.lightTap()
+                                    onSkipPrevious()
+                                },
+                                modifier = Modifier.size(34.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SkipPrevious,
+                                    contentDescription = "Previous",
+                                    tint = if (theme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF) else MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+
+                            val playBtnShape = when (theme) {
+                                is ShadeTheme.Cyberpunk -> ChamferedCornerShape(6.dp)
+                                is ShadeTheme.Nothing -> CircleShape
+                                else -> CircleShape
+                            }
+                            val playBtnColor = when (theme) {
+                                is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF)
+                                is ShadeTheme.Nothing -> Color.White
+                                else -> MaterialTheme.colorScheme.primary
+                            }
+                            val playIconColor = when (theme) {
+                                is ShadeTheme.Cyberpunk -> Color.Black
+                                is ShadeTheme.Nothing -> Color.Black
+                                else -> MaterialTheme.colorScheme.onPrimary
+                            }
+
+                            Surface(
+                                onClick = {
+                                    onPauseAutoDismiss()
+                                    if (media.isPlaying) haptics.tileToggleOff() else haptics.tileToggleOn()
+                                    onPlayPause()
+                                },
+                                shape = playBtnShape,
+                                color = playBtnColor,
+                                modifier = Modifier.size(38.dp),
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = if (media.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = if (media.isPlaying) "Pause" else "Play",
+                                        tint = playIconColor,
+                                        modifier = Modifier.size(22.dp),
+                                    )
+                                }
+                            }
+
+                            IconButton(
+                                onClick = {
+                                    onPauseAutoDismiss()
+                                    haptics.lightTap()
+                                    onSkipNext()
+                                },
+                                modifier = Modifier.size(34.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SkipNext,
+                                    contentDescription = "Next",
+                                    tint = if (theme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF) else MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+                    }
+
+                    // Progress bar
+                    if (media.duration > 0) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        val progress = (media.position.toFloat() / media.duration.coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f)
+                        when (theme) {
+                            is ShadeTheme.Nothing -> {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(6.dp),
+                                    contentAlignment = Alignment.CenterStart,
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(2.dp)
+                                            .background(Color.White.copy(alpha = 0.20f))
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth(fraction = progress)
+                                            .height(2.dp)
+                                            .background(Color.White.copy(alpha = 0.90f))
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth(fraction = progress)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.CenterEnd)
+                                                .size(5.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFFD71920))
+                                        )
+                                    }
+                                }
+                            }
+                            is ShadeTheme.Cyberpunk -> {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(4.dp)
+                                        .clip(ChamferedCornerShape(2.dp))
+                                        .background(Color(0xFF141F30)),
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth(fraction = progress)
+                                            .fillMaxHeight()
+                                            .clip(ChamferedCornerShape(2.dp))
+                                            .background(
+                                                Brush.horizontalGradient(
+                                                    listOf(Color(0xFF00F0FF), Color(0xFFFF007F))
+                                                )
+                                            )
+                                    )
+                                }
+                            }
+                            is ShadeTheme.OneUI -> {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(4.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth(fraction = progress)
+                                            .fillMaxHeight()
+                                            .clip(RoundedCornerShape(2.dp))
+                                            .background(MaterialTheme.colorScheme.primary),
+                                    )
+                                }
+                            }
+                            else -> {
+                                LinearProgressIndicator(
+                                    progress = { progress },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(3.dp)
+                                        .clip(RoundedCornerShape(2.dp)),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                )
                             }
                         }
                     }

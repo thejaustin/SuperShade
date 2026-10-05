@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/data/data/com.termux/files/usr/bin/env bash
 # Build debug APK and install directly to device via ADB loopback.
 # Usage: bash scripts/dev/build-install-debug.sh
 set -euo pipefail

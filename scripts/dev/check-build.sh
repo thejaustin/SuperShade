@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/data/data/com.termux/files/usr/bin/env bash
 # Fast compile-only check. No APK output — just verifies Kotlin compiles.
 # Used by the PostToolUse hook to catch errors before CI.
 set -euo pipefail

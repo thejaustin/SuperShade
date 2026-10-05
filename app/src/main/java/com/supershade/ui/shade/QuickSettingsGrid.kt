@@ -534,12 +534,13 @@ private fun DraggableTileGrid(
                         }
 
                         if (!isLongPress && elapsedMs >= longPressMs) {
-                            // Long press threshold reached — start drag
+                            // Long press threshold reached — start drag with tactile arc
                             isLongPress = true
                             dragIndex   = pressedIndex
                             targetIndex = pressedIndex
                             dragX = change.position.x
                             dragY = change.position.y
+                            haptics.gestureStart()
                             haptics.tileGrab()
                             change.consume()
                         }
@@ -562,15 +563,16 @@ private fun DraggableTileGrid(
                                 targetIndex = hovered
                                 if (lastTargetRef.intValue != hovered) {
                                     lastTargetRef.intValue = hovered
-                                    haptics.lightTap()
+                                    haptics.segmentTick()
                                 }
                             }
                         }
                     }
 
-                    // Commit the swap
+                    // Commit the swap with decisive landing thud and tactile arc resolution
                     if (isLongPress) {
                         haptics.tileDrop()
+                        haptics.gestureEnd()
                         if (dragIndex >= 0 && targetIndex >= 0 && dragIndex != targetIndex) {
                             onMoveTile(dragIndex, targetIndex)
                         }

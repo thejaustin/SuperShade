@@ -175,10 +175,7 @@ fun TileCard(
             isPressed -> 0.92f
             else -> 1f
         },
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness    = Spring.StiffnessHigh,
-        ),
+        animationSpec = com.supershade.ui.theme.M3ExpressiveMotion.spatialFast(),
         label = "tileScale",
     )
 
@@ -216,10 +213,7 @@ fun TileCard(
             }
             else -> MaterialTheme.colorScheme.surfaceContainerHigh
         },
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness    = Spring.StiffnessMedium,
-        ),
+        animationSpec = com.supershade.ui.theme.M3ExpressiveMotion.effectsDefault(),
         label = "tileContainer",
     )
     val contentColor by animateColorAsState(
@@ -231,10 +225,7 @@ fun TileCard(
             }
             else -> MaterialTheme.colorScheme.onSurface
         },
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness    = Spring.StiffnessMedium,
-        ),
+        animationSpec = com.supershade.ui.theme.M3ExpressiveMotion.effectsDefault(),
         label = "tileContent",
     )
 

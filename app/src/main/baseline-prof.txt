@@ -1,0 +1,53 @@
+# Baseline Profile for SuperShade
+# Enables ahead-of-time (AOT) compilation by ART for critical startup,
+# swipe-down gesture handling, Compose layout rendering, and fluid animations.
+
+# ── Service & Overlay Lifecycle ──────────────────────────────────────────────
+Lcom/supershade/service/ShadeService;
+Lcom/supershade/service/SuperShadeAccessibilityService;
+Lcom/supershade/service/HeadsUpOverlay;
+Lcom/supershade/service/NotificationCollector;
+Lcom/supershade/overlay/ShadeWindowManager;
+Lcom/supershade/overlay/GestureOverlay;
+
+# ── Core ViewModel & Settings ────────────────────────────────────────────────
+Lcom/supershade/viewmodel/ShadeViewModel;
+Lcom/supershade/settings/ShadeSettings;
+Lcom/supershade/domain/notification/NotificationRepository;
+Lcom/supershade/domain/media/MediaRepository;
+
+# ── Shade Root & Layout Composables ──────────────────────────────────────────
+Lcom/supershade/ui/shade/ShadeRootKt;
+Lcom/supershade/ui/shade/QuickSettingsGridKt;
+Lcom/supershade/ui/shade/TileCardKt;
+Lcom/supershade/ui/shade/BrightnessSliderKt;
+Lcom/supershade/ui/shade/VolumeSliderKt;
+Lcom/supershade/ui/shade/MediaCardKt;
+Lcom/supershade/ui/shade/StatusBarRowKt;
+Lcom/supershade/ui/shade/OneUIDeviceControlRowKt;
+
+# ── Notification Feed & Physics ──────────────────────────────────────────────
+Lcom/supershade/ui/shade/NotificationFeedKt;
+Lcom/supershade/ui/shade/NotificationCardKt;
+Lcom/supershade/ui/shade/GroupedNotificationCardKt;
+Lcom/supershade/ui/shade/FluidSwipeToDismissKt;
+Lcom/supershade/ui/shade/FluidSwipeState;
+Lcom/supershade/ui/shade/NotificationHistorySheetKt;
+Lcom/supershade/ui/shade/QuickTileDetailSheetKt;
+
+# ── M3 Expressive Motion, Shapes & Monet ─────────────────────────────────────
+Lcom/supershade/ui/theme/M3ExpressiveMotion;
+Lcom/supershade/ui/theme/M3ExpressiveShapes;
+Lcom/supershade/ui/theme/MonetSchemeKt;
+Lcom/supershade/ui/theme/OneUiThemeKt;
+Lcom/supershade/ui/theme/PixelThemeKt;
+Lcom/supershade/ui/theme/CardBordersKt;
+
+# ── Tactile Haptics Engine ───────────────────────────────────────────────────
+Lcom/supershade/haptics/SuperHaptics;
+Lcom/supershade/haptics/SuperHaptics$SamsungHapticIndices;
+
+# ── Shizuku IPC & System UI Governance ───────────────────────────────────────
+Lcom/supershade/shizuku/StatusBarGovernor;
+Lcom/supershade/shizuku/ShizukuPlusConnector;
+Lrikka/shizuku/Shizuku;

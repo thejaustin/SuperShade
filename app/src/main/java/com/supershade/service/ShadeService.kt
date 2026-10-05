@@ -94,6 +94,29 @@ class ShadeService : Service() {
             }
             .launchIn(scope)
 
+        // Show ambient media card when track changes and shade is closed
+        var lastMediaKey: Pair<String, String>? = null
+        combine(shadeViewModel.state.map { it.media }, settings.ambientMediaWidgetEnabled) { media, ambientEnabled ->
+            media to ambientEnabled
+        }
+        .onEach { (media, ambientEnabled) ->
+            if (ambientEnabled && media != null && media.isPlaying && !shadeViewModel.state.value.isOpen) {
+                val key = media.title to media.artist
+                if (key != lastMediaKey && media.title.isNotBlank()) {
+                    lastMediaKey = key
+                    headsUpOverlay.showMedia(
+                        media = media,
+                        onPlayPause = { shadeViewModel.mediaPlayPause() },
+                        onSkipNext = { shadeViewModel.mediaSkipNext() },
+                        onSkipPrevious = { shadeViewModel.mediaSkipPrevious() },
+                    )
+                }
+            } else if (media == null || !media.isPlaying) {
+                lastMediaKey = null
+            }
+        }
+        .launchIn(scope)
+
         // Observe isOpen state from ViewModel so opening shade from any component
         // presents the overlay window.
         shadeViewModel.state

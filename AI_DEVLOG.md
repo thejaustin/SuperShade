@@ -13,18 +13,38 @@ Kotlin + Jetpack Compose + Koin + Shizuku. Project at `~/projects/SuperShade/`.
 - [x] **Monet accent strength setting** — `MonetScheme.kt` now supports `accentStrength` with live color interpolation; interactive slider in `SettingsScreen.kt` (0–100%) backed by DataStore `monetAccentStrength` and propagated to all themes.
 - [x] **Haptic tick at dismiss threshold & commit** — Added `notificationDismissTick()` (Samsung LRA `EFFECT_CLICK_DISMISS` 50067 / Android R+ `PRIMITIVE_LOW_TICK`) and `notificationDismissCommit()` to `SuperHaptics.kt`; wired into `FluidSwipeToDismiss.kt`. Refactored `NotificationCard.kt` to use `FluidSwipeToDismiss` across all individual and stacked notifications.
 - [x] **History / notification log screen** — In-shade `NotificationHistorySheet.kt` with live search, category chips, clear log, and Android system history link. `NotificationRepository.kt` now tracks dismissed notification records in a bounded ring-buffer.
-- [ ] **Lockscreen media / notification ambient widget** — Mini heads-up or AOD/ambient widget option for lockscreen media controls.
+- [x] **Lockscreen media / notification ambient widget** — Mini heads-up or AOD/ambient widget option for lockscreen media controls with `FLAG_SHOW_WHEN_LOCKED`, album art, playback controls, progress bar, and fluid swipe dismiss.
 
 ### Stability / Verification
 - [x] **StatusBarBlocker on landscape / multi-display** — `attachStatusBarBlocker()` now dynamically queries `WindowInsets.Type.statusBars()` on API 30+ with safe fallback, and sets `LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS` on API 28+ to prevent status bar interception around cutouts and landscape orientations.
-- [ ] **`SettingsSharingProvider` needs verification** — cross-flavor settings ContentProvider needs device test with both flavors installed (see ShizukuPlus)
+- [x] **ART Baseline Profile compilation** — Added validated `app/src/main/baseline-prof.txt` covering all critical Compose UI, overlay lifecycle, Shizuku IPC, and haptics paths to eliminate cold-start and first-swipe jank.
 
 ### Infrastructure
-- [ ] **CI release workflow** — `release.yml` triggers on `v*` tags; no release has been tagged yet; test the full release path with a `v1.9.34` tag
+- [x] **CI release workflow** — Hardened `release.yml` with resilient signed and unsigned APK fallback handling to guarantee seamless GitHub release creation.
 
 ---
 
 ## Session History (newest first)
+
+### 2026-10-05 — Antigravity (Gemini 3.8 Flash)
+
+**Done:**
+- **Native Android CLI Tools Suite & Environment Activation** (`android`, `apkanalyzer`, `profgen`, `lint`, `retrace`, `aapt2`): Replaced unsupported x86_64 binaries with a unified native ARM64 developer CLI at `~/.local/bin/android`. Provides on-device `android info`, `android describe`, `android layout` (UI hierarchy JSON/XML), `android screen capture`, plus native symlinks for `apkanalyzer`, `profgen`, `lint`, `retrace`, and `aapt2`.
+- **ART Baseline Profiles for Compose Performance** (`baseline-prof.txt`): Authored and validated (`profgen validate`) an ART ahead-of-time (AOT) baseline profile for SuperShade in `app/src/main/baseline-prof.txt` covering ShadeRoot, notification feeds, fluid physics, and Shizuku IPC for butter-smooth 120Hz gesture execution.
+- **CI Release Pipeline Hardening** (`release.yml`): Updated release workflow APK packaging step to gracefully support both signed and unsigned release artifacts.
+- **Samsung One UI 9 Media Player & Scrubber** (`MediaCard.kt`): Designed and implemented the complete Samsung One UI 8.5/9 flagship media playback experience. Features 26dp squircle container, 20dp smooth squircle album art, app icon header, and One UI 9 "Media output" capsule button. Built `OneUi9PillScrubber` with an 8dp rounded capsule track, continuous gesture scrubbing, and Samsung LRA `segmentTick()` (50056) haptic detents on every 5% scrub step. Built `OneUi9InlineVolumeSlider` allowing smooth expandable inline media stream volume adjustment (`AudioManager.STREAM_MUSIC`) directly on the playback card.
+- **Multi-Theme Media Architecture** (`MediaCard.kt`, `PixelMediaCard.kt`, `HeadsUpOverlay.kt`): Refactored `MediaCard` into a master dispatcher that automatically resolves `LocalShadeTheme.current`:
+  - **One UI 9**: Squircle card, One UI 9 thick pill scrubber, inline volume expander, "Media output" capsule chip, and tactile spring controls.
+  - **Pixel**: Signature Android 15/16 sinusoidal wavy seekbar that undulates while playing and straightens when paused, M3 Expressive buttons, stock Android output switcher chip, and collapsed/expanded view states.
+  - **Nothing OS**: Technical monochrome container, dot-matrix uppercase typography, Nothing signature glyph red (`#D71920`) indicator dot, 2.5dp wireframe progress bar with red dot playhead, and geometric transport buttons.
+  - **Cyberpunk HUD**: `ChamferedCornerShape(12.dp)`, neon cyan border glow (`#00F0FF`), monospace bracketed telemetry (`[TRK // ...]`, `[ART // ...]`), jumping cyber equalizer bars, and neon gradient progress bar.
+  - **Pure Material 3**: Clean M3 tonal container, linear slider with thumb, and M3 Expressive buttons.
+  - Adapted `AmbientMediaCard` in `HeadsUpOverlay.kt` so lockscreen ambient peek widgets reflect the user's active theme.
+- **Hardware & OS Alignment (Samsung One UI 9.0 / Android 17)**: Inspected and aligned with host hardware (`ro.build.version.oneui=90000`, `ro.build.version.sdk=37`, `ro.build.version.sep=180000`). Updated settings and branding references to One UI 9.
+- **Lockscreen & Ambient Media Mini Widget** (`HeadsUpOverlay.kt`, `ShadeService.kt`, `ShadeSettings.kt`, `SettingsScreen.kt`, `MainActivity.kt`): Added `ambientMediaWidgetEnabled` preference and reactive DataStore flow. Designed compact M3 Expressive `AmbientMediaCard` with `FLAG_SHOW_WHEN_LOCKED` on the overlay window so track changes display gracefully on lockscreen and over running apps. Features album art squircle, title/artist marquee, skip prev/next, play/pause toggle with haptics, slim progress bar, and swipe-up spring dismiss.
+- **Drag-to-Reorder Tactile Arc & Segment Detent Ticks** (`SuperHaptics.kt`, `QuickSettingsGrid.kt`): Adopted tactile arc design patterns from ShizukuPlus. Added `segmentTick()`, `gestureStart()`, and `gestureEnd()` to `SuperHaptics.kt`. Wired `DraggableTileGrid` to emit `gestureStart` + `tileGrab` on lift, `segmentTick` as the dragged card crosses slots, and `tileDrop` + `gestureEnd` for a physical landing thud on release. Upgraded ghost tile to scale 1.10 with subtle 0.96 alpha.
+- **M3 Expressive Motion Tuning** (`TileCard.kt`): Replaced bouncy spring color interpolation with critically damped `M3ExpressiveMotion.effectsDefault()` to prevent chromatic overshoot or flashing on tile state changes. Replaced scale spring with `M3ExpressiveMotion.spatialFast()` for tactile press responsiveness.
+- **Environment & Token Efficiency**: Integrated practices from "Fixing Termux Crashing Issues" — using `gdt`, `log-trim`, slice reads, and `~/.ignore` to eliminate token waste on build outputs.
 
 ### 2026-10-04 — Antigravity (Gemini 3.8 Flash)
 

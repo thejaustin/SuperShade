@@ -172,6 +172,8 @@ fun SettingsScreen(
     onUnhideChannel: (String) -> Unit = {},
     hideOngoingNotifications: Boolean = false,
     onHideOngoingNotificationsChange: (Boolean) -> Unit = {},
+    ambientMediaWidgetEnabled: Boolean = true,
+    onAmbientMediaWidgetEnabledChange: (Boolean) -> Unit = {},
     appVersion: String,
     darkThemeMode: DarkThemeMode = DarkThemeMode.SYSTEM,
     onToggleShade: (Boolean) -> Unit,
@@ -1331,7 +1333,7 @@ fun SettingsScreen(
                                     ) {
                                         Text(
                                             text = when (selectedTheme) {
-                                                is ShadeTheme.OneUI -> "One UI 8 ↻"
+                                                is ShadeTheme.OneUI -> "One UI 9 ↻"
                                                 is ShadeTheme.Pixel -> "Pixel ↻"
                                                 is ShadeTheme.PureMaterial -> "Material ↻"
                                                 is ShadeTheme.Nothing -> "Nothing ↻"
@@ -2876,6 +2878,40 @@ fun SettingsScreen(
                         onCheckedChange = { enabled ->
                             if (enabled) haptics?.tileToggleOn() else haptics?.tileToggleOff()
                             onHideOngoingNotificationsChange(enabled)
+                        },
+                    )
+                }
+
+                // Lockscreen & Ambient Media Widget
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable {
+                            val next = !ambientMediaWidgetEnabled
+                            if (next) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                            onAmbientMediaWidgetEnabledChange(next)
+                        }
+                        .padding(horizontal = 4.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Lockscreen & Ambient Media Widget",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        )
+                        Text(
+                            text = "Show compact media controls when track changes on lockscreen or over apps",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = ambientMediaWidgetEnabled,
+                        onCheckedChange = { enabled ->
+                            if (enabled) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                            onAmbientMediaWidgetEnabledChange(enabled)
                         },
                     )
                 }

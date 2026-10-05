@@ -84,6 +84,7 @@ class MainActivity : ComponentActivity() {
             val cardBorderWidth by settings.cardBorderWidth.collectAsState(initial = com.supershade.settings.CardBorderWidth.THIN)
             val hiddenChannels by settings.hiddenChannels.collectAsState(initial = emptySet())
             val hideOngoingNotifications by settings.hideOngoingNotifications.collectAsState(initial = false)
+            val ambientMediaWidgetEnabled by settings.ambientMediaWidgetEnabled.collectAsState(initial = true)
             val deviceControlMode by settings.deviceControlMode.collectAsState(initial = com.supershade.settings.DeviceControlMode.SHOW_WHEN_EXPANDED)
             val availableUpdate by updateRepo.availableUpdate.collectAsState()
             val isCheckingUpdate by updateRepo.isChecking.collectAsState()
@@ -176,6 +177,11 @@ class MainActivity : ComponentActivity() {
                         onHideOngoingNotificationsChange = { hide ->
                             if (hide) superHaptics.tileToggleOn() else superHaptics.tileToggleOff()
                             scope.launch { settings.setHideOngoingNotifications(hide) }
+                        },
+                        ambientMediaWidgetEnabled = ambientMediaWidgetEnabled,
+                        onAmbientMediaWidgetEnabledChange = { enabled ->
+                            if (enabled) superHaptics.tileToggleOn() else superHaptics.tileToggleOff()
+                            scope.launch { settings.setAmbientMediaWidgetEnabled(enabled) }
                         },
                         darkThemeMode = darkThemeMode,
                         appVersion = BuildConfig.VERSION_NAME,

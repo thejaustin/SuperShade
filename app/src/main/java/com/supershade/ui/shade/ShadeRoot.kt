@@ -800,12 +800,19 @@ fun ShadeRoot(
 
                                 // Category bar + notification feed (inline, not in a nested LazyColumn
                                 // since we're inside verticalScroll — so we expand the list inline)
-                                if (state.allNotifications.isNotEmpty()) {
+                                val showCategoriesTogether = state.showCategoryBar &&
+                                    state.classificationMode != com.supershade.settings.ClassificationMode.UNIFIED &&
+                                    state.allNotifications.isNotEmpty()
+                                if (showCategoriesTogether) {
+                                    val activeCategories = remember(state.classificationMode) {
+                                        com.supershade.settings.categoriesForMode(state.classificationMode)
+                                    }
                                     CategoryBar(
-                                        categories = ShadeCategory.entries,
+                                        categories = activeCategories,
                                         selected = state.selectedCategory,
                                         onSelect = { viewModel.selectCategory(it) },
                                         counts = categoryCounts,
+                                        mode = state.classificationMode,
                                     )
                                 }
 
@@ -892,12 +899,19 @@ fun ShadeRoot(
                                     }
 
                                     // Notification category bar
-                                    if (state.allNotifications.isNotEmpty()) {
+                                    val showCategoriesSplit = state.showCategoryBar &&
+                                        state.classificationMode != com.supershade.settings.ClassificationMode.UNIFIED &&
+                                        state.allNotifications.isNotEmpty()
+                                    if (showCategoriesSplit) {
+                                        val activeCategories = remember(state.classificationMode) {
+                                            com.supershade.settings.categoriesForMode(state.classificationMode)
+                                        }
                                         CategoryBar(
-                                            categories = ShadeCategory.entries,
+                                            categories = activeCategories,
                                             selected = state.selectedCategory,
                                             onSelect = { viewModel.selectCategory(it) },
                                             counts = categoryCounts,
+                                            mode = state.classificationMode,
                                         )
                                     }
 

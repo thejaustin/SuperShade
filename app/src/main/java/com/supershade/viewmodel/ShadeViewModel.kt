@@ -239,6 +239,28 @@ class ShadeViewModel(
         governor.isCommanderConnected
             .onEach { connected -> _state.update { it.copy(isShizukuConnected = connected) } }
             .launchIn(viewModelScope)
+
+        settings.classificationMode
+            .onEach { mode ->
+                _state.update { it.copy(classificationMode = mode) }
+                notificationRepo.updateClassificationConfig(mode, _state.value.appCategoryOverrides)
+                val validCats = com.supershade.settings.categoriesForMode(mode)
+                if (validCats.isNotEmpty() && _state.value.selectedCategory !in validCats) {
+                    _state.update { it.copy(selectedCategory = ShadeCategory.All) }
+                }
+            }
+            .launchIn(viewModelScope)
+
+        settings.showCategoryBar
+            .onEach { show -> _state.update { it.copy(showCategoryBar = show) } }
+            .launchIn(viewModelScope)
+
+        settings.appCategoryOverrides
+            .onEach { overrides ->
+                _state.update { it.copy(appCategoryOverrides = overrides) }
+                notificationRepo.updateClassificationConfig(_state.value.classificationMode, overrides)
+            }
+            .launchIn(viewModelScope)
     }
 
     private fun updatePositionTicker(media: MediaState?) {
@@ -874,6 +896,22 @@ class ShadeViewModel(
                 governor.runShell("input", "keyevent", "120")
             }
         }
+    }
+
+    fun setClassificationMode(mode: com.supershade.settings.ClassificationMode) {
+        viewModelScope.launch { settings.setClassificationMode(mode) }
+    }
+
+    fun setShowCategoryBar(show: Boolean) {
+        viewModelScope.launch { settings.setShowCategoryBar(show) }
+    }
+
+    fun setAppCategoryOverride(packageName: String, category: ShadeCategory?) {
+        viewModelScope.launch { settings.setAppCategoryOverride(packageName, category) }
+    }
+
+    fun clearAppCategoryOverrides() {
+        viewModelScope.launch { settings.clearAppCategoryOverrides() }
     }
 
     // --- Lifecycle ---

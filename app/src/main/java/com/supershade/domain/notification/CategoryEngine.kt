@@ -1,17 +1,39 @@
 package com.supershade.domain.notification
 
+import android.app.Notification
 import android.service.notification.StatusBarNotification
 import com.supershade.domain.notification.model.ShadeCategory
+import com.supershade.settings.ClassificationMode
 
 class CategoryEngine {
 
-    fun categorize(sbn: StatusBarNotification): ShadeCategory {
+    fun categorize(
+        sbn: StatusBarNotification,
+        mode: ClassificationMode = ClassificationMode.ONE_UI,
+        overrides: Map<String, ShadeCategory> = emptyMap(),
+    ): ShadeCategory {
+        val pkg = sbn.packageName
+
+        // 1. Explicit user override always takes precedence
+        overrides[pkg]?.let { return it }
+
+        // 2. Dispatch based on ClassificationMode
+        return when (mode) {
+            ClassificationMode.ONE_UI -> categorizeOneUi(sbn)
+            ClassificationMode.AOSP -> categorizeAosp(sbn)
+            ClassificationMode.ESSENTIAL -> categorizeEssential(sbn)
+            ClassificationMode.CYBERPUNK -> categorizeCyberpunk(sbn)
+            ClassificationMode.UNIFIED -> ShadeCategory.All
+        }
+    }
+
+    private fun categorizeOneUi(sbn: StatusBarNotification): ShadeCategory {
         val pkg = sbn.packageName
         val androidCategory = sbn.notification.category
 
         // Calls always win
-        if (androidCategory == android.app.Notification.CATEGORY_CALL ||
-            androidCategory == android.app.Notification.CATEGORY_MISSED_CALL) {
+        if (androidCategory == Notification.CATEGORY_CALL ||
+            androidCategory == Notification.CATEGORY_MISSED_CALL) {
             return ShadeCategory.Calls
         }
 
@@ -31,13 +53,81 @@ class CategoryEngine {
         }
 
         // Productivity by android category
-        if (androidCategory == android.app.Notification.CATEGORY_REMINDER ||
-            androidCategory == android.app.Notification.CATEGORY_EVENT) {
+        if (androidCategory == Notification.CATEGORY_REMINDER ||
+            androidCategory == Notification.CATEGORY_EVENT) {
             return ShadeCategory.Productivity
         }
 
         // System apps last
         return if (isSystemApp(pkg)) ShadeCategory.System else ShadeCategory.Apps
+    }
+
+    private fun categorizeAosp(sbn: StatusBarNotification): ShadeCategory {
+        val pkg = sbn.packageName
+        val androidCategory = sbn.notification.category
+
+        // Conversations: Messaging apps, dialers, or notifications with category MESSAGE/CALL/MISSED_CALL
+        if (isMessagingApp(pkg) ||
+            isCallsApp(pkg) ||
+            androidCategory == Notification.CATEGORY_MESSAGE ||
+            androidCategory == Notification.CATEGORY_CALL ||
+            androidCategory == Notification.CATEGORY_MISSED_CALL ||
+            sbn.notification.shortcutId != null) {
+            return ShadeCategory.Conversations
+        }
+
+        // Silent: Low importance, ongoing system services, background telemetry
+        val isOngoing = (sbn.notification.flags and Notification.FLAG_ONGOING_EVENT) != 0
+        if (isSystemApp(pkg) ||
+            isOngoing ||
+            androidCategory == Notification.CATEGORY_SERVICE ||
+            androidCategory == Notification.CATEGORY_STATUS) {
+            return ShadeCategory.Silent
+        }
+
+        // Alerting: Everything active (alarms, email, social, media, reminders)
+        return ShadeCategory.Alerting
+    }
+
+    private fun categorizeEssential(sbn: StatusBarNotification): ShadeCategory {
+        val pkg = sbn.packageName
+        val androidCategory = sbn.notification.category
+
+        // Essential: Critical calls, direct communications, urgent alarms/reminders
+        if (isCallsApp(pkg) ||
+            androidCategory == Notification.CATEGORY_CALL ||
+            androidCategory == Notification.CATEGORY_MISSED_CALL ||
+            androidCategory == Notification.CATEGORY_ALARM ||
+            (isMessagingApp(pkg) && (sbn.notification.flags and Notification.FLAG_ONGOING_EVENT) == 0)) {
+            return ShadeCategory.Essential
+        }
+
+        return ShadeCategory.General
+    }
+
+    private fun categorizeCyberpunk(sbn: StatusBarNotification): ShadeCategory {
+        val pkg = sbn.packageName
+        val androidCategory = sbn.notification.category
+
+        // Comms: Messaging, calls, social feeds
+        if (isMessagingApp(pkg) || isCallsApp(pkg) || isSocialApp(pkg) ||
+            androidCategory in listOf(Notification.CATEGORY_MESSAGE, Notification.CATEGORY_CALL, Notification.CATEGORY_SOCIAL)) {
+            return ShadeCategory.Messages
+        }
+
+        // Task cycles: Reminders, calendar, email, productivity
+        if (isProductivityApp(pkg) || isEmailApp(pkg) ||
+            androidCategory in listOf(Notification.CATEGORY_REMINDER, Notification.CATEGORY_EVENT, Notification.CATEGORY_EMAIL)) {
+            return ShadeCategory.Productivity
+        }
+
+        // Audio feed: Media streaming
+        if (isMediaApp(pkg) || sbn.notification.extras.containsKey(Notification.EXTRA_MEDIA_SESSION)) {
+            return ShadeCategory.Media
+        }
+
+        // Net kernel: System telemetry, background services, general
+        return ShadeCategory.System
     }
 
     private fun isCallsApp(pkg: String) = pkg in setOf(

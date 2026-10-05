@@ -23,7 +23,10 @@ import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -38,12 +41,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.supershade.domain.notification.model.ShadeCategory
 import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.haptics.SuperHaptics
+import com.supershade.settings.ClassificationMode
 import com.supershade.ui.theme.LocalShadeShapeScheme
 import com.supershade.ui.theme.getCardBorder
 
@@ -58,6 +63,11 @@ fun ShadeCategory.icon(): ImageVector = when (this) {
     ShadeCategory.Alarms -> Icons.Default.Alarm
     ShadeCategory.System -> Icons.Default.Info
     ShadeCategory.Apps -> Icons.Default.Apps
+    ShadeCategory.Conversations -> Icons.Default.ChatBubble
+    ShadeCategory.Alerting -> Icons.Default.NotificationsActive
+    ShadeCategory.Silent -> Icons.Default.NotificationsOff
+    ShadeCategory.Essential -> Icons.Default.Star
+    ShadeCategory.General -> Icons.Default.Apps
 }
 
 @Composable
@@ -66,6 +76,7 @@ fun CategoryBar(
     selected: ShadeCategory,
     onSelect: (ShadeCategory) -> Unit,
     counts: Map<ShadeCategory, Int> = emptyMap(),
+    mode: ClassificationMode = ClassificationMode.ONE_UI,
 ) {
     val scrollState = rememberScrollState()
 
@@ -100,6 +111,7 @@ fun CategoryBar(
                 isSelected = category == selected,
                 count = counts[category] ?: 0,
                 onClick = { onSelect(category) },
+                mode = mode,
             )
         }
     }
@@ -111,6 +123,7 @@ private fun CategoryChip(
     isSelected: Boolean,
     count: Int,
     onClick: () -> Unit,
+    mode: ClassificationMode = ClassificationMode.ONE_UI,
 ) {
     val context = LocalContext.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
@@ -190,9 +203,10 @@ private fun CategoryChip(
                     .graphicsLayer { rotationZ = iconRotation },
             )
             Text(
-                text = category.label,
+                text = category.displayLabel(mode.id),
                 style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    fontFamily = if (mode == ClassificationMode.CYBERPUNK) FontFamily.Monospace else FontFamily.Default,
                 ),
                 color = labelColor,
             )

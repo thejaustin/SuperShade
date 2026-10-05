@@ -90,6 +90,9 @@ data class ShadeState(
     val pinnedKeys: Set<String> = emptySet(),
     val lastDismissedNotification: ShadeNotification? = null,
     val snoozedRecords: List<com.supershade.domain.notification.SnoozeRecord> = emptyList(),
+    val classificationMode: com.supershade.settings.ClassificationMode = com.supershade.settings.ClassificationMode.ONE_UI,
+    val showCategoryBar: Boolean = true,
+    val appCategoryOverrides: Map<String, ShadeCategory> = emptyMap(),
 ) {
     val isNotificationCompact: Boolean get() = notificationDensity == com.supershade.settings.NotificationDensity.COMPACT || tileSize == com.supershade.settings.TileSize.COMPACT
 }

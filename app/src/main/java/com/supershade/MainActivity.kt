@@ -86,6 +86,9 @@ class MainActivity : ComponentActivity() {
             val hideOngoingNotifications by settings.hideOngoingNotifications.collectAsState(initial = false)
             val ambientMediaWidgetEnabled by settings.ambientMediaWidgetEnabled.collectAsState(initial = true)
             val deviceControlMode by settings.deviceControlMode.collectAsState(initial = com.supershade.settings.DeviceControlMode.SHOW_WHEN_EXPANDED)
+            val classificationMode by settings.classificationMode.collectAsState(initial = com.supershade.settings.ClassificationMode.ONE_UI)
+            val showCategoryBar by settings.showCategoryBar.collectAsState(initial = true)
+            val appCategoryOverrides by settings.appCategoryOverrides.collectAsState(initial = emptyMap())
             val availableUpdate by updateRepo.availableUpdate.collectAsState()
             val isCheckingUpdate by updateRepo.isChecking.collectAsState()
             val showWhatsNew by updateRepo.showWhatsNew.collectAsState()
@@ -167,6 +170,25 @@ class MainActivity : ComponentActivity() {
                         onNotificationDensityChange = { newDensity ->
                             superHaptics.sliderTick()
                             scope.launch { settings.setNotificationDensity(newDensity) }
+                        },
+                        classificationMode = classificationMode,
+                        onClassificationModeChange = { mode ->
+                            superHaptics.lightTap()
+                            scope.launch { settings.setClassificationMode(mode) }
+                        },
+                        showCategoryBar = showCategoryBar,
+                        onShowCategoryBarChange = { show ->
+                            if (show) superHaptics.tileToggleOn() else superHaptics.tileToggleOff()
+                            scope.launch { settings.setShowCategoryBar(show) }
+                        },
+                        appCategoryOverrides = appCategoryOverrides,
+                        onSetAppCategoryOverride = { pkg, cat ->
+                            superHaptics.lightTap()
+                            scope.launch { settings.setAppCategoryOverride(pkg, cat) }
+                        },
+                        onClearAppCategoryOverrides = {
+                            superHaptics.lightTap()
+                            scope.launch { settings.clearAppCategoryOverrides() }
                         },
                         hiddenChannels = hiddenChannels,
                         onUnhideChannel = { channelKey ->

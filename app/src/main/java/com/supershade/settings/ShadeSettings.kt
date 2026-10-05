@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.supershade.domain.notification.model.ShadeCategory
 import com.supershade.ui.theme.BackdropTheme
 import com.supershade.ui.theme.ShadeTheme
 import kotlinx.coroutines.flow.Flow
@@ -66,6 +67,76 @@ enum class NotificationDensity(
     COMPACT("compact", "Compact (Space-saving)", "28dp icons, single-line headers, dense layout fits 2-3x more notifications"),
     BALANCED("balanced", "Balanced (Standard)", "Comfortable One UI spacing with full previews and action chips"),
     EXPANSIVE("expansive", "Expansive (Detailed)", "Generous padding with multi-line text and prominent media");
+}
+
+enum class ClassificationMode(
+    val id: String,
+    val label: String,
+    val subtitle: String,
+) {
+    ONE_UI(
+        id = "one_ui",
+        label = "One UI 9 (Domain Buckets)",
+        subtitle = "Messages, Social, Email, Calls, Tasks, Media, System & Apps",
+    ),
+    AOSP(
+        id = "aosp",
+        label = "Pixel / AOSP (Priority)",
+        subtitle = "Android 15/16 channels: Conversations, Alerting / Important, and Silent",
+    ),
+    ESSENTIAL(
+        id = "essential",
+        label = "Nothing OS (Essential)",
+        subtitle = "Streamlined glyph focus: Essential alerts (VIPs, Comms, Alarms) vs General",
+    ),
+    CYBERPUNK(
+        id = "cyberpunk",
+        label = "Cyberpunk HUD (Telemetry)",
+        subtitle = "Matrix packet routing: Comms, Task Cycles, Audio Feed, and Net Kernel",
+    ),
+    UNIFIED(
+        id = "unified",
+        label = "Unified (Flat Feed)",
+        subtitle = "No category chips; all alerts shown in a clean, chronological feed",
+    );
+
+    companion object {
+        fun fromId(id: String?): ClassificationMode = entries.find { it.id == id } ?: ONE_UI
+    }
+}
+
+fun categoriesForMode(mode: ClassificationMode): List<ShadeCategory> = when (mode) {
+    ClassificationMode.ONE_UI -> listOf(
+        ShadeCategory.All,
+        ShadeCategory.Messages,
+        ShadeCategory.Social,
+        ShadeCategory.Email,
+        ShadeCategory.Calls,
+        ShadeCategory.Productivity,
+        ShadeCategory.Media,
+        ShadeCategory.Alarms,
+        ShadeCategory.System,
+        ShadeCategory.Apps,
+    )
+    ClassificationMode.AOSP -> listOf(
+        ShadeCategory.All,
+        ShadeCategory.Conversations,
+        ShadeCategory.Alerting,
+        ShadeCategory.Silent,
+    )
+    ClassificationMode.ESSENTIAL -> listOf(
+        ShadeCategory.All,
+        ShadeCategory.Essential,
+        ShadeCategory.General,
+    )
+    ClassificationMode.CYBERPUNK -> listOf(
+        ShadeCategory.All,
+        ShadeCategory.Messages,
+        ShadeCategory.Productivity,
+        ShadeCategory.Media,
+        ShadeCategory.System,
+    )
+    ClassificationMode.UNIFIED -> emptyList()
 }
 
 enum class AccentColor(val label: String, val hex: Long) {
@@ -181,6 +252,9 @@ class ShadeSettings(private val context: Context) {
         private val DEVICE_CONTROL_MODE_KEY = stringPreferencesKey("device_control_mode")
         private val MONET_ACCENT_STRENGTH_KEY = floatPreferencesKey("monet_accent_strength")
         private val AMBIENT_MEDIA_WIDGET_KEY = booleanPreferencesKey("ambient_media_widget_enabled")
+        private val CLASSIFICATION_MODE_KEY = stringPreferencesKey("classification_mode")
+        private val SHOW_CATEGORY_BAR_KEY = booleanPreferencesKey("show_category_bar")
+        private val APP_CATEGORY_OVERRIDES_KEY = stringPreferencesKey("app_category_overrides")
     }
 
     val backdropTheme: Flow<BackdropTheme> = context.dataStore.data.map { prefs ->
@@ -545,6 +619,67 @@ class ShadeSettings(private val context: Context) {
     suspend fun setAmbientMediaWidgetEnabled(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[AMBIENT_MEDIA_WIDGET_KEY] = enabled
+        }
+    }
+
+    val classificationMode: Flow<ClassificationMode> = context.dataStore.data.map { prefs ->
+        ClassificationMode.fromId(prefs[CLASSIFICATION_MODE_KEY])
+    }
+
+    suspend fun setClassificationMode(mode: ClassificationMode) {
+        context.dataStore.edit { prefs ->
+            prefs[CLASSIFICATION_MODE_KEY] = mode.id
+        }
+    }
+
+    val showCategoryBar: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[SHOW_CATEGORY_BAR_KEY] ?: true
+    }
+
+    suspend fun setShowCategoryBar(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[SHOW_CATEGORY_BAR_KEY] = enabled
+        }
+    }
+
+    val appCategoryOverrides: Flow<Map<String, ShadeCategory>> = context.dataStore.data.map { prefs ->
+        val raw = prefs[APP_CATEGORY_OVERRIDES_KEY].orEmpty()
+        if (raw.isBlank()) emptyMap()
+        else {
+            raw.split(",").mapNotNull { entry ->
+                val parts = entry.split("=")
+                if (parts.size == 2) {
+                    val pkg = parts[0].trim()
+                    val catName = parts[1].trim()
+                    val cat = ShadeCategory.entries.find { it.name.equals(catName, ignoreCase = true) }
+                    if (cat != null) pkg to cat else null
+                } else null
+            }.toMap()
+        }
+    }
+
+    suspend fun setAppCategoryOverride(packageName: String, category: ShadeCategory?) {
+        context.dataStore.edit { prefs ->
+            val raw = prefs[APP_CATEGORY_OVERRIDES_KEY].orEmpty()
+            val current = if (raw.isBlank()) mutableMapOf()
+            else {
+                raw.split(",").mapNotNull { entry ->
+                    val parts = entry.split("=")
+                    if (parts.size == 2) parts[0].trim() to parts[1].trim() else null
+                }.toMap().toMutableMap()
+            }
+            if (category != null) {
+                current[packageName] = category.name
+            } else {
+                current.remove(packageName)
+            }
+            prefs[APP_CATEGORY_OVERRIDES_KEY] = current.entries.joinToString(",") { "${it.key}=${it.value}" }
+        }
+    }
+
+    suspend fun clearAppCategoryOverrides() {
+        context.dataStore.edit { prefs ->
+            prefs.remove(APP_CATEGORY_OVERRIDES_KEY)
         }
     }
 }

@@ -29,6 +29,18 @@ Kotlin + Jetpack Compose + Koin + Shizuku. Project at `~/projects/SuperShade/`.
 ### 2026-10-05 — Antigravity (Gemini 3.8 Flash)
 
 **Done:**
+- **Customizable Notification Classification Engine Independent of Theme** (`ClassificationMode`, `ShadeSettings.kt`, `CategoryEngine.kt`, `NotificationRepository.kt`, `ShadeCategory.kt`, `CategoryBar.kt`, `ShadeRoot.kt`, `SettingsScreen.kt`, `MainActivity.kt`):
+  - **Decoupled Classification from Visual Theme**: Users can freely select any categorization strategy regardless of the active visual theme (e.g. AOSP priority on One UI theme, One UI domain buckets on Cyberpunk or Pixel, Nothing Essential on One UI, or a Unified flat feed).
+  - **5 Distinct Classification Strategies**:
+    - `ONE_UI` (Samsung domain buckets: Messages, Social, Email, Calls, Tasks, Media, Alarms, System, Apps)
+    - `AOSP` (Pixel / AOSP channels: Conversations, Alerting / Important, Silent)
+    - `ESSENTIAL` (Nothing OS glyph style: Essential VIP / Comms vs General)
+    - `CYBERPUNK` (Matrix telemetry HUD: Comms, Task Cycles, Audio Feed, Net Kernel)
+    - `UNIFIED` (Flat chronological feed without category tabs)
+  - **Dynamic CategoryBar & Labels**: Added `categoriesForMode()` and `ShadeCategory.displayLabel(mode)` adapting category chip counts, icons, and typography to the active classification strategy.
+  - **Custom Per-App Routing Overrides**: Added interactive "Custom App Routing" UI in Settings with an "Add Custom App Route" dialog allowing users to route any package directly to a preferred category, taking top precedence in `CategoryEngine`.
+  - **Category Tabs Toggle**: Added setting to show/hide category filter tabs above notifications.
+  - **Live Reactive Re-categorization**: `NotificationRepository.updateClassificationConfig()` caches active `StatusBarNotification`s and re-evaluates categories instantaneously upon any settings update without restarting services.
 - **Notification Pins & Immunity from "Clear all"** (`NotificationCard.kt`, `GroupedNotificationCard.kt`, `NotificationFeed.kt`, `NotificationRepository.kt`, `ShadeState.kt`, `ShadeViewModel.kt`): Notifications can now be pinned to stay anchored at the top of the feed with dedicated visual pin badges (`Icons.Filled.PushPin`) and "Pin to top" / "Unpin from top" context menu actions. Pinned alerts are strictly preserved when the user taps "Clear all".
 - **Dismissal Undo Pill & Buffer** (`NotificationUndoBar.kt`, `NotificationRepository.kt`, `ShadeViewModel.kt`, `ShadeRoot.kt`): Implemented floating themed Undo pill with a 3.5s auto-dismiss timer that appears immediately upon dismissing any notification. Tapping "RESTORE"/"UNDO" invokes `undoDismissNotification()`, immediately re-inserting the alert into the active feed with a tactile haptic tick.
 - **Smart Contextual Snooze & Snooze Manager** (`NotificationCard.kt`, `NotificationHistorySheet.kt`, `NotificationRepository.kt`, `ShadeViewModel.kt`): Added dynamic snooze options (`15m`, `1h`, `2h`, `This Evening (6 PM)`, `Tomorrow Morning (9 AM)`) that compute exact target epoch timestamps based on current local time. Integrated Snooze Manager tab in `NotificationHistorySheet` displaying active snoozed alerts, live remaining countdowns, and a one-tap "Wake now" unsnooze action.

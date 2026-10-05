@@ -137,9 +137,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
 import com.supershade.R
-import com.supershade.settings.NotificationDensity
+import com.supershade.domain.notification.model.ShadeCategory
 import com.supershade.settings.AccentColor
+import com.supershade.settings.ClassificationMode
+import com.supershade.settings.NotificationDensity
 import com.supershade.ui.theme.BackdropTheme
 import com.supershade.ui.theme.DarkThemeMode
 import com.supershade.ui.theme.ShadeTheme
@@ -168,6 +172,13 @@ fun SettingsScreen(
     backdropOpacity: Float = 0.78f,
     notificationDensity: NotificationDensity = NotificationDensity.BALANCED,
     onNotificationDensityChange: (NotificationDensity) -> Unit = {},
+    classificationMode: ClassificationMode = ClassificationMode.ONE_UI,
+    onClassificationModeChange: (ClassificationMode) -> Unit = {},
+    showCategoryBar: Boolean = true,
+    onShowCategoryBarChange: (Boolean) -> Unit = {},
+    appCategoryOverrides: Map<String, ShadeCategory> = emptyMap(),
+    onSetAppCategoryOverride: (String, ShadeCategory?) -> Unit = { _, _ -> },
+    onClearAppCategoryOverrides: () -> Unit = {},
     hiddenChannels: Set<String> = emptySet(),
     onUnhideChannel: (String) -> Unit = {},
     hideOngoingNotifications: Boolean = false,
@@ -2844,6 +2855,344 @@ fun SettingsScreen(
                             }
                         }
                     }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
+                // Classification Engine
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Classification Engine",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                            )
+                            Text(
+                                text = "Independent of active theme — choose how alerts are categorized & grouped",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                        ) {
+                            Text(
+                                text = classificationMode.label.substringBefore(" ("),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            )
+                        }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ClassificationMode.entries.forEach { mode ->
+                            val isSelected = classificationMode == mode
+                            Surface(
+                                onClick = {
+                                    haptics?.lightTap()
+                                    onClassificationModeChange(mode)
+                                },
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (isSelected)
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                                else
+                                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.40f),
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+                                ),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .border(
+                                                2.dp,
+                                                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                                CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        if (isSelected) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(10.dp)
+                                                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                            )
+                                        }
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = mode.label,
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                            ),
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                        Text(
+                                            text = mode.subtitle,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
+                // Show Category Filter Bar Toggle
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable {
+                            val next = !showCategoryBar
+                            if (next) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                            onShowCategoryBarChange(next)
+                        }
+                        .padding(horizontal = 4.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Category Filter Tabs",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        )
+                        Text(
+                            text = "Show horizontal category chips above the feed for instant filtering",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = showCategoryBar,
+                        onCheckedChange = { enabled ->
+                            if (enabled) haptics?.tileToggleOn() else haptics?.tileToggleOff()
+                            onShowCategoryBarChange(enabled)
+                        },
+                    )
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))
+
+                // App Category Overrides
+                var showAddOverrideDialog by remember { mutableStateOf(false) }
+                var expandedOverrides by remember { mutableStateOf(false) }
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .clickable {
+                                haptics?.lightTap()
+                                expandedOverrides = !expandedOverrides
+                            }
+                            .padding(horizontal = 4.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "Custom App Routing",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                )
+                                if (appCategoryOverrides.isNotEmpty()) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                    ) {
+                                        Text(
+                                            text = "${appCategoryOverrides.size}",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                        )
+                                    }
+                                }
+                            }
+                            Text(
+                                text = "Explicitly assign individual apps to specific categories",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Icon(
+                            imageVector = if (expandedOverrides) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    AnimatedVisibility(visible = expandedOverrides) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            if (appCategoryOverrides.isEmpty()) {
+                                Text(
+                                    text = "No custom app routing rules configured yet.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    modifier = Modifier.padding(horizontal = 4.dp),
+                                )
+                            } else {
+                                appCategoryOverrides.forEach { (pkg, cat) ->
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = pkg,
+                                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                )
+                                                Text(
+                                                    text = "Routed to: ${cat.label}",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = {
+                                                    haptics?.lightTap()
+                                                    onSetAppCategoryOverride(pkg, null)
+                                                },
+                                                modifier = Modifier.size(28.dp),
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = "Remove override",
+                                                    tint = MaterialTheme.colorScheme.error,
+                                                    modifier = Modifier.size(16.dp),
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                TextButton(
+                                    onClick = {
+                                        haptics?.lightTap()
+                                        onClearAppCategoryOverrides()
+                                    },
+                                    modifier = Modifier.align(Alignment.End),
+                                ) {
+                                    Text("Clear All Rules", color = MaterialTheme.colorScheme.error)
+                                }
+                            }
+
+                            FilledTonalButton(
+                                onClick = {
+                                    haptics?.lightTap()
+                                    showAddOverrideDialog = true
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Add Custom App Route")
+                            }
+                        }
+                    }
+                }
+
+                if (showAddOverrideDialog) {
+                    var pkgInput by remember { mutableStateOf("") }
+                    var selectedTargetCategory by remember { mutableStateOf(ShadeCategory.Messages) }
+
+                    AlertDialog(
+                        onDismissRequest = { showAddOverrideDialog = false },
+                        title = { Text("Route App to Category") },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                OutlinedTextField(
+                                    value = pkgInput,
+                                    onValueChange = { pkgInput = it },
+                                    label = { Text("Package Name (e.g. com.slack)") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+
+                                Text("Select Destination Category:", style = MaterialTheme.typography.labelMedium)
+
+                                val availableCats = remember {
+                                    ShadeCategory.entries.filter { it != ShadeCategory.All }
+                                }
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    availableCats.forEach { cat ->
+                                        val isCatSelected = selectedTargetCategory == cat
+                                        Surface(
+                                            onClick = { selectedTargetCategory = cat },
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = if (isCatSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                            border = if (isCatSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
+                                        ) {
+                                            Text(
+                                                text = cat.label,
+                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = if (isCatSelected) FontWeight.Bold else FontWeight.Normal),
+                                                color = if (isCatSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    if (pkgInput.isNotBlank()) {
+                                        onSetAppCategoryOverride(pkgInput.trim(), selectedTargetCategory)
+                                        showAddOverrideDialog = false
+                                    }
+                                },
+                                enabled = pkgInput.isNotBlank(),
+                            ) {
+                                Text("Add Route")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showAddOverrideDialog = false }) {
+                                Text("Cancel")
+                            }
+                        },
+                    )
                 }
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f))

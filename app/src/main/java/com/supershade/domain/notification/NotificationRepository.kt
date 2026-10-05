@@ -4,6 +4,7 @@ import android.service.notification.StatusBarNotification
 import com.supershade.domain.notification.model.ShadeCategory
 import com.supershade.domain.notification.model.ShadeNotification
 import com.supershade.domain.notification.model.toShadeNotification
+import com.supershade.settings.ClassificationMode
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -61,8 +62,29 @@ class NotificationRepository {
     }
 
     private val categoryEngine = CategoryEngine()
+    private var currentClassificationMode: ClassificationMode = ClassificationMode.ONE_UI
+    private var currentAppOverrides: Map<String, ShadeCategory> = emptyMap()
+    private val activeSbns = java.util.concurrent.ConcurrentHashMap<String, StatusBarNotification>()
+
     private val _notifications = MutableStateFlow<List<ShadeNotification>>(emptyList())
     val notifications: StateFlow<List<ShadeNotification>> = _notifications.asStateFlow()
+
+    fun updateClassificationConfig(mode: ClassificationMode, overrides: Map<String, ShadeCategory>) {
+        currentClassificationMode = mode
+        currentAppOverrides = overrides
+        _notifications.update { current ->
+            val updated = current.map { note ->
+                val sbn = activeSbns[note.key]
+                val newCategory = if (sbn != null) {
+                    categoryEngine.categorize(sbn, mode, overrides)
+                } else {
+                    overrides[note.packageName] ?: note.category
+                }
+                note.copy(category = newCategory)
+            }
+            sortNotifications(updated)
+        }
+    }
 
     private val _dismissedHistory = MutableStateFlow<List<DismissedNotificationRecord>>(emptyList())
     val dismissedHistory: StateFlow<List<DismissedNotificationRecord>> = _dismissedHistory.asStateFlow()
@@ -172,17 +194,19 @@ class NotificationRepository {
     }
 
     fun onNotificationPosted(sbn: StatusBarNotification) {
+        activeSbns[sbn.key] = sbn
+
         // Apps like Samsung Voice Recorder post an ongoing MediaStyle service notification
         // while also registering a MediaSession. Suppress them from the notification feed;
         // they are routed to the media card.
         if (isMediaOnlyNotification(sbn)) {
-            val category = categoryEngine.categorize(sbn)
+            val category = categoryEngine.categorize(sbn, currentClassificationMode, currentAppOverrides)
             val shade = sbn.toShadeNotification(category)
             _voiceRecorderNotification.value = shade
             return
         }
 
-        val category = categoryEngine.categorize(sbn)
+        val category = categoryEngine.categorize(sbn, currentClassificationMode, currentAppOverrides)
         val shade = sbn.toShadeNotification(category)
 
         if (shade.title.isBlank() && shade.text.isBlank()) return
@@ -214,6 +238,7 @@ class NotificationRepository {
     }
 
     fun onNotificationRemoved(key: String) {
+        activeSbns.remove(key)
         if (_voiceRecorderNotification.value?.key == key) {
             _voiceRecorderNotification.value = null
         }

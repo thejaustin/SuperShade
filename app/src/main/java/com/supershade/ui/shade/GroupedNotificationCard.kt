@@ -117,6 +117,7 @@ fun GroupedNotificationCard(
     modifier: Modifier = Modifier,
 ) {
     val shapes = LocalShadeShapeScheme.current
+    val shadeTheme = LocalShadeTheme.current
     var expanded by remember { mutableStateOf(false) }
     var showSettingsMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -165,8 +166,32 @@ fun GroupedNotificationCard(
                 animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
                 label = "groupSwipeIconRotation",
             )
-            val trackBgColor = Color(0xFFE53935).copy(alpha = (progress * 0.45f).coerceIn(0f, 0.40f))
-            val badgeColor = if (isPastDismissThreshold) Color(0xFFE53935) else Color(0xFFE53935).copy(alpha = 0.85f)
+            val trackBgColor = when (shadeTheme) {
+                is ShadeTheme.Cyberpunk -> Color(0xFFFF0055).copy(alpha = (progress * 0.40f).coerceIn(0f, 0.35f))
+                is ShadeTheme.Nothing -> Color(0xFFD71920).copy(alpha = (progress * 0.45f).coerceIn(0f, 0.40f))
+                else -> Color(0xFFE53935).copy(alpha = (progress * 0.45f).coerceIn(0f, 0.40f))
+            }
+            val badgeColor = when (shadeTheme) {
+                is ShadeTheme.Cyberpunk -> if (isPastDismissThreshold) Color(0xFFFF0055) else Color(0xFFFF0055).copy(alpha = 0.85f)
+                is ShadeTheme.Nothing -> if (isPastDismissThreshold) Color(0xFFD71920) else Color(0xFFD71920).copy(alpha = 0.85f)
+                else -> if (isPastDismissThreshold) Color(0xFFE53935) else Color(0xFFE53935).copy(alpha = 0.85f)
+            }
+            val badgeShape = when (shadeTheme) {
+                is ShadeTheme.Cyberpunk -> ChamferedCornerShape(6.dp)
+                is ShadeTheme.Nothing -> RoundedCornerShape(8.dp)
+                is ShadeTheme.Pixel -> RoundedCornerShape(50)
+                else -> RoundedCornerShape(20.dp)
+            }
+            val badgeBorder = when (shadeTheme) {
+                is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFFFF007F))
+                is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.30f))
+                else -> null
+            }
+            val label = when (shadeTheme) {
+                is ShadeTheme.Cyberpunk -> "[PURGE_GROUP]"
+                is ShadeTheme.Nothing -> "CLEAR GROUP"
+                else -> "Clear group"
+            }
 
             val iconSlideOffset by animateDpAsState(
                 targetValue = if (currentOffset > 0f) {
@@ -186,8 +211,9 @@ fun GroupedNotificationCard(
                 contentAlignment = alignment,
             ) {
                 Surface(
-                    shape = RoundedCornerShape(50),
+                    shape = badgeShape,
                     color = badgeColor,
+                    border = badgeBorder,
                     shadowElevation = if (isPastDismissThreshold) 6.dp else 1.dp,
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
@@ -212,9 +238,10 @@ fun GroupedNotificationCard(
                         )
                         if (progress > 0.25f) {
                             Text(
-                                text = "Clear group",
+                                text = label,
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.Bold,
+                                    fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
                                     fontSize = 12.5.sp,
                                 ),
                                 color = Color.White,
@@ -231,7 +258,6 @@ fun GroupedNotificationCard(
         val cardAlpha = if (dragProgress > 0.75f) (1f - (dragProgress - 0.75f) * 2.5f).coerceIn(0.4f, 1.0f) else 1.0f
         val cardElevation = (dragProgress * 8f).dp
 
-        val shadeTheme = LocalShadeTheme.current
         val baseThemeShape = when (shadeTheme) {
             is ShadeTheme.Cyberpunk -> ChamferedCornerShape(10.dp)
             is ShadeTheme.Nothing -> RoundedCornerShape(16.dp)
@@ -267,6 +293,22 @@ fun GroupedNotificationCard(
                 }
         ) {
 
+            val ghostBorder = when (shadeTheme) {
+                is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.20f))
+                is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.10f))
+                else -> null
+            }
+            val ghostLowestBg = when (shadeTheme) {
+                is ShadeTheme.Cyberpunk -> Color(0xFF060914)
+                is ShadeTheme.Nothing -> Color(0xFF090A0D)
+                else -> MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.8f)
+            }
+            val ghostLowBg = when (shadeTheme) {
+                is ShadeTheme.Cyberpunk -> Color(0xFF080D1C)
+                is ShadeTheme.Nothing -> Color(0xFF0C0E12)
+                else -> MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.9f)
+            }
+
             // Farthest ghost — narrowest, offsets most below the main card
             if (!expanded && group.notifications.size >= 3) {
                 Box(
@@ -277,7 +319,8 @@ fun GroupedNotificationCard(
                         .offset(y = 8.dp)
                         .height(16.dp)
                         .clip(dynamicCardShape)
-                        .background(MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.8f)),
+                        .background(ghostLowestBg)
+                        .then(if (ghostBorder != null) Modifier.border(ghostBorder, dynamicCardShape) else Modifier),
                 )
             }
             // Closer ghost — slightly less narrow, offset less
@@ -290,7 +333,8 @@ fun GroupedNotificationCard(
                         .offset(y = 4.dp)
                         .height(12.dp)
                         .clip(dynamicCardShape)
-                        .background(MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.9f)),
+                        .background(ghostLowBg)
+                        .then(if (ghostBorder != null) Modifier.border(ghostBorder, dynamicCardShape) else Modifier),
                 )
             }
 
@@ -527,10 +571,22 @@ fun GroupedNotificationCard(
                                     }
                                     if (group.notifications.size > 1) {
                                         Spacer(Modifier.height(4.dp))
+                                        val moreText = when (shadeTheme) {
+                                            is ShadeTheme.Cyberpunk -> "[+${group.notifications.size - 1} PACKETS PENDING]"
+                                            is ShadeTheme.Nothing -> "+${group.notifications.size - 1} MORE"
+                                            else -> "+${group.notifications.size - 1} more"
+                                        }
                                         Text(
-                                            text = "+${group.notifications.size - 1} more",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                                            text = moreText,
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                                fontWeight = FontWeight.SemiBold,
+                                            ),
+                                            color = when (shadeTheme) {
+                                                is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF)
+                                                is ShadeTheme.Nothing -> Color.White.copy(alpha = 0.85f)
+                                                else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+                                            },
                                         )
                                     }
                                 }
@@ -647,24 +703,45 @@ fun GroupedNotificationCard(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
-                                    Text(
-                                        text = channelId.ifBlank { "Default" }.let { id ->
-                                            // Format snake_case or dot.separated channel IDs into Title Case
+                                    val channelLabel = when (shadeTheme) {
+                                        is ShadeTheme.Cyberpunk -> "[CHANNEL // ${channelId.ifBlank { "DEFAULT" }.uppercase()}]"
+                                        is ShadeTheme.Nothing -> channelId.ifBlank { "DEFAULT" }.uppercase()
+                                        else -> channelId.ifBlank { "Default" }.let { id ->
                                             id.replace(Regex("[_.]"), " ")
                                               .split(" ")
-                                              .joinToString(" ") { word ->
-                                                  word.replaceFirstChar { it.uppercase() }
-                                              }
-                                        },
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.80f),
+                                              .joinToString(" ") { word -> word.replaceFirstChar { it.uppercase() } }
+                                        }
+                                    }
+                                    Text(
+                                        text = channelLabel,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                        ),
+                                        color = if (shadeTheme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF) else MaterialTheme.colorScheme.primary.copy(alpha = 0.80f),
                                     )
                                     HorizontalDivider(
                                         modifier = Modifier.weight(1f),
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                                        color = if (shadeTheme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF).copy(alpha = 0.25f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
                                         thickness = 0.5.dp,
                                     )
                                     // "Manage" chip taps to channel settings
+                                    val manageShape = when (shadeTheme) {
+                                        is ShadeTheme.Cyberpunk -> ChamferedCornerShape(4.dp)
+                                        is ShadeTheme.Nothing -> RoundedCornerShape(6.dp)
+                                        is ShadeTheme.Pixel -> RoundedCornerShape(50)
+                                        else -> RoundedCornerShape(12.dp)
+                                    }
+                                    val manageBorder = when (shadeTheme) {
+                                        is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.40f))
+                                        is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.20f))
+                                        else -> null
+                                    }
+                                    val manageBg = when (shadeTheme) {
+                                        is ShadeTheme.Cyberpunk -> Color(0xFF070B16)
+                                        is ShadeTheme.Nothing -> Color(0xFF14171C)
+                                        else -> MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.60f)
+                                    }
                                     Surface(
                                         onClick = {
                                             if (channelId.isNotBlank()) {
@@ -678,14 +755,23 @@ fun GroupedNotificationCard(
                                                 } catch (_: Exception) {}
                                             }
                                         },
-                                        shape = RoundedCornerShape(50),
-                                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.60f),
+                                        shape = manageShape,
+                                        color = manageBg,
+                                        border = manageBorder,
                                         modifier = Modifier,
                                     ) {
                                         Text(
-                                            text = "Manage",
-                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                            text = when (shadeTheme) {
+                                                is ShadeTheme.Cyberpunk -> "// CFG"
+                                                is ShadeTheme.Nothing -> "MANAGE"
+                                                else -> "Manage"
+                                            },
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = 9.sp,
+                                                fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                                fontWeight = FontWeight.Bold,
+                                            ),
+                                            color = if (shadeTheme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                         )
                                     }

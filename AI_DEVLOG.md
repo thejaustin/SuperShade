@@ -58,6 +58,19 @@ Kotlin + Jetpack Compose + Koin + Shizuku. Project at `~/projects/SuperShade/`.
   - App icon badges styled per theme (One UI squircle, Pixel circular Monet, Cyberpunk chamfered with neon cyan border).
   - Header row typography and separators (Nothing red `#D71920` glyph dot separator + uppercase, Cyberpunk `[GROUP // APP]` and `//` magenta separator with `[TIME // ...]`).
   - Action buttons styled as One UI/Pixel pills, Nothing wireframe chips, and Cyberpunk chamfered monospace chips.
+  - **Themed Notification Progress Bar**: Deterministic and indeterminate progress bar (`ThemedNotificationProgressBar`) matching OS theme: One UI 9 7dp capsule track with bold percentage badge; Cyberpunk HUD 6dp chamfered bar with cyan-magenta gradient, telemetry percentage, and animated cyber scanner beam; Nothing OS technical white track with `#D71920` glyph dot indicator; Pixel M3 stadium pill.
+  - **Direct Reply Box**: Themed inline reply field with custom placeholder, shapes, typography, and send icons (Cyberpunk `[INPUT_TRANSMISSION...]` chamfered monospace; Nothing OS uppercase `REPLY...` with `#D71920` send icon; One UI 9 squircle container).
+  - **Grouped Notification Stacks & Ghost Cards**: Stacked ghost cards underneath collapsed groups with theme-matching background and borders; collapsed count badges (`[+N PACKETS PENDING]`, `+N MORE`, `+N more`); themed channel sub-headers and `// CFG` / `MANAGE` chips.
+  - **Themed Swipe Dismiss Badges**: Custom dismiss badges across Cyberpunk (`[PURGE]`, `[PURGE_GROUP]`), Nothing OS (`DISMISS`, `CLEAR GROUP`), One UI 9, and Pixel M3.
+- **Multi-Theme In-Shade Notification History Sheet** (`NotificationHistorySheet.kt`):
+  - Sheet container and drag pill styled per theme (One UI 28dp top squircle, Nothing 20dp wireframe with white border, Cyberpunk 16dp chamfered with neon cyan border).
+  - Header icon box and typography (Cyberpunk `[ARCHIVE // LOGS]` with magenta packet count; Nothing uppercase `HISTORY` with red accent; One UI 9 clean bold header).
+  - Themed search bar, category filter chips (`HistoryFilterChip`), empty state view (`[NO_ARCHIVED_PACKETS]`), and OS notification history launcher button.
+  - Themed history notification cards (`DismissedNotificationCard`) with theme-tailored icon boxes, monospace telemetry, and subtle borders.
+- **Multi-Theme Heads-Up Notification Banners** (`HeadsUpOverlay.kt`):
+  - `HeadsUpCard` container shape, border strokes, and AMOLED-aware backgrounds mapped to active `ShadeTheme`.
+  - Themed peek header row with app icon clip shape, monospace/uppercase typography, and timestamp formatting (`[NOW]`).
+  - Themed heads-up action buttons and inline reply textfield with custom placeholder, shapes, and theme-tinted send buttons.
 - **Environment & Token Efficiency**: Integrated practices from "Fixing Termux Crashing Issues" — using `gdt`, `log-trim`, slice reads, and `~/.ignore` to eliminate token waste on build outputs.
 
 ### 2026-10-04 — Antigravity (Gemini 3.8 Flash)

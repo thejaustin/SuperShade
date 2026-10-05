@@ -411,6 +411,7 @@ class HeadsUpOverlay(
         val haptics = LocalSuperHaptics.current ?: remember(ctx) { SuperHaptics(ctx) }
         val viewConfig = LocalViewConfiguration.current
         val scope = rememberCoroutineScope()
+        val theme = LocalShadeTheme.current
 
         val appIcon by produceState<ImageBitmap?>(null, notification.packageName) {
             value = withContext(Dispatchers.IO) {
@@ -461,13 +462,30 @@ class HeadsUpOverlay(
             visible = visible,
             enter = slideInVertically(tween(260)) { -it } + fadeIn(tween(200)),
         ) {
-            val cardBg = if (isAmoled) Color(0xF005070A) else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.84f)
+            val cardShape = when (theme) {
+                is ShadeTheme.Cyberpunk -> ChamferedCornerShape(12.dp)
+                is ShadeTheme.Nothing -> RoundedCornerShape(14.dp)
+                is ShadeTheme.OneUI -> RoundedCornerShape(26.dp)
+                else -> RoundedCornerShape(28.dp)
+            }
+            val cardBorder = when (theme) {
+                is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.50f))
+                is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
+                is ShadeTheme.OneUI -> BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                else -> getCardBorder(alpha = 0.35f)
+            }
+            val cardBg = when {
+                isAmoled -> Color(0xF005070A)
+                theme is ShadeTheme.Cyberpunk -> Color(0xEB060A14)
+                theme is ShadeTheme.Nothing -> Color(0xEB0A0B0E)
+                else -> MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.84f)
+            }
             Card(
-                shape = RoundedCornerShape(26.dp),
+                shape = cardShape,
                 colors = CardDefaults.cardColors(
                     containerColor = cardBg,
                 ),
-                border = getCardBorder(alpha = 0.35f),
+                border = cardBorder,
                 elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -717,28 +735,38 @@ class HeadsUpOverlay(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 modifier = Modifier.weight(1f),
                             ) {
+                                val headerIconShape = when (theme) {
+                                    is ShadeTheme.Cyberpunk -> ChamferedCornerShape(4.dp)
+                                    is ShadeTheme.Nothing -> RoundedCornerShape(6.dp)
+                                    else -> RoundedCornerShape(headerIconCorner)
+                                }
                                 if (headerIcon != null) {
                                     Image(
                                         bitmap = headerIcon,
                                         contentDescription = null,
                                         modifier = Modifier
                                             .size(headerIconSize)
-                                            .clip(RoundedCornerShape(headerIconCorner)),
+                                            .clip(headerIconShape),
                                     )
                                 }
                                 Text(
-                                    text = appName,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    text = if (theme is ShadeTheme.Nothing) appName.uppercase() else appName,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontFamily = if (theme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                        letterSpacing = if (theme is ShadeTheme.Nothing) 0.5.sp else 0.sp,
+                                    ),
+                                    color = if (theme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF) else MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     fontWeight = FontWeight.Medium,
                                 )
                             }
                             Text(
-                                text = "now",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                text = if (theme is ShadeTheme.Cyberpunk) "[NOW]" else "now",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = if (theme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                ),
+                                color = if (theme is ShadeTheme.Cyberpunk) Color(0xFFFF007F).copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             )
                         }
 
@@ -748,6 +776,7 @@ class HeadsUpOverlay(
                                 text = notification.title,
                                 style = MaterialTheme.typography.titleSmall.copy(
                                     fontWeight = FontWeight.SemiBold,
+                                    fontFamily = if (theme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
                                     lineHeight = 18.sp,
                                 ),
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -760,7 +789,10 @@ class HeadsUpOverlay(
                         if (notification.text.isNotBlank()) {
                             Text(
                                 text = notification.text,
-                                style = MaterialTheme.typography.bodySmall.copy(lineHeight = 16.sp),
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    lineHeight = 16.sp,
+                                    fontFamily = if (theme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                ),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 3,
                                 overflow = TextOverflow.Ellipsis,
@@ -775,6 +807,17 @@ class HeadsUpOverlay(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
+                                val actionShape = when (theme) {
+                                    is ShadeTheme.Cyberpunk -> ChamferedCornerShape(6.dp)
+                                    is ShadeTheme.Nothing -> RoundedCornerShape(8.dp)
+                                    is ShadeTheme.OneUI -> RoundedCornerShape(14.dp)
+                                    else -> RoundedCornerShape(12.dp)
+                                }
+                                val actionBorder = when (theme) {
+                                    is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.40f))
+                                    is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.20f))
+                                    else -> null
+                                }
                                 notification.actions.take(3).forEach { action ->
                                     val actionFontSize = if (action.label.length > 11) 10.sp else 11.sp
                                     OutlinedButton(
@@ -791,15 +834,19 @@ class HeadsUpOverlay(
                                         modifier = Modifier
                                             .weight(1f)
                                             .height(36.dp),
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = actionShape,
+                                        border = actionBorder,
                                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                                     ) {
                                         Text(
-                                            text = action.label,
+                                            text = if (theme is ShadeTheme.Nothing) action.label.uppercase() else action.label,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontSize = actionFontSize,
                                                 fontWeight = FontWeight.SemiBold,
+                                                fontFamily = if (theme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                                letterSpacing = if (theme is ShadeTheme.Nothing) 0.5.sp else 0.sp,
                                             ),
+                                            color = if (theme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF) else MaterialTheme.colorScheme.primary,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
                                             softWrap = false,
@@ -812,6 +859,17 @@ class HeadsUpOverlay(
                         // Inline quick reply field
                         if (replyingAction != null) {
                             val action = replyingAction!!
+                            val replyShape = when (theme) {
+                                is ShadeTheme.Cyberpunk -> ChamferedCornerShape(6.dp)
+                                is ShadeTheme.Nothing -> RoundedCornerShape(8.dp)
+                                is ShadeTheme.OneUI -> RoundedCornerShape(20.dp)
+                                else -> RoundedCornerShape(20.dp)
+                            }
+                            val replyPlaceholder = when (theme) {
+                                is ShadeTheme.Cyberpunk -> "[INPUT_TRANSMISSION...]"
+                                is ShadeTheme.Nothing -> "REPLY..."
+                                else -> "Reply…"
+                            }
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -820,10 +878,18 @@ class HeadsUpOverlay(
                                 OutlinedTextField(
                                     value = replyText,
                                     onValueChange = { replyText = it },
-                                    placeholder = { Text("Reply…", style = MaterialTheme.typography.bodySmall) },
+                                    placeholder = {
+                                        Text(
+                                            replyPlaceholder,
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                fontFamily = if (theme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                                letterSpacing = if (theme is ShadeTheme.Nothing) 0.6.sp else 0.sp,
+                                            ),
+                                        )
+                                    },
                                     modifier = Modifier.weight(1f),
                                     singleLine = true,
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = replyShape,
                                 )
                                 IconButton(
                                     onClick = {
@@ -839,7 +905,16 @@ class HeadsUpOverlay(
                                     },
                                     enabled = replyText.isNotBlank(),
                                 ) {
-                                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send reply", tint = MaterialTheme.colorScheme.primary)
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.Send,
+                                        contentDescription = "Send reply",
+                                        tint = when {
+                                            !replyText.isNotBlank() -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                            theme is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF)
+                                            theme is ShadeTheme.Nothing -> Color(0xFFD71920)
+                                            else -> MaterialTheme.colorScheme.primary
+                                        },
+                                    )
                                 }
                             }
                         }

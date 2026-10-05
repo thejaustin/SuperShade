@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -65,6 +66,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.graphics.Brush
+import kotlin.math.roundToInt
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -112,6 +121,7 @@ fun NotificationCard(
     val context = LocalContext.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { com.supershade.haptics.SuperHaptics(context) }
     val shapes = LocalShadeShapeScheme.current
+    val shadeTheme = LocalShadeTheme.current
     var expanded by remember { mutableStateOf(false) }
     var replyingAction by remember { mutableStateOf<NotificationAction?>(null) }
     var showSettingsMenu by remember { mutableStateOf(false) }
@@ -192,10 +202,33 @@ fun NotificationCard(
                 animationSpec = spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow),
                 label = "swipeIconRotation",
             )
-            val trackBgColor = Color(0xFFE53935).copy(alpha = (progress * 0.45f).coerceIn(0f, 0.40f))
-            val badgeColor = if (isPastDismissThreshold) Color(0xFFE53935) else Color(0xFFE53935).copy(alpha = 0.85f)
+            val trackBgColor = when (shadeTheme) {
+                is ShadeTheme.Cyberpunk -> Color(0xFFFF0055).copy(alpha = (progress * 0.40f).coerceIn(0f, 0.35f))
+                is ShadeTheme.Nothing -> Color(0xFFD71920).copy(alpha = (progress * 0.45f).coerceIn(0f, 0.40f))
+                else -> Color(0xFFE53935).copy(alpha = (progress * 0.45f).coerceIn(0f, 0.40f))
+            }
+            val badgeColor = when (shadeTheme) {
+                is ShadeTheme.Cyberpunk -> if (isPastDismissThreshold) Color(0xFFFF0055) else Color(0xFFFF0055).copy(alpha = 0.85f)
+                is ShadeTheme.Nothing -> if (isPastDismissThreshold) Color(0xFFD71920) else Color(0xFFD71920).copy(alpha = 0.85f)
+                else -> if (isPastDismissThreshold) Color(0xFFE53935) else Color(0xFFE53935).copy(alpha = 0.85f)
+            }
+            val badgeShape = when (shadeTheme) {
+                is ShadeTheme.Cyberpunk -> ChamferedCornerShape(6.dp)
+                is ShadeTheme.Nothing -> RoundedCornerShape(8.dp)
+                is ShadeTheme.Pixel -> RoundedCornerShape(50)
+                else -> RoundedCornerShape(20.dp)
+            }
+            val badgeBorder = when (shadeTheme) {
+                is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFFFF007F))
+                is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.30f))
+                else -> null
+            }
+            val label = when (shadeTheme) {
+                is ShadeTheme.Cyberpunk -> "[PURGE]"
+                is ShadeTheme.Nothing -> "DISMISS"
+                else -> "Dismiss"
+            }
             val icon = Icons.Default.Delete
-            val label = "Dismiss"
 
             val iconSlideOffset by animateDpAsState(
                 targetValue = if (currentOffset > 0f) {
@@ -215,8 +248,9 @@ fun NotificationCard(
                 contentAlignment = alignment,
             ) {
                 Surface(
-                    shape = RoundedCornerShape(50),
+                    shape = badgeShape,
                     color = badgeColor,
+                    border = badgeBorder,
                     shadowElevation = if (isPastDismissThreshold) 6.dp else 1.dp,
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
@@ -245,6 +279,7 @@ fun NotificationCard(
                                     text = label,
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontWeight = FontWeight.Bold,
+                                        fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
                                         fontSize = 12.5.sp,
                                     ),
                                     color = Color.White,
@@ -256,6 +291,7 @@ fun NotificationCard(
                                     text = label,
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontWeight = FontWeight.Bold,
+                                        fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
                                         fontSize = 12.5.sp,
                                     ),
                                     color = Color.White,
@@ -280,7 +316,6 @@ fun NotificationCard(
         val cardScale = (1.0f - dragProgress * 0.04f).coerceIn(0.95f, 1.0f)
         val cardAlpha = if (dragProgress > 0.75f) (1f - (dragProgress - 0.75f) * 2.5f).coerceIn(0.4f, 1.0f) else 1.0f
         val cardElevation = (dragProgress * 8f).dp
-        val shadeTheme = LocalShadeTheme.current
         val baseThemeShape = when (shadeTheme) {
             is ShadeTheme.Cyberpunk -> ChamferedCornerShape(10.dp)
             is ShadeTheme.Nothing -> RoundedCornerShape(16.dp)
@@ -378,13 +413,31 @@ fun NotificationCard(
                                     modifier = Modifier.size(iconBoxSize),
                                 )
                                 if (appIconBitmap != null) {
+                                    val badgeBorderShape = when (shadeTheme) {
+                                        is ShadeTheme.Cyberpunk -> ChamferedCornerShape(3.dp)
+                                        is ShadeTheme.Nothing -> RoundedCornerShape(4.dp)
+                                        is ShadeTheme.Pixel -> CircleShape
+                                        else -> RoundedCornerShape(6.dp)
+                                    }
+                                    val badgeBorderStroke = when (shadeTheme) {
+                                        is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.70f))
+                                        is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.35f))
+                                        else -> null
+                                    }
                                     Box(
                                         modifier = Modifier
                                             .align(Alignment.BottomEnd)
                                             .size(if (compact) 14.dp else 18.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.surfaceContainer)
-                                            .padding(2.dp),
+                                            .clip(badgeBorderShape)
+                                            .background(
+                                                when (shadeTheme) {
+                                                    is ShadeTheme.Cyberpunk -> Color(0xFF060914)
+                                                    is ShadeTheme.Nothing -> Color(0xFF101216)
+                                                    else -> MaterialTheme.colorScheme.surfaceContainer
+                                                }
+                                            )
+                                            .then(if (badgeBorderStroke != null) Modifier.border(badgeBorderStroke, badgeBorderShape) else Modifier)
+                                            .padding(1.5.dp),
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         Image(
@@ -392,7 +445,7 @@ fun NotificationCard(
                                             contentDescription = null,
                                             modifier = Modifier
                                                 .fillMaxSize()
-                                                .clip(CircleShape),
+                                                .clip(badgeBorderShape),
                                         )
                                     }
                                 }
@@ -621,22 +674,12 @@ fun NotificationCard(
                     (notification.progressMax > 0 && notification.progress >= 0)
                 if (hasProgress) {
                     Spacer(Modifier.height(8.dp))
-                    if (notification.isProgressIndeterminate) {
-                        LinearProgressIndicator(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(3.dp)
-                                .clip(RoundedCornerShape(2.dp)),
-                        )
-                    } else {
-                        LinearProgressIndicator(
-                            progress = { notification.progress.toFloat() / notification.progressMax },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(3.dp)
-                                .clip(RoundedCornerShape(2.dp)),
-                        )
-                    }
+                    ThemedNotificationProgressBar(
+                        progress = notification.progress,
+                        progressMax = notification.progressMax,
+                        isIndeterminate = notification.isProgressIndeterminate,
+                        shadeTheme = shadeTheme,
+                    )
                 }
 
                 // Settings & Snooze dropdown — shown on long-press (OS-style)
@@ -740,6 +783,17 @@ fun NotificationCard(
                 // BigPicture preview — shown in expanded state
                 if (expanded && notification.picture != null) {
                     Spacer(Modifier.height(8.dp))
+                    val bigPicShape = when (shadeTheme) {
+                        is ShadeTheme.Cyberpunk -> ChamferedCornerShape(8.dp)
+                        is ShadeTheme.Nothing -> RoundedCornerShape(10.dp)
+                        is ShadeTheme.Pixel -> RoundedCornerShape(18.dp)
+                        else -> RoundedCornerShape(14.dp)
+                    }
+                    val bigPicBorder = when (shadeTheme) {
+                        is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.40f))
+                        is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+                        else -> null
+                    }
                     Image(
                         bitmap = notification.picture.asImageBitmap(),
                         contentDescription = null,
@@ -747,7 +801,8 @@ fun NotificationCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(max = 180.dp)
-                            .clip(RoundedCornerShape(12.dp)),
+                            .clip(bigPicShape)
+                            .then(if (bigPicBorder != null) Modifier.border(bigPicBorder, bigPicShape) else Modifier),
                     )
                 }
 
@@ -848,6 +903,40 @@ fun NotificationCard(
                                 replyingAction = null
                             }
 
+                            val replyShape = when (shadeTheme) {
+                                is ShadeTheme.Cyberpunk -> ChamferedCornerShape(6.dp)
+                                is ShadeTheme.Nothing -> RoundedCornerShape(8.dp)
+                                is ShadeTheme.Pixel -> RoundedCornerShape(24.dp)
+                                else -> RoundedCornerShape(18.dp)
+                            }
+                            val replyBg = when (shadeTheme) {
+                                is ShadeTheme.Cyberpunk -> Color(0xFF050B14)
+                                is ShadeTheme.Nothing -> Color(0xFF12151A)
+                                else -> MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.65f)
+                            }
+                            val placeholderText = when (shadeTheme) {
+                                is ShadeTheme.Cyberpunk -> "[INPUT_TRANSMISSION...]"
+                                is ShadeTheme.Nothing -> "REPLY..."
+                                else -> "Reply…"
+                            }
+
+                            val sendBtnShape = when (shadeTheme) {
+                                is ShadeTheme.Cyberpunk -> ChamferedCornerShape(6.dp)
+                                is ShadeTheme.Nothing -> CircleShape
+                                is ShadeTheme.Pixel -> CircleShape
+                                else -> RoundedCornerShape(14.dp)
+                            }
+                            val sendBtnColor = when (shadeTheme) {
+                                is ShadeTheme.Cyberpunk -> if (replyText.isNotBlank()) Color(0xFF00F0FF) else Color(0xFF00F0FF).copy(alpha = 0.15f)
+                                is ShadeTheme.Nothing -> if (replyText.isNotBlank()) Color(0xFFD71920) else Color(0xFF20242C)
+                                else -> if (replyText.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh
+                            }
+                            val sendBtnTint = when (shadeTheme) {
+                                is ShadeTheme.Cyberpunk -> if (replyText.isNotBlank()) Color.Black else Color(0xFF00F0FF).copy(alpha = 0.5f)
+                                is ShadeTheme.Nothing -> if (replyText.isNotBlank()) Color.White else Color.White.copy(alpha = 0.4f)
+                                else -> if (replyText.isNotBlank()) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            }
+
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -858,24 +947,49 @@ fun NotificationCard(
                                 OutlinedTextField(
                                     value = replyText,
                                     onValueChange = { replyText = it },
-                                    placeholder = { Text("Reply…", style = MaterialTheme.typography.bodySmall) },
+                                    placeholder = {
+                                        Text(
+                                            text = placeholderText,
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                            ),
+                                        )
+                                    },
                                     modifier = Modifier.weight(1f),
                                     singleLine = true,
-                                    shape = shapes.chip,
+                                    shape = replyShape,
+                                    textStyle = MaterialTheme.typography.bodySmall.copy(
+                                        fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                        color = if (shadeTheme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF) else MaterialTheme.colorScheme.onSurface,
+                                    ),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = when (shadeTheme) {
+                                            is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF)
+                                            is ShadeTheme.Nothing -> Color.White
+                                            else -> MaterialTheme.colorScheme.primary
+                                        },
+                                        unfocusedBorderColor = when (shadeTheme) {
+                                            is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF).copy(alpha = 0.40f)
+                                            is ShadeTheme.Nothing -> Color.White.copy(alpha = 0.25f)
+                                            else -> MaterialTheme.colorScheme.outlineVariant
+                                        },
+                                        focusedContainerColor = replyBg,
+                                        unfocusedContainerColor = replyBg,
+                                    ),
                                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                                     keyboardActions = KeyboardActions(onSend = { sendReply() }),
                                 )
                                 Surface(
                                     onClick = { sendReply() },
-                                    shape = CircleShape,
-                                    color = if (replyText.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    shape = sendBtnShape,
+                                    color = sendBtnColor,
                                     modifier = Modifier.size(42.dp),
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             Icons.AutoMirrored.Filled.Send,
                                             contentDescription = "Send reply",
-                                            tint = if (replyText.isNotBlank()) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                            tint = sendBtnTint,
                                             modifier = Modifier.size(18.dp),
                                         )
                                     }
@@ -883,6 +997,223 @@ fun NotificationCard(
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemedNotificationProgressBar(
+    progress: Int,
+    progressMax: Int,
+    isIndeterminate: Boolean,
+    shadeTheme: ShadeTheme,
+) {
+    val pct = if (progressMax > 0) ((progress.toFloat() / progressMax) * 100).roundToInt().coerceIn(0, 100) else 0
+    val fraction = if (progressMax > 0) (progress.toFloat() / progressMax).coerceIn(0f, 1f) else 0f
+    val animatedFraction by animateFloatAsState(
+        targetValue = fraction,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "notifProgress",
+    )
+
+    when (shadeTheme) {
+        is ShadeTheme.Cyberpunk -> {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = if (isIndeterminate) "[SYNC_IN_PROGRESS]" else "[PROCESS // $pct%]",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp,
+                        ),
+                        color = Color(0xFF00F0FF),
+                    )
+                    Text(
+                        text = if (isIndeterminate) ">> ACTIVE <<" else "$progress / $progressMax",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 9.5.sp,
+                        ),
+                        color = Color(0xFFFF007F),
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(ChamferedCornerShape(3.dp))
+                        .background(Color(0xFF050B14))
+                        .border(BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.35f)), ChamferedCornerShape(3.dp)),
+                ) {
+                    if (isIndeterminate) {
+                        val transition = rememberInfiniteTransition(label = "cyberScan")
+                        val offsetRatio by transition.animateFloat(
+                            initialValue = 0f,
+                            targetValue = 1f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(1200, easing = LinearEasing),
+                                repeatMode = RepeatMode.Reverse,
+                            ),
+                            label = "cyberScanRatio",
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(0.35f)
+                                .offset(x = (offsetRatio * 200).dp)
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(Color.Transparent, Color(0xFF00F0FF), Color(0xFFFF007F), Color.Transparent)
+                                    )
+                                ),
+                        )
+                    } else if (animatedFraction > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(animatedFraction)
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(Color(0xFF00F0FF), Color(0xFFFF007F))
+                                    )
+                                ),
+                        )
+                    }
+                }
+            }
+        }
+        is ShadeTheme.Nothing -> {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = if (isIndeterminate) "DOWNLOADING..." else "$pct%",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp,
+                        ),
+                        color = Color.White,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(5.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFD71920)),
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Color(0xFF1D2026)),
+                ) {
+                    if (isIndeterminate) {
+                        LinearProgressIndicator(
+                            color = Color.White,
+                            trackColor = Color(0xFF1D2026),
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else if (animatedFraction > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(animatedFraction)
+                                .background(Color.White),
+                        )
+                    }
+                }
+            }
+        }
+        is ShadeTheme.OneUI -> {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(7.dp)
+                        .clip(RoundedCornerShape(3.5.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.70f)),
+                ) {
+                    if (isIndeterminate) {
+                        LinearProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = Color.Transparent,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else if (animatedFraction > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(animatedFraction)
+                                .clip(RoundedCornerShape(3.5.dp))
+                                .background(MaterialTheme.colorScheme.primary),
+                        )
+                    }
+                }
+                if (!isIndeterminate && progressMax > 0) {
+                    Text(
+                        text = "$pct%",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                        ),
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+        }
+        else -> {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                ) {
+                    if (isIndeterminate) {
+                        LinearProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = Color.Transparent,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else if (animatedFraction > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(animatedFraction)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(MaterialTheme.colorScheme.primary),
+                        )
+                    }
+                }
+                if (!isIndeterminate && progressMax > 0) {
+                    Text(
+                        text = "$pct%",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 11.sp,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }

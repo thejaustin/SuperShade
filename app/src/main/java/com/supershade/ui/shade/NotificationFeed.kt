@@ -52,8 +52,15 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import com.supershade.domain.notification.model.ShadeNotification
 import com.supershade.haptics.LocalSuperHaptics
+import androidx.compose.material3.HorizontalDivider
+import com.supershade.domain.notification.model.ShadeCategory
 import com.supershade.ui.theme.LocalShadeShapeScheme
+import com.supershade.ui.theme.LocalShadeTheme
+import com.supershade.ui.theme.ShadeTheme
 import com.supershade.ui.theme.getCardBorder
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun NotificationAccessCard(
@@ -205,6 +212,245 @@ fun EmptyNotificationsView(
     }
 }
 
+enum class FeedSectionType {
+    PINNED,
+    CONVERSATIONS,
+    ALERTS,
+    SILENT,
+}
+
+fun FeedSectionType.getTitle(theme: ShadeTheme): String = when (theme) {
+    is ShadeTheme.Cyberpunk -> when (this) {
+        FeedSectionType.PINNED -> "[LOCKED // SYS_PIN]"
+        FeedSectionType.CONVERSATIONS -> "[COMMS // INCOMING]"
+        FeedSectionType.ALERTS -> "[TELEMETRY // ALERTS]"
+        FeedSectionType.SILENT -> "[PASSIVE // BACKGROUND]"
+    }
+    is ShadeTheme.Nothing -> when (this) {
+        FeedSectionType.PINNED -> "PINNED"
+        FeedSectionType.CONVERSATIONS -> "CONVERSATIONS"
+        FeedSectionType.ALERTS -> "NOTIFICATIONS"
+        FeedSectionType.SILENT -> "SILENT"
+    }
+    is ShadeTheme.Pixel, is ShadeTheme.PureMaterial -> when (this) {
+        FeedSectionType.PINNED -> "Pinned"
+        FeedSectionType.CONVERSATIONS -> "Conversations"
+        FeedSectionType.ALERTS -> "Alerts"
+        FeedSectionType.SILENT -> "Silent notifications"
+    }
+    else -> when (this) {
+        FeedSectionType.PINNED -> "Pinned"
+        FeedSectionType.CONVERSATIONS -> "Conversations"
+        FeedSectionType.ALERTS -> "Alerts"
+        FeedSectionType.SILENT -> "Silent"
+    }
+}
+
+data class NotificationFeedSection(
+    val type: FeedSectionType,
+    val title: String,
+    val groups: List<NotificationGroup>,
+)
+
+fun List<NotificationGroup>.toSections(
+    pinnedKeys: Set<String>,
+    theme: ShadeTheme,
+): List<NotificationFeedSection> {
+    if (isEmpty()) return emptyList()
+
+    val pinned = mutableListOf<NotificationGroup>()
+    val conversations = mutableListOf<NotificationGroup>()
+    val alerts = mutableListOf<NotificationGroup>()
+    val silent = mutableListOf<NotificationGroup>()
+
+    forEach { group ->
+        val isPinned = group.notifications.any { it.key in pinnedKeys }
+        if (isPinned) {
+            pinned.add(group)
+        } else {
+            val isConv = group.preview.isConversation ||
+                group.preview.category == ShadeCategory.Conversations ||
+                group.preview.category == ShadeCategory.Messages ||
+                group.notifications.any { it.isConversation }
+            val isSilent = group.preview.category == ShadeCategory.Silent ||
+                (!group.preview.isOngoing && group.notifications.all { it.category == ShadeCategory.Silent })
+
+            when {
+                isConv -> conversations.add(group)
+                isSilent -> silent.add(group)
+                else -> alerts.add(group)
+            }
+        }
+    }
+
+    val sections = mutableListOf<NotificationFeedSection>()
+    if (pinned.isNotEmpty()) {
+        sections.add(NotificationFeedSection(FeedSectionType.PINNED, FeedSectionType.PINNED.getTitle(theme), pinned))
+    }
+    if (conversations.isNotEmpty()) {
+        sections.add(NotificationFeedSection(FeedSectionType.CONVERSATIONS, FeedSectionType.CONVERSATIONS.getTitle(theme), conversations))
+    }
+    if (alerts.isNotEmpty()) {
+        sections.add(NotificationFeedSection(FeedSectionType.ALERTS, FeedSectionType.ALERTS.getTitle(theme), alerts))
+    }
+    if (silent.isNotEmpty()) {
+        sections.add(NotificationFeedSection(FeedSectionType.SILENT, FeedSectionType.SILENT.getTitle(theme), silent))
+    }
+    return sections
+}
+
+@Composable
+fun FeedSectionHeader(
+    section: NotificationFeedSection,
+    theme: ShadeTheme,
+    modifier: Modifier = Modifier,
+) {
+    val totalCount = section.groups.sumOf { it.notifications.size }
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 6.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        when (theme) {
+            is ShadeTheme.Cyberpunk -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = section.title,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.8.sp,
+                            fontSize = 11.sp,
+                        ),
+                        color = Color(0xFF00F0FF),
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.weight(1f),
+                        thickness = 1.dp,
+                        color = Color(0xFF00F0FF).copy(alpha = 0.25f),
+                    )
+                    Text(
+                        text = "[CNT:${totalCount.toString().padStart(2, '0')}]",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp,
+                        ),
+                        color = Color(0xFFFF0055),
+                    )
+                }
+            }
+            is ShadeTheme.Nothing -> {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFD71920)),
+                    )
+                    Text(
+                        text = section.title.uppercase(),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp,
+                            fontSize = 11.sp,
+                        ),
+                        color = Color.White,
+                    )
+                    Text(
+                        text = "($totalCount)",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 11.sp,
+                        ),
+                        color = Color.White.copy(alpha = 0.5f),
+                    )
+                }
+            }
+            is ShadeTheme.Pixel, is ShadeTheme.PureMaterial -> {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = section.title,
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.5.sp,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "•",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    )
+                    Text(
+                        text = "$totalCount",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontWeight = FontWeight.Normal,
+                            fontSize = 12.sp,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            else -> {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(
+                                when (section.type) {
+                                    FeedSectionType.PINNED -> Color(0xFFFFA000)
+                                    FeedSectionType.CONVERSATIONS -> MaterialTheme.colorScheme.primary
+                                    FeedSectionType.ALERTS -> MaterialTheme.colorScheme.secondary
+                                    FeedSectionType.SILENT -> MaterialTheme.colorScheme.outline
+                                }
+                            ),
+                    )
+                    Text(
+                        text = section.title,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f),
+                    ) {
+                        Text(
+                            text = "$totalCount",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 11.sp,
+                            ),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 1.5.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun NotificationFeed(
     notifications: List<ShadeNotification>,
@@ -224,13 +470,17 @@ fun NotificationFeed(
     val isAccessGranted = remember(context) {
         NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
     }
+    val shadeTheme = LocalShadeTheme.current
 
     if (!isAccessGranted) {
         NotificationAccessCard(modifier = modifier)
     } else if (notifications.isEmpty()) {
         EmptyNotificationsView(modifier = modifier, onOpenHistory = onOpenHistory)
     } else {
-        val groups = notifications.toGroups()
+        val groups = remember(notifications) { notifications.toGroups() }
+        val sections = remember(groups, pinnedKeys, shadeTheme) {
+            groups.toSections(pinnedKeys, shadeTheme)
+        }
         LazyColumn(
             modifier = modifier.fillMaxWidth(),
             contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = if (compact) 4.dp else 6.dp, bottom = 68.dp),
@@ -277,36 +527,43 @@ fun NotificationFeed(
                     }
                 }
             }
-            items(
-                items = groups,
-                key = { "${it.packageName}::${it.groupKey.orEmpty()}" },
-            ) { group ->
-                if (group.isStacked) {
-                    GroupedNotificationCard(
-                        group = group,
-                        onDismissGroup = { group.notifications.forEach { onDismiss(it.key) } },
-                        onDismiss = onDismiss,
-                        onNotificationClick = onNotificationClick,
-                        onSnooze = onSnooze,
-                        onHideChannel = onHideChannel,
-                        pinnedKeys = pinnedKeys,
-                        onTogglePin = onTogglePin,
-                        compact = compact,
-                        modifier = Modifier.animateItem(),
-                    )
-                } else {
-                    val notification = group.preview
-                    NotificationCard(
-                        notification = notification,
-                        onDismiss = { onDismiss(notification.key) },
-                        onClick = { onNotificationClick(notification) },
-                        onSnooze = { delayMs -> onSnooze(notification.key, delayMs) },
-                        onHideChannel = onHideChannel,
-                        isPinned = notification.key in pinnedKeys,
-                        onTogglePin = { onTogglePin(notification.key) },
-                        compact = compact,
-                        modifier = Modifier.animateItem(),
-                    )
+            sections.forEach { section ->
+                if (sections.size > 1 || section.type == FeedSectionType.PINNED || section.type == FeedSectionType.CONVERSATIONS) {
+                    item(key = "section_header_${section.type.name}") {
+                        FeedSectionHeader(section = section, theme = shadeTheme)
+                    }
+                }
+                items(
+                    items = section.groups,
+                    key = { "${it.packageName}::${it.groupKey.orEmpty()}::${section.type.name}" },
+                ) { group ->
+                    if (group.isStacked) {
+                        GroupedNotificationCard(
+                            group = group,
+                            onDismissGroup = { group.notifications.forEach { onDismiss(it.key) } },
+                            onDismiss = onDismiss,
+                            onNotificationClick = onNotificationClick,
+                            onSnooze = onSnooze,
+                            onHideChannel = onHideChannel,
+                            pinnedKeys = pinnedKeys,
+                            onTogglePin = onTogglePin,
+                            compact = compact,
+                            modifier = Modifier.animateItem(),
+                        )
+                    } else {
+                        val notification = group.preview
+                        NotificationCard(
+                            notification = notification,
+                            onDismiss = { onDismiss(notification.key) },
+                            onClick = { onNotificationClick(notification) },
+                            onSnooze = { delayMs -> onSnooze(notification.key, delayMs) },
+                            onHideChannel = onHideChannel,
+                            isPinned = notification.key in pinnedKeys,
+                            onTogglePin = { onTogglePin(notification.key) },
+                            compact = compact,
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
                 }
             }
             item {
@@ -346,7 +603,11 @@ fun TogetherNotificationFeed(
     } else if (notifications.isEmpty()) {
         EmptyNotificationsView(modifier = modifier, onOpenHistory = onOpenHistory)
     } else {
+        val shadeTheme = LocalShadeTheme.current
         val groups = remember(notifications) { notifications.toGroups() }
+        val sections = remember(groups, pinnedKeys, shadeTheme) {
+            groups.toSections(pinnedKeys, shadeTheme)
+        }
         Column(
             modifier = modifier
                 .fillMaxWidth()
@@ -398,32 +659,37 @@ fun TogetherNotificationFeed(
                 }
             }
 
-            // Notification groups (Column, not LazyColumn)
-            groups.forEach { group ->
-                if (group.isStacked) {
-                    GroupedNotificationCard(
-                        group = group,
-                        onDismissGroup = { group.notifications.forEach { onDismiss(it.key) } },
-                        onDismiss = onDismiss,
-                        onNotificationClick = onNotificationClick,
-                        onSnooze = onSnooze,
-                        onHideChannel = onHideChannel,
-                        pinnedKeys = pinnedKeys,
-                        onTogglePin = onTogglePin,
-                        compact = compact,
-                    )
-                } else {
-                    val notification = group.preview
-                    NotificationCard(
-                        notification = notification,
-                        onDismiss = { onDismiss(notification.key) },
-                        onClick = { onNotificationClick(notification) },
-                        onSnooze = { delayMs -> onSnooze(notification.key, delayMs) },
-                        onHideChannel = onHideChannel,
-                        isPinned = notification.key in pinnedKeys,
-                        onTogglePin = { onTogglePin(notification.key) },
-                        compact = compact,
-                    )
+            // Notification groups organized by sections (Column, not LazyColumn)
+            sections.forEach { section ->
+                if (sections.size > 1 || section.type == FeedSectionType.PINNED || section.type == FeedSectionType.CONVERSATIONS) {
+                    FeedSectionHeader(section = section, theme = shadeTheme)
+                }
+                section.groups.forEach { group ->
+                    if (group.isStacked) {
+                        GroupedNotificationCard(
+                            group = group,
+                            onDismissGroup = { group.notifications.forEach { onDismiss(it.key) } },
+                            onDismiss = onDismiss,
+                            onNotificationClick = onNotificationClick,
+                            onSnooze = onSnooze,
+                            onHideChannel = onHideChannel,
+                            pinnedKeys = pinnedKeys,
+                            onTogglePin = onTogglePin,
+                            compact = compact,
+                        )
+                    } else {
+                        val notification = group.preview
+                        NotificationCard(
+                            notification = notification,
+                            onDismiss = { onDismiss(notification.key) },
+                            onClick = { onNotificationClick(notification) },
+                            onSnooze = { delayMs -> onSnooze(notification.key, delayMs) },
+                            onHideChannel = onHideChannel,
+                            isPinned = notification.key in pinnedKeys,
+                            onTogglePin = { onTogglePin(notification.key) },
+                            compact = compact,
+                        )
+                    }
                 }
             }
 

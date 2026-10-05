@@ -29,6 +29,16 @@ Kotlin + Jetpack Compose + Koin + Shizuku. Project at `~/projects/SuperShade/`.
 ### 2026-10-05 — Antigravity (Gemini 3.8 Flash)
 
 **Done:**
+- **Hierarchical Priority Notification Sections & Adaptive Section Headers** (`NotificationFeed.kt`, `GroupedNotificationCard.kt`, `ShadeRoot.kt`):
+  - **Priority Section Partitioning (`toSections`)**: Grouped notifications are cleanly partitioned into hierarchical sections: `PINNED` &rarr; `CONVERSATIONS` &rarr; `ALERTS` &rarr; `SILENT`.
+  - **Theme-Adaptive `FeedSectionHeader`**:
+    - **One UI 9**: Label Medium Bold, priority dot indicator, rounded capsule count pill badge (`MaterialTheme.colorScheme.primaryContainer`).
+    - **Pixel (M3 Expressive)**: titleSmall SemiBold + bullet (`•`) + onSurfaceVariant notification count.
+    - **Nothing OS**: Monospace uppercase + signature red accent dot (`#D71920`) + monospace count.
+    - **Cyberpunk**: Monospace cyan telemetry (`[// SECTION // ...]`) with horizontal neon divider and `[CNT:NN]` badge.
+  - **One UI 9 & Pixel Stacked Card Visuals** (`GroupedNotificationCard.kt`):
+    - **One UI 9**: 24dp squircle container shape, 4dp/8dp stepped offset ghost cards with subtle outline, and One UI capsule badge showing `"${group.notifications.size} new"`.
+    - **Pixel M3**: Unified continuous container (26dp) with Monet container accents and subtle 0.8dp dividers between expanded children.
 - **Customizable Notification Classification Engine Independent of Theme** (`ClassificationMode`, `ShadeSettings.kt`, `CategoryEngine.kt`, `NotificationRepository.kt`, `ShadeCategory.kt`, `CategoryBar.kt`, `ShadeRoot.kt`, `SettingsScreen.kt`, `MainActivity.kt`):
   - **Decoupled Classification from Visual Theme**: Users can freely select any categorization strategy regardless of the active visual theme (e.g. AOSP priority on One UI theme, One UI domain buckets on Cyberpunk or Pixel, Nothing Essential on One UI, or a Unified flat feed).
   - **5 Distinct Classification Strategies**:

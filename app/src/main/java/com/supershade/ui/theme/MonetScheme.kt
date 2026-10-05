@@ -16,25 +16,37 @@ import androidx.compose.ui.platform.LocalContext
  * [surfaceBlend] (0 keeps the OS surfaces untouched, 1 uses full dynamic surfaces).
  */
 @Composable
-fun monetScheme(base: ColorScheme, isDark: Boolean, surfaceBlend: Float): ColorScheme {
+fun monetScheme(
+    base: ColorScheme,
+    isDark: Boolean,
+    surfaceBlend: Float,
+    accentStrength: Float = 1.0f,
+): ColorScheme {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return base
+    val clampedStrength = accentStrength.coerceIn(0f, 1f)
+    if (clampedStrength <= 0f) return base
+
     val context = LocalContext.current
     val dyn = if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-    fun s(own: Color, dynamic: Color) = if (surfaceBlend <= 0f) own else lerp(own, dynamic, surfaceBlend)
+    val effectiveSurfaceBlend = (surfaceBlend * clampedStrength).coerceIn(0f, 1f)
+
+    fun a(own: Color, dynamic: Color) = if (clampedStrength >= 1f) dynamic else lerp(own, dynamic, clampedStrength)
+    fun s(own: Color, dynamic: Color) = if (effectiveSurfaceBlend <= 0f) own else lerp(own, dynamic, effectiveSurfaceBlend)
+
     return base.copy(
-        primary = dyn.primary,
-        onPrimary = dyn.onPrimary,
-        primaryContainer = dyn.primaryContainer,
-        onPrimaryContainer = dyn.onPrimaryContainer,
-        secondary = dyn.secondary,
-        onSecondary = dyn.onSecondary,
-        secondaryContainer = dyn.secondaryContainer,
-        onSecondaryContainer = dyn.onSecondaryContainer,
-        tertiary = dyn.tertiary,
-        onTertiary = dyn.onTertiary,
-        tertiaryContainer = dyn.tertiaryContainer,
-        onTertiaryContainer = dyn.onTertiaryContainer,
-        surfaceTint = dyn.primary,
+        primary = a(base.primary, dyn.primary),
+        onPrimary = a(base.onPrimary, dyn.onPrimary),
+        primaryContainer = a(base.primaryContainer, dyn.primaryContainer),
+        onPrimaryContainer = a(base.onPrimaryContainer, dyn.onPrimaryContainer),
+        secondary = a(base.secondary, dyn.secondary),
+        onSecondary = a(base.onSecondary, dyn.onSecondary),
+        secondaryContainer = a(base.secondaryContainer, dyn.secondaryContainer),
+        onSecondaryContainer = a(base.onSecondaryContainer, dyn.onSecondaryContainer),
+        tertiary = a(base.tertiary, dyn.tertiary),
+        onTertiary = a(base.onTertiary, dyn.onTertiary),
+        tertiaryContainer = a(base.tertiaryContainer, dyn.tertiaryContainer),
+        onTertiaryContainer = a(base.onTertiaryContainer, dyn.onTertiaryContainer),
+        surfaceTint = a(base.primary, dyn.primary),
         surfaceContainer = s(base.surfaceContainer, dyn.surfaceContainer),
         surfaceContainerHigh = s(base.surfaceContainerHigh, dyn.surfaceContainerHigh),
         surfaceContainerHighest = s(base.surfaceContainerHighest, dyn.surfaceContainerHighest),

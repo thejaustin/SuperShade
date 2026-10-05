@@ -10,12 +10,13 @@ Kotlin + Jetpack Compose + Koin + Shizuku. Project at `~/projects/SuperShade/`.
 ## Open Backlog
 
 ### Features
-- [ ] **Monet accent strength setting** — `MonetScheme.kt` blends wallpaper colors with fixed ratios per theme (Pixel 0.85, OneUI 0.45, Nothing 0.35, Cyberpunk 0.25); a user-facing slider in settings to tune this per-theme would be natural next step
-- [ ] **Haptic tick at dismiss threshold** — `FluidSwipeToDismiss` has a `SuperHaptics` integration point but the haptic tick at `thresholdPx` commit is not yet wired up
-- [ ] **History / notification log screen** — button exists in the shade header; tapping it should open a filtered list of dismissed notifications
+- [x] **Monet accent strength setting** — `MonetScheme.kt` now supports `accentStrength` with live color interpolation; interactive slider in `SettingsScreen.kt` (0–100%) backed by DataStore `monetAccentStrength` and propagated to all themes.
+- [x] **Haptic tick at dismiss threshold & commit** — Added `notificationDismissTick()` (Samsung LRA `EFFECT_CLICK_DISMISS` 50067 / Android R+ `PRIMITIVE_LOW_TICK`) and `notificationDismissCommit()` to `SuperHaptics.kt`; wired into `FluidSwipeToDismiss.kt`. Refactored `NotificationCard.kt` to use `FluidSwipeToDismiss` across all individual and stacked notifications.
+- [x] **History / notification log screen** — In-shade `NotificationHistorySheet.kt` with live search, category chips, clear log, and Android system history link. `NotificationRepository.kt` now tracks dismissed notification records in a bounded ring-buffer.
+- [ ] **Lockscreen media / notification ambient widget** — Mini heads-up or AOD/ambient widget option for lockscreen media controls.
 
 ### Stability / Verification
-- [ ] **StatusBarBlocker on landscape / multi-display** — `attachStatusBarBlocker()` uses `status_bar_height` dimen which is correct for portrait; needs verification on foldable / landscape orientations
+- [x] **StatusBarBlocker on landscape / multi-display** — `attachStatusBarBlocker()` now dynamically queries `WindowInsets.Type.statusBars()` on API 30+ with safe fallback, and sets `LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS` on API 28+ to prevent status bar interception around cutouts and landscape orientations.
 - [ ] **`SettingsSharingProvider` needs verification** — cross-flavor settings ContentProvider needs device test with both flavors installed (see ShizukuPlus)
 
 ### Infrastructure
@@ -24,6 +25,15 @@ Kotlin + Jetpack Compose + Koin + Shizuku. Project at `~/projects/SuperShade/`.
 ---
 
 ## Session History (newest first)
+
+### 2026-10-04 — Antigravity (Gemini 3.8 Flash)
+
+**Done:**
+- **In-Shade Sound Mode / Volume Mixer Integration** (`VolumeSlider.kt`, `ShadeViewModel.kt`, `ShadeRoot.kt`): Added `onOpenVolumeMixer` callback to `VolumeSlider`. Tapping the mixer equalizer button or long-pressing the speaker icon now opens the in-shade `QuickTileDetailSheet` with multi-stream volume sliders (media, ring, notification, system) and sound/vibrate/mute mode selector directly inside the shade.
+- **Hardened StatusBarBlocker for Landscape & Cutouts** (`ShadeWindowManager.kt`): Updated `attachStatusBarBlocker()` to compute exact top status bar insets using `WindowInsets.Type.statusBars()` on API 30+ with safe fallback against missing resource IDs. Added `LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS` on API 28+ to ensure landscape display cutouts are cleanly guarded against native system shade interception.
+- **In-Shade Notification History Sheet** (`NotificationHistorySheet.kt`, `NotificationRepository.kt`, `ShadeViewModel.kt`): Built comprehensive notification log sheet styled in One UI 8 / M3 Expressive. Records all dismissed notifications in `NotificationRepository.dismissedHistory` (up to 60 items) with app icons, formatted timestamps, search filter, category chips, clear log, and OS-level system history launcher. Connected to header "History" button and empty notifications view.
+- **Universal Fluid Swipe Dismiss & Haptics** (`FluidSwipeToDismiss.kt`, `NotificationCard.kt`, `SuperHaptics.kt`): Replaced M3 `SwipeToDismissBox` in `NotificationCard` with `FluidSwipeToDismiss`. Added Samsung LRA `EFFECT_CLICK_DISMISS` (50067) and Android R+ `PRIMITIVE_LOW_TICK` detent tick on threshold crossing and decisive commit pulse on release. All individual and stacked notifications now share unified spring physics and angle tilt.
+- **Monet Dynamic Strength Slider & Color Lerping** (`MonetScheme.kt`, `ShadeSettings.kt`, `SettingsScreen.kt`, `MainActivity.kt`, theme files): Added configurable `monetAccentStrength` (0.0 to 1.0) with real-time color interpolation in `monetScheme`. Added interactive slider with 5% increments in Appearance settings. Propagated to `OneUiTheme`, `PixelTheme`, `NothingTheme`, `CyberpunkTheme`, and `PureMaterialTheme`.
 
 ### 2026-10-03 (Session 2) — Claude Code (Sonnet 4.6) [Housekeeping + Consolidation]
 

@@ -178,6 +178,8 @@ fun SettingsScreen(
     onBlockSystemShadeChange: (Boolean) -> Unit = {},
     onThemeChange: (ShadeTheme) -> Unit,
     onAccentColorChange: (AccentColor) -> Unit = {},
+    monetAccentStrength: Float = 1.0f,
+    onMonetAccentStrengthChange: (Float) -> Unit = {},
     onDarkModeChange: (DarkThemeMode) -> Unit = {},
     onBackdropThemeChange: (BackdropTheme) -> Unit = {},
     onBackdropOpacityChange: (Float) -> Unit = {},
@@ -2409,6 +2411,50 @@ fun SettingsScreen(
                                 accent = accent,
                                 isSelected = selectedAccentColor == accent,
                                 onClick = { onAccentColorChange(accent) },
+                            )
+                        }
+                    }
+
+                    AnimatedVisibility(
+                        visible = selectedAccentColor == AccentColor.MONET || selectedTheme is ShadeTheme.Pixel || selectedTheme is ShadeTheme.Nothing || selectedTheme is ShadeTheme.Cyberpunk,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut(),
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = "Wallpaper Monet Strength",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                )
+                                Text(
+                                    text = "${(monetAccentStrength * 100).roundToInt()}%",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                            Text(
+                                text = "Blends Android wallpaper extraction into quick tiles and system surface cards",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Slider(
+                                value = monetAccentStrength,
+                                onValueChange = { newVal ->
+                                    haptics?.sliderTick()
+                                    onMonetAccentStrengthChange(newVal)
+                                },
+                                valueRange = 0f..1f,
+                                steps = 19,
+                                modifier = Modifier.fillMaxWidth(),
                             )
                         }
                     }

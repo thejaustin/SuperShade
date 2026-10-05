@@ -69,6 +69,7 @@ class MainActivity : ComponentActivity() {
             val theme by settings.theme.collectAsState(initial = ShadeTheme.OneUI)
             val darkThemeMode by settings.darkThemeMode.collectAsState(initial = com.supershade.ui.theme.DarkThemeMode.SYSTEM)
             val accentColor by settings.accentColor.collectAsState(initial = com.supershade.settings.AccentColor.GALAXY_BLUE)
+            val monetAccentStrength by settings.monetAccentStrength.collectAsState(initial = 1.0f)
             val backdropTheme by settings.backdropTheme.collectAsState(initial = BackdropTheme.FROSTED_GLASS)
             val backdropOpacity by settings.backdropOpacity.collectAsState(initial = 0.78f)
             val notificationDensity by settings.notificationDensity.collectAsState(initial = com.supershade.settings.NotificationDensity.BALANCED)
@@ -207,6 +208,10 @@ class MainActivity : ComponentActivity() {
                         onAccentColorChange = { newAccent ->
                             superHaptics.sliderTick()
                             scope.launch { settings.setAccentColor(newAccent) }
+                        },
+                        monetAccentStrength = monetAccentStrength,
+                        onMonetAccentStrengthChange = { newStrength ->
+                            scope.launch { settings.setMonetAccentStrength(newStrength) }
                         },
                         onDarkModeChange = { newMode ->
                             superHaptics.sliderTick()

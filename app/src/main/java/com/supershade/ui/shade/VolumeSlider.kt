@@ -76,6 +76,7 @@ import kotlin.math.roundToInt
 fun VolumeSlider(
     modifier: Modifier = Modifier,
     compact: Boolean = false,
+    onOpenVolumeMixer: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
@@ -133,6 +134,10 @@ fun VolumeSlider(
 
     fun openVolumePanel() {
         haptics.sheetDetent()
+        if (onOpenVolumeMixer != null) {
+            onOpenVolumeMixer()
+            return
+        }
         try {
             val panelIntent = Intent(Settings.Panel.ACTION_VOLUME)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

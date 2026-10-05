@@ -138,6 +138,7 @@ fun NotificationAccessCard(
 @Composable
 fun EmptyNotificationsView(
     modifier: Modifier = Modifier,
+    onOpenHistory: () -> Unit = {},
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { com.supershade.haptics.SuperHaptics(context) }
@@ -175,20 +176,8 @@ fun EmptyNotificationsView(
         )
         Surface(
             onClick = {
-                haptics.lightTap()
-                try {
-                    val intent = Intent("android.settings.NOTIFICATION_HISTORY").apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    context.startActivity(intent)
-                } catch (_: Exception) {
-                    try {
-                        val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        context.startActivity(intent)
-                    } catch (_: Exception) {}
-                }
+                haptics.sheetDetent()
+                onOpenHistory()
             },
             shape = RoundedCornerShape(50),
             color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
@@ -225,6 +214,7 @@ fun NotificationFeed(
     onNotificationClick: (ShadeNotification) -> Unit = {},
     onSnooze: (String, Long) -> Unit = { _, _ -> },
     onHideChannel: (pkg: String, channelId: String) -> Unit = { _, _ -> },
+    onOpenHistory: () -> Unit = {},
     compact: Boolean = false,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -236,7 +226,7 @@ fun NotificationFeed(
     if (!isAccessGranted) {
         NotificationAccessCard(modifier = modifier)
     } else if (notifications.isEmpty()) {
-        EmptyNotificationsView(modifier = modifier)
+        EmptyNotificationsView(modifier = modifier, onOpenHistory = onOpenHistory)
     } else {
         val groups = notifications.toGroups()
         LazyColumn(
@@ -266,20 +256,8 @@ fun NotificationFeed(
                             icon = Icons.Default.History,
                             label = "History",
                             onClick = {
-                                haptics.lightTap()
-                                try {
-                                    val intent = Intent("android.settings.NOTIFICATION_HISTORY").apply {
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    }
-                                    context.startActivity(intent)
-                                } catch (_: Exception) {
-                                    try {
-                                        val intent = Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
-                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        }
-                                        context.startActivity(intent)
-                                    } catch (_: Exception) {}
-                                }
+                                haptics.sheetDetent()
+                                onOpenHistory()
                             },
                         )
 
@@ -345,6 +323,7 @@ fun TogetherNotificationFeed(
     onNotificationClick: (ShadeNotification) -> Unit = {},
     onSnooze: (String, Long) -> Unit = { _, _ -> },
     onHideChannel: (pkg: String, channelId: String) -> Unit = { _, _ -> },
+    onOpenHistory: () -> Unit = {},
     compact: Boolean = false,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -357,7 +336,7 @@ fun TogetherNotificationFeed(
     if (!isAccessGranted) {
         NotificationAccessCard(modifier = modifier)
     } else if (notifications.isEmpty()) {
-        EmptyNotificationsView(modifier = modifier)
+        EmptyNotificationsView(modifier = modifier, onOpenHistory = onOpenHistory)
     } else {
         val groups = remember(notifications) { notifications.toGroups() }
         Column(
@@ -385,16 +364,29 @@ fun TogetherNotificationFeed(
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                if (hasClearable) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     HeaderActionButton(
-                        icon = Icons.Default.ClearAll,
-                        label = "Clear all",
-                        isPrimary = true,
+                        icon = Icons.Default.History,
+                        label = "History",
                         onClick = {
                             haptics.sheetDetent()
-                            onClearAll()
+                            onOpenHistory()
                         },
                     )
+                    if (hasClearable) {
+                        HeaderActionButton(
+                            icon = Icons.Default.ClearAll,
+                            label = "Clear all",
+                            isPrimary = true,
+                            onClick = {
+                                haptics.sheetDetent()
+                                onClearAll()
+                            },
+                        )
+                    }
                 }
             }
 

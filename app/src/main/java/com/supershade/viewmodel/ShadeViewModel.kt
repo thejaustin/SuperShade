@@ -87,6 +87,10 @@ class ShadeViewModel(
             }
             .launchIn(viewModelScope)
 
+        notificationRepo.dismissedHistory
+            .onEach { history -> _state.update { it.copy(dismissedHistory = history) } }
+            .launchIn(viewModelScope)
+
         settings.hiddenChannels
             .onEach { channels ->
                 _state.update { current ->
@@ -214,6 +218,10 @@ class ShadeViewModel(
 
         settings.deviceControlMode
             .onEach { mode -> _state.update { it.copy(deviceControlMode = mode) } }
+            .launchIn(viewModelScope)
+
+        settings.monetAccentStrength
+            .onEach { strength -> _state.update { it.copy(monetAccentStrength = strength) } }
             .launchIn(viewModelScope)
 
         governor.isCommanderConnected
@@ -455,43 +463,7 @@ class ShadeViewModel(
                 }
             }
             id.contains("mute") || id.contains("sound") || id.contains("volume") -> {
-                val am = context.getSystemService(AudioManager::class.java)
-                val currentRinger = audioRepo?.getCurrentRingerMode() ?: (am?.ringerMode ?: AudioManager.RINGER_MODE_NORMAL)
-                val mediaVol = audioRepo?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: (am?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0)
-                val mediaMax = audioRepo?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: (am?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15)
-                val ringVol = audioRepo?.getStreamVolume(AudioManager.STREAM_RING) ?: (am?.getStreamVolume(AudioManager.STREAM_RING) ?: 0)
-                val ringMax = audioRepo?.getStreamMaxVolume(AudioManager.STREAM_RING) ?: (am?.getStreamMaxVolume(AudioManager.STREAM_RING) ?: 15)
-                val notifVol = audioRepo?.getStreamVolume(AudioManager.STREAM_NOTIFICATION) ?: (am?.getStreamVolume(AudioManager.STREAM_NOTIFICATION) ?: 0)
-                val notifMax = audioRepo?.getStreamMaxVolume(AudioManager.STREAM_NOTIFICATION) ?: (am?.getStreamMaxVolume(AudioManager.STREAM_NOTIFICATION) ?: 15)
-                val sysVol = audioRepo?.getStreamVolume(AudioManager.STREAM_SYSTEM) ?: (am?.getStreamVolume(AudioManager.STREAM_SYSTEM) ?: 0)
-                val sysMax = audioRepo?.getStreamMaxVolume(AudioManager.STREAM_SYSTEM) ?: (am?.getStreamMaxVolume(AudioManager.STREAM_SYSTEM) ?: 15)
-
-                val modeLabel = when (currentRinger) {
-                    AudioManager.RINGER_MODE_VIBRATE -> "Vibrate"
-                    AudioManager.RINGER_MODE_SILENT -> "Mute"
-                    else -> "Sound"
-                }
-
-                _state.update {
-                    it.copy(
-                        activeTileDetail = TileDetailState(
-                            type = TileDetailType.SOUND_MODE,
-                            title = "Sound Mode",
-                            subtitle = modeLabel,
-                            isActive = currentRinger != AudioManager.RINGER_MODE_SILENT,
-                            ringerMode = currentRinger,
-                            mediaVol = mediaVol,
-                            mediaMaxVol = mediaMax,
-                            ringVol = ringVol,
-                            ringMaxVol = ringMax,
-                            notifVol = notifVol,
-                            notifMaxVol = notifMax,
-                            sysVol = sysVol,
-                            sysMaxVol = sysMax,
-                            settingsAction = Settings.ACTION_SOUND_SETTINGS,
-                        )
-                    )
-                }
+                openSoundModeDetail()
             }
             id.contains("dnd") || id.contains("donotdisturb") -> {
                 val nm = context.getSystemService(android.app.NotificationManager::class.java)
@@ -623,6 +595,46 @@ class ShadeViewModel(
         }
     }
 
+    fun openSoundModeDetail() {
+        val am = context.getSystemService(AudioManager::class.java)
+        val currentRinger = audioRepo?.getCurrentRingerMode() ?: (am?.ringerMode ?: AudioManager.RINGER_MODE_NORMAL)
+        val mediaVol = audioRepo?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: (am?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0)
+        val mediaMax = audioRepo?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: (am?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15)
+        val ringVol = audioRepo?.getStreamVolume(AudioManager.STREAM_RING) ?: (am?.getStreamVolume(AudioManager.STREAM_RING) ?: 0)
+        val ringMax = audioRepo?.getStreamMaxVolume(AudioManager.STREAM_RING) ?: (am?.getStreamMaxVolume(AudioManager.STREAM_RING) ?: 15)
+        val notifVol = audioRepo?.getStreamVolume(AudioManager.STREAM_NOTIFICATION) ?: (am?.getStreamVolume(AudioManager.STREAM_NOTIFICATION) ?: 0)
+        val notifMax = audioRepo?.getStreamMaxVolume(AudioManager.STREAM_NOTIFICATION) ?: (am?.getStreamMaxVolume(AudioManager.STREAM_NOTIFICATION) ?: 15)
+        val sysVol = audioRepo?.getStreamVolume(AudioManager.STREAM_SYSTEM) ?: (am?.getStreamVolume(AudioManager.STREAM_SYSTEM) ?: 0)
+        val sysMax = audioRepo?.getStreamMaxVolume(AudioManager.STREAM_SYSTEM) ?: (am?.getStreamMaxVolume(AudioManager.STREAM_SYSTEM) ?: 15)
+
+        val modeLabel = when (currentRinger) {
+            AudioManager.RINGER_MODE_VIBRATE -> "Vibrate"
+            AudioManager.RINGER_MODE_SILENT -> "Mute"
+            else -> "Sound"
+        }
+
+        _state.update {
+            it.copy(
+                activeTileDetail = TileDetailState(
+                    type = TileDetailType.SOUND_MODE,
+                    title = "Sound Mode",
+                    subtitle = modeLabel,
+                    isActive = currentRinger != AudioManager.RINGER_MODE_SILENT,
+                    ringerMode = currentRinger,
+                    mediaVol = mediaVol,
+                    mediaMaxVol = mediaMax,
+                    ringVol = ringVol,
+                    ringMaxVol = ringMax,
+                    notifVol = notifVol,
+                    notifMaxVol = notifMax,
+                    sysVol = sysVol,
+                    sysMaxVol = sysMax,
+                    settingsAction = Settings.ACTION_SOUND_SETTINGS,
+                )
+            )
+        }
+    }
+
     fun closeTileDetail() {
         _state.update { it.copy(activeTileDetail = null) }
     }
@@ -734,6 +746,20 @@ class ShadeViewModel(
         val next = audioRepo?.cycleRingerMode() ?: 0
         tileRepo.reload()
         return next
+    }
+
+    // --- Notification History ---
+
+    fun openHistorySheet() {
+        _state.update { it.copy(isHistorySheetOpen = true) }
+    }
+
+    fun closeHistorySheet() {
+        _state.update { it.copy(isHistorySheetOpen = false) }
+    }
+
+    fun clearDismissedHistory() {
+        notificationRepo.clearDismissedHistory()
     }
 
     // --- Power & Security actions ---

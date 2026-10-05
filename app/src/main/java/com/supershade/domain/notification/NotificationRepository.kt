@@ -1,6 +1,7 @@
 package com.supershade.domain.notification
 
 import android.service.notification.StatusBarNotification
+import com.supershade.domain.notification.model.ShadeCategory
 import com.supershade.domain.notification.model.ShadeNotification
 import com.supershade.domain.notification.model.toShadeNotification
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -10,6 +11,18 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+
+data class DismissedNotificationRecord(
+    val key: String,
+    val packageName: String,
+    val title: String,
+    val text: String,
+    val postTime: Long,
+    val dismissedTime: Long = System.currentTimeMillis(),
+    val category: ShadeCategory = ShadeCategory.All,
+    val isClearable: Boolean = true,
+    val channelId: String? = null,
+)
 
 class NotificationRepository {
 
@@ -41,6 +54,9 @@ class NotificationRepository {
     private val categoryEngine = CategoryEngine()
     private val _notifications = MutableStateFlow<List<ShadeNotification>>(emptyList())
     val notifications: StateFlow<List<ShadeNotification>> = _notifications.asStateFlow()
+
+    private val _dismissedHistory = MutableStateFlow<List<DismissedNotificationRecord>>(emptyList())
+    val dismissedHistory: StateFlow<List<DismissedNotificationRecord>> = _dismissedHistory.asStateFlow()
 
     private val _voiceRecorderNotification = MutableStateFlow<ShadeNotification?>(null)
     val voiceRecorderNotification: StateFlow<ShadeNotification?> = _voiceRecorderNotification.asStateFlow()
@@ -118,6 +134,23 @@ class NotificationRepository {
         if (_voiceRecorderNotification.value?.key == key) {
             _voiceRecorderNotification.value = null
         }
+        val removed = _notifications.value.find { it.key == key }
+        if (removed != null && removed.packageName != "com.supershade") {
+            val record = DismissedNotificationRecord(
+                key = removed.key,
+                packageName = removed.packageName,
+                title = removed.title,
+                text = removed.text,
+                postTime = removed.postTime,
+                dismissedTime = System.currentTimeMillis(),
+                category = removed.category,
+                isClearable = removed.isClearable,
+                channelId = removed.channelId,
+            )
+            _dismissedHistory.update { current ->
+                (listOf(record) + current.filter { it.key != key }).take(60)
+            }
+        }
         _notifications.update { current -> current.filter { it.key != key } }
     }
 
@@ -127,10 +160,27 @@ class NotificationRepository {
     }
 
     fun cancelAll() {
+        val now = System.currentTimeMillis()
+        val dismissible = _notifications.value.filter { it.isClearable }
+        val newRecords = dismissible.map { note ->
+            DismissedNotificationRecord(
+                key = note.key,
+                packageName = note.packageName,
+                title = note.title,
+                text = note.text,
+                postTime = note.postTime,
+                dismissedTime = now,
+                category = note.category,
+                isClearable = note.isClearable,
+                channelId = note.channelId,
+            )
+        }
+        _dismissedHistory.update { current ->
+            (newRecords + current).distinctBy { it.key }.take(60)
+        }
         if (clearAller != null) {
             clearAller?.invoke()
         } else {
-            val dismissible = _notifications.value.filter { it.isClearable }
             dismissible.forEach { note -> canceller?.invoke(note.key) }
         }
         _notifications.update { current -> current.filter { !it.isClearable } }
@@ -138,5 +188,9 @@ class NotificationRepository {
 
     fun clearAll() {
         _notifications.update { emptyList() }
+    }
+
+    fun clearDismissedHistory() {
+        _dismissedHistory.value = emptyList()
     }
 }

@@ -155,6 +155,7 @@ fun ShadeRoot(
                 isAmoled = isAmoled,
                 darkThemeMode = state.darkThemeMode,
                 accentColor = state.accentColor,
+                monetBlendStrength = state.monetAccentStrength,
                 content = content,
             )
         }
@@ -163,6 +164,7 @@ fun ShadeRoot(
                 isAmoled = isAmoled,
                 darkThemeMode = state.darkThemeMode,
                 accentColor = state.accentColor,
+                monetBlendStrength = state.monetAccentStrength,
                 content = content,
             )
         }
@@ -171,6 +173,7 @@ fun ShadeRoot(
                 isAmoled = isAmoled,
                 darkThemeMode = state.darkThemeMode,
                 accentColor = state.accentColor,
+                monetBlendStrength = state.monetAccentStrength,
                 content = content,
             )
         }
@@ -179,6 +182,7 @@ fun ShadeRoot(
                 isAmoled = isAmoled,
                 darkThemeMode = state.darkThemeMode,
                 accentColor = state.accentColor,
+                monetBlendStrength = state.monetAccentStrength,
                 content = content,
             )
         }
@@ -187,6 +191,7 @@ fun ShadeRoot(
                 isAmoled = isAmoled,
                 darkThemeMode = state.darkThemeMode,
                 accentColor = state.accentColor,
+                monetBlendStrength = state.monetAccentStrength,
                 content = content,
             )
         }
@@ -300,6 +305,9 @@ fun ShadeRoot(
         if (showPowerMenu) {
             haptics.sheetDetent()
             showPowerMenu = false
+        } else if (state.isHistorySheetOpen) {
+            haptics.sheetDetent()
+            viewModel.closeHistorySheet()
         } else if (state.activeTileDetail != null) {
             viewModel.closeTileDetail()
         } else if (isTogether && state.isQsExpanded) {
@@ -755,6 +763,7 @@ fun ShadeRoot(
                                             ) {
                                                 VolumeSlider(
                                                     compact = false,
+                                                    onOpenVolumeMixer = { viewModel.openSoundModeDetail() },
                                                     modifier = Modifier.fillMaxWidth(),
                                                 )
                                             }
@@ -812,6 +821,7 @@ fun ShadeRoot(
                                         },
                                         onSnooze = { key, delayMs -> viewModel.snoozeNotification(key, delayMs) },
                                         onHideChannel = { pkg, ch -> viewModel.hideNotificationChannel(pkg, ch) },
+                                        onOpenHistory = { viewModel.openHistorySheet() },
                                         compact = state.isNotificationCompact,
                                     )
                                 }
@@ -904,6 +914,7 @@ fun ShadeRoot(
                                             },
                                             onSnooze = { key, delayMs -> viewModel.snoozeNotification(key, delayMs) },
                                             onHideChannel = { pkg, ch -> viewModel.hideNotificationChannel(pkg, ch) },
+                                            onOpenHistory = { viewModel.openHistorySheet() },
                                             compact = state.isNotificationCompact,
                                             modifier = Modifier.fillMaxSize(),
                                         )
@@ -1004,6 +1015,7 @@ fun ShadeRoot(
                                                 )
                                                 VolumeSlider(
                                                     compact = false,
+                                                    onOpenVolumeMixer = { viewModel.openSoundModeDetail() },
                                                     modifier = Modifier.fillMaxWidth(),
                                                 )
                                             }
@@ -1305,6 +1317,14 @@ fun ShadeRoot(
                     isShizukuActive = state.isShizukuConnected,
                 )
             }
+
+            // In-shade Notification History Sheet (Dismissed notifications log)
+            NotificationHistorySheet(
+                isOpen = state.isHistorySheetOpen,
+                history = state.dismissedHistory,
+                onDismiss = { viewModel.closeHistorySheet() },
+                onClearHistory = { viewModel.clearDismissedHistory() },
+            )
         }
     }
 }

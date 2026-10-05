@@ -179,6 +179,7 @@ class ShadeSettings(private val context: Context) {
         private val HIDDEN_CHANNELS_KEY = stringPreferencesKey("hidden_notification_channels")
         private val HIDE_ONGOING_NOTIFICATIONS_KEY = booleanPreferencesKey("hide_ongoing_notifications")
         private val DEVICE_CONTROL_MODE_KEY = stringPreferencesKey("device_control_mode")
+        private val MONET_ACCENT_STRENGTH_KEY = floatPreferencesKey("monet_accent_strength")
     }
 
     val backdropTheme: Flow<BackdropTheme> = context.dataStore.data.map { prefs ->
@@ -523,6 +524,16 @@ class ShadeSettings(private val context: Context) {
     suspend fun setHideOngoingNotifications(hide: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[HIDE_ONGOING_NOTIFICATIONS_KEY] = hide
+        }
+    }
+
+    val monetAccentStrength: Flow<Float> = context.dataStore.data.map { prefs ->
+        prefs[MONET_ACCENT_STRENGTH_KEY] ?: 1.0f
+    }
+
+    suspend fun setMonetAccentStrength(strength: Float) {
+        context.dataStore.edit { prefs ->
+            prefs[MONET_ACCENT_STRENGTH_KEY] = strength.coerceIn(0.0f, 1.0f)
         }
     }
 }

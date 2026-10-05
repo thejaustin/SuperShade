@@ -144,6 +144,7 @@ fun NothingShadeTheme(
     isAmoled: Boolean = false,
     darkThemeMode: DarkThemeMode = DarkThemeMode.SYSTEM,
     accentColor: com.supershade.settings.AccentColor = com.supershade.settings.AccentColor.MONET,
+    monetBlendStrength: Float = 1.0f,
     content: @Composable () -> Unit,
 ) {
     val isSystemInDark = isSystemInDarkTheme()
@@ -169,7 +170,7 @@ fun NothingShadeTheme(
             onPrimaryContainer = if (isDark) Color.White else c,
         )
     } else {
-        monetScheme(base, isDark, if (isAmoled) 0f else 0.35f)
+        monetScheme(base, isDark, if (isAmoled) 0f else 0.35f, monetBlendStrength)
     }
 
     MaterialTheme(

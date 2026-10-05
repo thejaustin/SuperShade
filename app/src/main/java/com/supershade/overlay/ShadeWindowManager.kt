@@ -7,6 +7,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.WindowInsets
 import android.view.KeyEvent
 import androidx.activity.OnBackPressedDispatcher
 import androidx.activity.OnBackPressedDispatcherOwner
@@ -237,9 +238,21 @@ class ShadeWindowManager(
     // while our shade is open. Removed on hide().
     private fun attachStatusBarBlocker() {
         if (statusBarBlockerView != null) return
-        val statusBarHeight = context.resources.getDimensionPixelSize(
-            context.resources.getIdentifier("status_bar_height", "dimen", "android")
-        ).coerceAtLeast(48)
+        val calculatedHeight: Int? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val insets = windowManager.currentWindowMetrics.windowInsets
+                .getInsetsIgnoringVisibility(WindowInsets.Type.statusBars())
+            if (insets.top > 0) insets.top else null
+        } else null
+
+        val statusBarHeight = (calculatedHeight ?: run {
+            val resId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+            if (resId > 0) {
+                try {
+                    context.resources.getDimensionPixelSize(resId)
+                } catch (_: Exception) { 48 }
+            } else 48
+        }).coerceAtLeast(48)
+
         val blockerParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             statusBarHeight,
@@ -250,6 +263,9 @@ class ShadeWindowManager(
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            }
         }
         val blocker = View(context).apply {
             setOnTouchListener { _, event ->

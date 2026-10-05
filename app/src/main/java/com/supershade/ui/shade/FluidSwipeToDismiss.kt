@@ -8,7 +8,6 @@ import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -24,6 +23,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.haptics.SuperHaptics
 import kotlinx.coroutines.CoroutineScope
@@ -86,7 +86,7 @@ fun FluidSwipeToDismiss(
     LaunchedEffect(state) {
         snapshotFlow { abs(state.offset.value) > state.thresholdPx }
             .distinctUntilChanged()
-            .collect { past -> if (past && !state.isAtRest) haptics.sheetDetent() }
+            .collect { past -> if (past && !state.isAtRest) haptics.notificationDismissTick() }
     }
 
     fun allowed(dir: Float) = if (dir > 0f) allowStart else allowEnd
@@ -117,6 +117,7 @@ fun FluidSwipeToDismiss(
                         val flung = abs(velocity) > flingVelocityPx && sign(velocity) == dir && abs(o) > 8f
                         val commit = dir != 0f && allowed(dir) && (abs(o) > state.thresholdPx || flung)
                         if (commit) {
+                            haptics.notificationDismissCommit()
                             state.offset.animateTo(
                                 dir * state.widthPx * 1.2f,
                                 spring(Spring.DampingRatioNoBouncy, 420f),

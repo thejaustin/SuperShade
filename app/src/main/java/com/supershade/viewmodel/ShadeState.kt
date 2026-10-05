@@ -84,6 +84,9 @@ data class ShadeState(
     val hiddenChannels: Set<String> = emptySet(),
     val hideOngoingNotifications: Boolean = false,
     val deviceControlMode: com.supershade.settings.DeviceControlMode = com.supershade.settings.DeviceControlMode.SHOW_WHEN_EXPANDED,
+    val monetAccentStrength: Float = 1.0f,
+    val isHistorySheetOpen: Boolean = false,
+    val dismissedHistory: List<com.supershade.domain.notification.DismissedNotificationRecord> = emptyList(),
 ) {
     val isNotificationCompact: Boolean get() = notificationDensity == com.supershade.settings.NotificationDensity.COMPACT || tileSize == com.supershade.settings.TileSize.COMPACT
 }

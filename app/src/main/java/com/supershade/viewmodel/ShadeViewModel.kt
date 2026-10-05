@@ -742,6 +742,7 @@ class ShadeViewModel(
     }
 
     fun launchNotification(notification: com.supershade.domain.notification.model.ShadeNotification) {
+        notificationRepo.recordLaunch(notification)
         try {
             notification.contentIntent?.send()
         } catch (_: Exception) {}

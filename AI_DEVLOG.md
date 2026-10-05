@@ -29,6 +29,14 @@ Kotlin + Jetpack Compose + Koin + Shizuku. Project at `~/projects/SuperShade/`.
 ### 2026-10-05 — Antigravity (Gemini 3.8 Flash)
 
 **Done:**
+- **120Hz Refresh Rate Lock & Velocity Fling Physics Momentum** (`ShadeWindowManager.kt`, `GestureOverlay.kt`, `SuperShadeAccessibilityService.kt`, `ShadeRoot.kt`):
+  - **120Hz Refresh Rate Enforcement**: Configured `preferredRefreshRate = 120f` (with dynamic max query across `display.supportedModes` on Android 11+) on `ShadeWindowManager`, `GestureOverlay`, and `SuperShadeAccessibilityService` overlay layout params. Prevents Samsung LTPO displays from throttling to 60Hz during shade overlay gestures.
+  - **Velocity Fling Downward Detection**: Integrated `VelocityTracker` into both `GestureOverlay` and `SuperShadeAccessibilityService` to detect high-velocity downward flicks (`> 750dp/s`), opening the shade immediately with minimal displacement.
+  - **Momentum Dismiss Springs**: Upgraded upward swipe dismiss and bottom handle release in `ShadeRoot.kt` to preserve finger release velocity with adaptive spring physics (`dampingRatio = 0.88f, stiffness = 480f, initialVelocity = velocity`), eliminating static linear tweens.
+- **Anthropic-Style Self-Correcting Feedback Loop: `AdaptivePriorityLoop`** (`AdaptivePriorityLoop.kt`, `CategoryEngine.kt`, `NotificationRepository.kt`, `ShadeViewModel.kt`, `AppModule.kt`):
+  - **Closed Feedback Loop Architecture**: Replaced static priority rules with a continuous evaluation loop that records user interactions (taps = `+2.5`, replies = `+4.0`, pins = `+5.0`, snoozes = `+0.8`, fast-dismisses = `-1.8`, clear-all = `-0.3`).
+  - **Autonomous Demotion & Promotion**: Computes decayed affinity scores in background coroutines, automatically demoting non-ongoing spammy apps (score $\le -5.0$) into `Silent` and promoting frequently engaged channels into `Alerting` / `Essential`.
+  - **State Persistence**: Snapshots scores periodically to private storage, surviving service and device restarts without manual configuration.
 - **Hierarchical Priority Notification Sections & Adaptive Section Headers** (`NotificationFeed.kt`, `GroupedNotificationCard.kt`, `ShadeRoot.kt`):
   - **Priority Section Partitioning (`toSections`)**: Grouped notifications are cleanly partitioned into hierarchical sections: `PINNED` &rarr; `CONVERSATIONS` &rarr; `ALERTS` &rarr; `SILENT`.
   - **Theme-Adaptive `FeedSectionHeader`**:

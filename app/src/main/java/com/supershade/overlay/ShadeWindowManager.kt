@@ -81,6 +81,16 @@ class ShadeWindowManager(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
         }
+        // Lock overlay display compositor to maximum supported refresh rate (e.g. 120Hz) for ultra-fluid rendering
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                val display = context.display
+                val maxRate = display?.supportedModes?.maxOfOrNull { it.refreshRate } ?: 120f
+                preferredRefreshRate = maxRate.coerceAtLeast(60f)
+            } catch (_: Throwable) {
+                preferredRefreshRate = 120f
+            }
+        }
         // Android 12+ window compositor blur — rich frosted glass blur behind the overlay.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             @Suppress("DEPRECATION")

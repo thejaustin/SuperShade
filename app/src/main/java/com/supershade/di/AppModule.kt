@@ -22,7 +22,8 @@ val appModule = module {
     single { ShadeSettings(androidContext()) }
     single { ShizukuPlusConnector(androidContext()) }
     single { StatusBarGovernor(androidContext(), get()) }
-    single { NotificationRepository() }
+    single { com.supershade.domain.notification.AdaptivePriorityLoop(androidContext()) }
+    single { NotificationRepository(get()) }
     single { com.supershade.domain.system.SystemStatusRepository(androidContext()) }
     single { com.supershade.domain.audio.AudioRepository(androidContext()) }
     single { TileRepository(androidContext(), get(), get()) }

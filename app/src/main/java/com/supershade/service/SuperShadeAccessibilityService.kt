@@ -8,6 +8,7 @@ import android.os.Build
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
@@ -151,11 +152,21 @@ class SuperShadeAccessibilityService : AccessibilityService() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
             }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                try {
+                    val display = display
+                    val maxRate = display?.supportedModes?.maxOfOrNull { it.refreshRate } ?: 120f
+                    preferredRefreshRate = maxRate.coerceAtLeast(60f)
+                } catch (_: Throwable) {
+                    preferredRefreshRate = 120f
+                }
+            }
         }
 
         var startX = 0f
         var startY = 0f
         var triggered = false
+        var velocityTracker: VelocityTracker? = null
         val density = resources.displayMetrics.density
         // Responsive pull threshold: 14dp downward motion
         val dragThreshold = (14f * density).coerceAtLeast(20f)
@@ -168,6 +179,10 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                         startX = event.rawX
                         startY = event.rawY
                         triggered = false
+                        velocityTracker?.recycle()
+                        velocityTracker = VelocityTracker.obtain().apply {
+                            addMovement(event)
+                        }
                         val edgeExclusionPx = 10f * density
                         val screenWidth = resources.displayMetrics.widthPixels
                         if (startX < edgeExclusionPx || startX > (screenWidth - edgeExclusionPx)) {
@@ -176,10 +191,17 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                         true
                     }
                     MotionEvent.ACTION_MOVE -> {
+                        velocityTracker?.addMovement(event)
                         val deltaX = kotlin.math.abs(event.rawX - startX)
                         val deltaY = event.rawY - startY
-                        // Fluid pull trigger: predominantly downward gesture (> 46 degrees)
-                        if (!triggered && deltaY > dragThreshold && deltaY > deltaX * 1.05f) {
+                        velocityTracker?.computeCurrentVelocity(1000)
+                        val yVelocity = velocityTracker?.yVelocity ?: 0f
+
+                        val isFlingDown = yVelocity > (750f * density) && deltaY > (8f * density) && deltaY > deltaX
+                        val isStandardPull = deltaY > dragThreshold && deltaY > deltaX * 1.05f
+
+                        // Fluid pull trigger: downward fling or standard downward gesture (> 46 degrees)
+                        if (!triggered && (isFlingDown || isStandardPull)) {
                             triggered = true
                             v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
                             val screenWidth = resources.displayMetrics.widthPixels.coerceAtLeast(1)
@@ -210,6 +232,8 @@ class SuperShadeAccessibilityService : AccessibilityService() {
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                         triggered = false
+                        velocityTracker?.recycle()
+                        velocityTracker = null
                         true
                     }
                     else -> false

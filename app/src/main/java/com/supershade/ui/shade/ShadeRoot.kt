@@ -496,9 +496,9 @@ fun ShadeRoot(
                                             if (!change.pressed) {
                                                 val velocity = tracker.calculateVelocity().y
                                                 val isFlingUp = if (isTouchInHomeBarZone) {
-                                                    velocity < -360f * px && totalDy < -(12f * px)
+                                                    velocity < -360f * px && (totalDy < -(10f * px) || dragOffset.value < -(10f * px))
                                                 } else {
-                                                    velocity < -velocityThresholdPxPerSec && totalDy < -(32f * px)
+                                                    velocity < -velocityThresholdPxPerSec && (totalDy < -(18f * px) || dragOffset.value < -(18f * px))
                                                 }
                                                 val isPulledPastThreshold = if (isTouchInHomeBarZone) {
                                                     dragOffset.value < -(32f * px) || -totalDy >= (32f * px)
@@ -518,7 +518,11 @@ fun ShadeRoot(
                                                     } else {
                                                         haptics.sheetDetent()
                                                         coroutineScope.launch {
-                                                            dragOffset.animateTo(-screenHeightPx, spring(0.90f, 420f))
+                                                            dragOffset.animateTo(
+                                                                targetValue = -screenHeightPx,
+                                                                animationSpec = spring(dampingRatio = 0.88f, stiffness = 480f),
+                                                                initialVelocity = velocity.coerceIn(-5000f * px, -600f * px),
+                                                            )
                                                             onDismiss()
                                                         }
                                                     }
@@ -1252,7 +1256,8 @@ fun ShadeRoot(
                                                 haptics.sheetDetent()
                                                 dragOffset.animateTo(
                                                     targetValue = -screenHeightPx,
-                                                    animationSpec = tween(durationMillis = 180),
+                                                    animationSpec = spring(dampingRatio = 0.88f, stiffness = 480f),
+                                                    initialVelocity = velocity.coerceIn(-5000f * density.density, -600f * density.density),
                                                 )
                                                 onDismiss()
                                             } else {

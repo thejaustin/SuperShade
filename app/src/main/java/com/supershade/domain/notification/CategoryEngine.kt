@@ -11,17 +11,23 @@ class CategoryEngine {
         sbn: StatusBarNotification,
         mode: ClassificationMode = ClassificationMode.ONE_UI,
         overrides: Map<String, ShadeCategory> = emptyMap(),
+        adaptiveLoop: AdaptivePriorityLoop? = null,
     ): ShadeCategory {
         val pkg = sbn.packageName
 
-        // 1. Explicit user override always takes precedence
+        // 1. Explicit user override always takes top precedence
         overrides[pkg]?.let { return it }
 
-        // 2. Dispatch based on ClassificationMode
+        // 2. Adaptive Loop: If user consistently ignores/fast-dismisses, demote non-ongoing to Silent
+        if (adaptiveLoop?.isAutoSilent(pkg) == true && (sbn.notification.flags and Notification.FLAG_ONGOING_EVENT) == 0) {
+            return ShadeCategory.Silent
+        }
+
+        // 3. Dispatch based on ClassificationMode
         return when (mode) {
             ClassificationMode.ONE_UI -> categorizeOneUi(sbn)
-            ClassificationMode.AOSP -> categorizeAosp(sbn)
-            ClassificationMode.ESSENTIAL -> categorizeEssential(sbn)
+            ClassificationMode.AOSP -> categorizeAosp(sbn, adaptiveLoop)
+            ClassificationMode.ESSENTIAL -> categorizeEssential(sbn, adaptiveLoop)
             ClassificationMode.CYBERPUNK -> categorizeCyberpunk(sbn)
             ClassificationMode.UNIFIED -> ShadeCategory.All
         }
@@ -62,7 +68,10 @@ class CategoryEngine {
         return if (isSystemApp(pkg)) ShadeCategory.System else ShadeCategory.Apps
     }
 
-    private fun categorizeAosp(sbn: StatusBarNotification): ShadeCategory {
+    private fun categorizeAosp(
+        sbn: StatusBarNotification,
+        adaptiveLoop: AdaptivePriorityLoop? = null,
+    ): ShadeCategory {
         val pkg = sbn.packageName
         val androidCategory = sbn.notification.category
 
@@ -85,20 +94,29 @@ class CategoryEngine {
             return ShadeCategory.Silent
         }
 
+        // Adaptive Loop Promotion: Frequently interacted channels always stay in Alerting
+        if (adaptiveLoop?.scores?.value?.get(pkg)?.isPromoted == true) {
+            return ShadeCategory.Alerting
+        }
+
         // Alerting: Everything active (alarms, email, social, media, reminders)
         return ShadeCategory.Alerting
     }
 
-    private fun categorizeEssential(sbn: StatusBarNotification): ShadeCategory {
+    private fun categorizeEssential(
+        sbn: StatusBarNotification,
+        adaptiveLoop: AdaptivePriorityLoop? = null,
+    ): ShadeCategory {
         val pkg = sbn.packageName
         val androidCategory = sbn.notification.category
 
-        // Essential: Critical calls, direct communications, urgent alarms/reminders
+        // Essential: Critical calls, direct communications, urgent alarms/reminders, or loop-promoted VIPs
         if (isCallsApp(pkg) ||
             androidCategory == Notification.CATEGORY_CALL ||
             androidCategory == Notification.CATEGORY_MISSED_CALL ||
             androidCategory == Notification.CATEGORY_ALARM ||
-            (isMessagingApp(pkg) && (sbn.notification.flags and Notification.FLAG_ONGOING_EVENT) == 0)) {
+            (isMessagingApp(pkg) && (sbn.notification.flags and Notification.FLAG_ONGOING_EVENT) == 0) ||
+            adaptiveLoop?.scores?.value?.get(pkg)?.isPromoted == true) {
             return ShadeCategory.Essential
         }
 

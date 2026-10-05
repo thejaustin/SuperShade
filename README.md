@@ -1,5 +1,9 @@
 # SuperShade
 
+[![GitHub Release](https://img.shields.io/github/v/release/thejaustin/SuperShade?style=flat-square&color=36BCF7&labelColor=1a1b27&label=Latest)](https://github.com/thejaustin/SuperShade/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/thejaustin/SuperShade/total?style=flat-square&color=3DDC84&labelColor=1a1b27&logo=android&label=Downloads)](https://github.com/thejaustin/SuperShade/releases)
+[![Stars](https://img.shields.io/github/stars/thejaustin/SuperShade?style=flat-square&color=FFD700&labelColor=1a1b27&logo=github&label=Stars)](https://github.com/thejaustin/SuperShade/stargazers)
+
 A fully custom Android notification shade built with Jetpack Compose — One UI, Pixel, and Pure Material styles, with Shizuku-powered status bar control and no root required.
 
 SuperShade replaces Android's stock notification shade with a custom overlay that matches the aesthetic of modern launchers. Pull down anywhere on the status bar to open it: quick settings, notifications, media controls, brightness and volume sliders — all in one gesture, styled the way you want.

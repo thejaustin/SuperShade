@@ -34,7 +34,9 @@ data class SnoozeRecord(
     val shadeNotification: ShadeNotification? = null,
 )
 
-class NotificationRepository {
+class NotificationRepository(
+    val adaptiveLoop: AdaptivePriorityLoop? = null,
+) {
 
     companion object {
         /**
@@ -76,7 +78,7 @@ class NotificationRepository {
             val updated = current.map { note ->
                 val sbn = activeSbns[note.key]
                 val newCategory = if (sbn != null) {
-                    categoryEngine.categorize(sbn, mode, overrides)
+                    categoryEngine.categorize(sbn, mode, overrides, adaptiveLoop)
                 } else {
                     overrides[note.packageName] ?: note.category
                 }
@@ -124,10 +126,19 @@ class NotificationRepository {
     }
 
     fun togglePin(key: String) {
+        val willPin = key !in _pinnedKeys.value
         _pinnedKeys.update { current ->
             if (key in current) current - key else current + key
         }
         _notifications.update { sortNotifications(it) }
+        val note = _notifications.value.find { it.key == key }
+        if (note != null) {
+            adaptiveLoop?.recordInteraction(
+                note.packageName,
+                note.channelId,
+                if (willPin) NotificationInteractionType.PIN else NotificationInteractionType.UNPIN,
+            )
+        }
     }
 
     fun isPinned(key: String): Boolean = key in _pinnedKeys.value
@@ -137,6 +148,11 @@ class NotificationRepository {
         snoozedUntil[key] = until
         val note = _notifications.value.find { it.key == key }
         if (note != null) {
+            adaptiveLoop?.recordInteraction(
+                note.packageName,
+                note.channelId,
+                NotificationInteractionType.SNOOZE,
+            )
             val record = SnoozeRecord(
                 key = key,
                 packageName = note.packageName,
@@ -200,13 +216,13 @@ class NotificationRepository {
         // while also registering a MediaSession. Suppress them from the notification feed;
         // they are routed to the media card.
         if (isMediaOnlyNotification(sbn)) {
-            val category = categoryEngine.categorize(sbn, currentClassificationMode, currentAppOverrides)
+            val category = categoryEngine.categorize(sbn, currentClassificationMode, currentAppOverrides, adaptiveLoop)
             val shade = sbn.toShadeNotification(category)
             _voiceRecorderNotification.value = shade
             return
         }
 
-        val category = categoryEngine.categorize(sbn, currentClassificationMode, currentAppOverrides)
+        val category = categoryEngine.categorize(sbn, currentClassificationMode, currentAppOverrides, adaptiveLoop)
         val shade = sbn.toShadeNotification(category)
 
         if (shade.title.isBlank() && shade.text.isBlank()) return
@@ -264,8 +280,17 @@ class NotificationRepository {
 
     fun cancelAndRemove(key: String) {
         val target = _notifications.value.find { it.key == key }
-        if (target != null && target.isClearable) {
-            _lastDismissed.value = target
+        if (target != null) {
+            if (target.isClearable) {
+                _lastDismissed.value = target
+            }
+            val elapsed = System.currentTimeMillis() - target.postTime
+            val isFast = elapsed in 0..4000L
+            adaptiveLoop?.recordInteraction(
+                target.packageName,
+                target.channelId,
+                if (isFast) NotificationInteractionType.FAST_DISMISS else NotificationInteractionType.DISMISS,
+            )
         }
         canceller?.invoke(key)
         onNotificationRemoved(key)
@@ -292,12 +317,23 @@ class NotificationRepository {
         _dismissedHistory.update { current ->
             (newRecords + current).distinctBy { it.key }.take(60)
         }
+        dismissible.forEach { note ->
+            adaptiveLoop?.recordInteraction(note.packageName, note.channelId, NotificationInteractionType.CLEAR_ALL)
+        }
         if (clearAller != null) {
             clearAller?.invoke()
         } else {
             dismissible.forEach { note -> canceller?.invoke(note.key) }
         }
         _notifications.update { current -> current.filter { !it.isClearable || it.key in pinned } }
+    }
+
+    fun recordLaunch(note: ShadeNotification) {
+        adaptiveLoop?.recordInteraction(
+            note.packageName,
+            note.channelId,
+            NotificationInteractionType.CLICK,
+        )
     }
 
     fun clearAll() {

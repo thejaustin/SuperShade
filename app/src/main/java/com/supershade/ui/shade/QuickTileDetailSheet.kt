@@ -9,6 +9,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import com.supershade.ui.theme.getCardBorder
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,12 +17,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -75,6 +79,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.font.FontFamily
+import com.supershade.ui.theme.LocalShadeTheme
+import com.supershade.ui.theme.ShadeTheme
+import com.supershade.ui.theme.ChamferedCornerShape
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlin.math.roundToInt
 import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.haptics.SuperHaptics
 import com.supershade.ui.theme.getCardBorder
@@ -110,6 +123,24 @@ fun QuickTileDetailSheet(
             ),
         contentAlignment = Alignment.BottomCenter,
     ) {
+        val shadeTheme = LocalShadeTheme.current
+        val sheetShape = when (shadeTheme) {
+            is ShadeTheme.Cyberpunk -> ChamferedCornerShape(12.dp)
+            is ShadeTheme.Nothing -> RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+            is ShadeTheme.Pixel -> RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+            else -> RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        }
+        val sheetBorder = when (shadeTheme) {
+            is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.70f))
+            is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
+            else -> getCardBorder(alpha = 0.35f)
+        }
+        val sheetBg = when (shadeTheme) {
+            is ShadeTheme.Cyberpunk -> Color(0xFF090D18)
+            is ShadeTheme.Nothing -> Color(0xFF0A0C0E)
+            else -> MaterialTheme.colorScheme.surfaceContainerHigh
+        }
+
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -118,10 +149,10 @@ fun QuickTileDetailSheet(
                     indication = null,
                     onClick = {}, // consume clicks so sheet doesn't dismiss
                 ),
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = sheetShape,
+            color = sheetBg,
             contentColor = MaterialTheme.colorScheme.onSurface,
-            border = getCardBorder(alpha = 0.35f),
+            border = sheetBorder,
             tonalElevation = 8.dp,
         ) {
             Column(
@@ -800,12 +831,31 @@ private fun SoundModeDetailContent(
     val context = LocalContext.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
 
+    val shadeTheme = LocalShadeTheme.current
+
+    val selectorContainerShape = when (shadeTheme) {
+        is ShadeTheme.Cyberpunk -> ChamferedCornerShape(10.dp)
+        is ShadeTheme.Nothing -> RoundedCornerShape(16.dp)
+        is ShadeTheme.Pixel -> RoundedCornerShape(24.dp)
+        else -> RoundedCornerShape(20.dp)
+    }
+    val selectorContainerBorder = when (shadeTheme) {
+        is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.50f))
+        is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
+        else -> getCardBorder(alpha = 0.30f)
+    }
+    val selectorContainerBg = when (shadeTheme) {
+        is ShadeTheme.Cyberpunk -> Color(0xFF0A0F1D)
+        is ShadeTheme.Nothing -> Color(0xFF101216)
+        else -> MaterialTheme.colorScheme.surfaceContainer
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        // One UI 8.5/9 Tri-State Mode Selector
+        // Multi-Theme Tri-State Mode Selector
         Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            border = getCardBorder(alpha = 0.30f),
+            shape = selectorContainerShape,
+            color = selectorContainerBg,
+            border = selectorContainerBorder,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Row(
@@ -825,14 +875,47 @@ private fun SoundModeDetailContent(
                         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
                         label = "modeScale",
                     )
+
+                    val itemShape = when (shadeTheme) {
+                        is ShadeTheme.Cyberpunk -> ChamferedCornerShape(6.dp)
+                        is ShadeTheme.Nothing -> RoundedCornerShape(12.dp)
+                        is ShadeTheme.Pixel -> RoundedCornerShape(20.dp)
+                        else -> RoundedCornerShape(14.dp)
+                    }
+                    val itemColor = when (shadeTheme) {
+                        is ShadeTheme.Cyberpunk -> if (isSelected) Color(0xFF00F0FF).copy(alpha = 0.20f) else Color(0xFF060A14)
+                        is ShadeTheme.Nothing -> if (isSelected) Color.White else Color(0xFF16191E)
+                        is ShadeTheme.Pixel -> if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.50f)
+                        else -> if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.50f)
+                    }
+                    val itemBorder = when (shadeTheme) {
+                        is ShadeTheme.Cyberpunk -> if (isSelected) BorderStroke(1.2.dp, Color(0xFF00F0FF)) else BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.15f))
+                        is ShadeTheme.Nothing -> if (isSelected) BorderStroke(1.dp, Color.White) else BorderStroke(1.dp, Color.White.copy(alpha = 0.10f))
+                        else -> if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null
+                    }
+                    val itemContentColor = when (shadeTheme) {
+                        is ShadeTheme.Cyberpunk -> if (isSelected) Color(0xFF00F0FF) else Color(0xFF80A8C0)
+                        is ShadeTheme.Nothing -> if (isSelected) Color.Black else Color(0xFFB0B0B0)
+                        else -> if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    val displayLabel = when (shadeTheme) {
+                        is ShadeTheme.Cyberpunk -> when (mode) {
+                            android.media.AudioManager.RINGER_MODE_NORMAL -> "[SOUND]"
+                            android.media.AudioManager.RINGER_MODE_VIBRATE -> "[VIB]"
+                            else -> "[MUTE]"
+                        }
+                        is ShadeTheme.Nothing -> label.uppercase()
+                        else -> label
+                    }
+
                     Surface(
                         onClick = {
                             haptics.sliderTick()
                             onSetRingerMode(mode)
                         },
-                        shape = RoundedCornerShape(14.dp),
-                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.50f),
-                        border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+                        shape = itemShape,
+                        color = itemColor,
+                        border = itemBorder,
                         modifier = Modifier
                             .weight(1f)
                             .graphicsLayer {
@@ -850,16 +933,17 @@ private fun SoundModeDetailContent(
                             Icon(
                                 imageVector = icon,
                                 contentDescription = label,
-                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = itemContentColor,
                                 modifier = Modifier.size(22.dp),
                             )
                             Text(
-                                text = label,
+                                text = displayLabel,
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
                                     fontSize = 11.5.sp,
                                 ),
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = itemContentColor,
                             )
                         }
                     }
@@ -869,9 +953,9 @@ private fun SoundModeDetailContent(
 
         // Live Audio Stream Sliders
         Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            border = getCardBorder(alpha = 0.30f),
+            shape = selectorContainerShape,
+            color = selectorContainerBg,
+            border = selectorContainerBorder,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(
@@ -881,8 +965,12 @@ private fun SoundModeDetailContent(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Text(
-                    text = "Volume Levels",
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    text = if (shadeTheme is ShadeTheme.Cyberpunk) "[VOLUME // CHANNELS]" else "Volume Levels",
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                    ),
+                    color = if (shadeTheme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF) else MaterialTheme.colorScheme.onSurface,
                 )
 
                 // Media volume
@@ -938,7 +1026,17 @@ private fun SoundModeDetailContent(
                         context.startActivity(Intent(action).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK })
                     } catch (_: Exception) {}
                 },
-                shape = RoundedCornerShape(14.dp),
+                shape = when (shadeTheme) {
+                    is ShadeTheme.Cyberpunk -> ChamferedCornerShape(8.dp)
+                    is ShadeTheme.Nothing -> RoundedCornerShape(10.dp)
+                    is ShadeTheme.Pixel -> RoundedCornerShape(20.dp)
+                    else -> RoundedCornerShape(14.dp)
+                },
+                border = when (shadeTheme) {
+                    is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.6f))
+                    is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.25f))
+                    else -> null
+                },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(
@@ -947,7 +1045,10 @@ private fun SoundModeDetailContent(
                     modifier = Modifier.size(16.dp),
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("Sound & Vibration Settings")
+                Text(
+                    text = if (shadeTheme is ShadeTheme.Cyberpunk) "[AUDIO_SETTINGS // CFG]" else "Sound & Vibration Settings",
+                    fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                )
             }
         }
     }
@@ -963,53 +1064,210 @@ private fun VolumeStreamRow(
     onVolumeChange: (Int) -> Unit,
     haptics: SuperHaptics,
 ) {
-    val pct = if (max > 0) (current * 100 / max) else 0
+    val shadeTheme = LocalShadeTheme.current
+    val pct = if (max > 0) (current * 100 / max).coerceIn(0, 100) else 0
+    val progress = if (max > 0) (current.toFloat() / max).coerceIn(0f, 1f) else 0f
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "volumeStreamProgress",
+    )
+
+    val trackHeight = when (shadeTheme) {
+        is ShadeTheme.Cyberpunk -> 36.dp
+        is ShadeTheme.Nothing -> 38.dp
+        else -> 42.dp
+    }
+    val trackShape = when (shadeTheme) {
+        is ShadeTheme.Cyberpunk -> ChamferedCornerShape(6.dp)
+        is ShadeTheme.Nothing -> RoundedCornerShape(12.dp)
+        is ShadeTheme.Pixel -> RoundedCornerShape(21.dp)
+        else -> RoundedCornerShape(21.dp)
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                    modifier = Modifier.size(16.dp),
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(trackHeight)
+                .clip(trackShape)
+                .background(
+                    when (shadeTheme) {
+                        is ShadeTheme.Cyberpunk -> Color(0xFF050B14)
+                        is ShadeTheme.Nothing -> Color(0xFF14171C)
+                        else -> MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f)
+                    }
                 )
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                .then(
+                    when (shadeTheme) {
+                        is ShadeTheme.Cyberpunk -> Modifier.border(BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.35f)), trackShape)
+                        is ShadeTheme.Nothing -> Modifier.border(BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)), trackShape)
+                        else -> Modifier
+                    }
+                )
+                .pointerInput(max, enabled) {
+                    if (!enabled || max <= 0) return@pointerInput
+                    awaitEachGesture {
+                        val down = awaitFirstDown()
+                        var currentVol = current
+                        val update = { x: Float ->
+                            val ratio = (x / size.width).coerceIn(0f, 1f)
+                            val targetVol = (ratio * max).roundToInt()
+                            if (targetVol != currentVol) {
+                                haptics.segmentTick()
+                                currentVol = targetVol
+                                onVolumeChange(targetVol)
+                            }
+                        }
+                        update(down.position.x)
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull() ?: break
+                            if (!change.pressed) break
+                            update(change.position.x)
+                            change.consume()
+                        }
+                    }
+                },
+        ) {
+            // Active Progress Fill
+            if (animatedProgress > 0f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(animatedProgress)
+                        .background(
+                            when (shadeTheme) {
+                                is ShadeTheme.Cyberpunk -> Brush.horizontalGradient(
+                                    listOf(Color(0xFF00F0FF).copy(alpha = 0.75f), Color(0xFFFF007F).copy(alpha = 0.85f))
+                                )
+                                is ShadeTheme.Nothing -> Brush.horizontalGradient(
+                                    listOf(Color.White.copy(alpha = 0.88f), Color.White)
+                                )
+                                else -> Brush.horizontalGradient(
+                                    listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary)
+                                )
+                            }
+                        ),
                 )
             }
-            Text(
-                text = if (enabled) "$pct%" else "Muted",
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outline,
-            )
-        }
-        Slider(
-            value = current.toFloat(),
-            onValueChange = {
-                val newVol = it.toInt()
-                if (newVol != current) {
-                    haptics.sliderTick()
-                    onVolumeChange(newVol)
+
+            // Theme-specific decorative elements (Nothing 8 dot notches, Cyberpunk hash marks)
+            when (shadeTheme) {
+                is ShadeTheme.Nothing -> {
+                    // 7 discrete dot notches
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        repeat(7) {
+                            Box(
+                                modifier = Modifier
+                                    .size(3.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.25f)),
+                            )
+                        }
+                    }
+                    // Red glyph dot at thumb edge if volume > 0
+                    if (animatedProgress in 0.05f..0.98f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(animatedProgress)
+                                .wrapContentSize(Alignment.CenterEnd)
+                                .offset(x = 3.dp)
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFD71920)),
+                        )
+                    }
                 }
-            },
-            valueRange = 0f..(max.coerceAtLeast(1)).toFloat(),
-            enabled = enabled,
-            colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.primary,
-                activeTrackColor = MaterialTheme.colorScheme.primary,
-                inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            ),
-            modifier = Modifier.fillMaxWidth(),
-        )
+                is ShadeTheme.Cyberpunk -> {
+                    // 9 subtle vertical grid tick marks
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        repeat(9) {
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .height(10.dp)
+                                    .background(Color(0xFF00F0FF).copy(alpha = 0.20f)),
+                            )
+                        }
+                    }
+                }
+                else -> Unit
+            }
+
+            // Internal Label & Icon row
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    val iconTint = when (shadeTheme) {
+                        is ShadeTheme.Nothing -> if (animatedProgress > 0.35f) Color.Black else Color.White
+                        is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF)
+                        else -> if (animatedProgress > 0.35f) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                    }
+                    val textTint = when (shadeTheme) {
+                        is ShadeTheme.Nothing -> if (animatedProgress > 0.35f) Color.Black else Color.White
+                        is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF)
+                        else -> if (animatedProgress > 0.35f) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                    }
+
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = if (enabled) iconTint else iconTint.copy(alpha = 0.40f),
+                        modifier = Modifier.size(17.dp),
+                    )
+                    Text(
+                        text = when (shadeTheme) {
+                            is ShadeTheme.Cyberpunk -> "[${label.uppercase()}]"
+                            is ShadeTheme.Nothing -> label.uppercase()
+                            else -> label
+                        },
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                            fontSize = 12.sp,
+                        ),
+                        color = if (enabled) textTint else textTint.copy(alpha = 0.40f),
+                    )
+                }
+
+                val pctColor = when (shadeTheme) {
+                    is ShadeTheme.Nothing -> if (animatedProgress > 0.85f) Color.Black else Color.White
+                    is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF)
+                    else -> if (animatedProgress > 0.85f) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                }
+                Text(
+                    text = if (enabled) "$pct%" else "MUTED",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                        fontSize = 11.5.sp,
+                    ),
+                    color = pctColor,
+                )
+            }
+        }
     }
 }
 

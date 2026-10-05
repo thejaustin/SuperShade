@@ -3,7 +3,12 @@ package com.supershade.ui.shade
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.text.font.FontFamily
+import com.supershade.ui.theme.LocalShadeTheme
+import com.supershade.ui.theme.ShadeTheme
+import com.supershade.ui.theme.ChamferedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -275,19 +280,39 @@ fun NotificationCard(
         val cardScale = (1.0f - dragProgress * 0.04f).coerceIn(0.95f, 1.0f)
         val cardAlpha = if (dragProgress > 0.75f) (1f - (dragProgress - 0.75f) * 2.5f).coerceIn(0.4f, 1.0f) else 1.0f
         val cardElevation = (dragProgress * 8f).dp
-        val dynamicCardShape = if (isSwiping && dragProgress > 0.05f && shapes.card is RoundedCornerShape) {
+        val shadeTheme = LocalShadeTheme.current
+        val baseThemeShape = when (shadeTheme) {
+            is ShadeTheme.Cyberpunk -> ChamferedCornerShape(10.dp)
+            is ShadeTheme.Nothing -> RoundedCornerShape(16.dp)
+            is ShadeTheme.Pixel -> RoundedCornerShape(26.dp)
+            else -> shapes.card
+        }
+
+        val dynamicCardShape = if (isSwiping && dragProgress > 0.05f && baseThemeShape is RoundedCornerShape) {
             RoundedCornerShape(24.dp + (dragProgress * 6f).dp)
         } else {
-            shapes.card
+            baseThemeShape
+        }
+
+        val cardBorder = when (shadeTheme) {
+            is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.45f))
+            is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
+            else -> getCardBorder(alpha = 0.25f)
+        }
+
+        val cardBg = when (shadeTheme) {
+            is ShadeTheme.Cyberpunk -> Color(0xFF0A0E1A)
+            is ShadeTheme.Nothing -> Color(0xFF0D0F12)
+            else -> MaterialTheme.colorScheme.surfaceContainer
         }
 
         Card(
             shape = dynamicCardShape,
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                containerColor = cardBg,
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = cardElevation),
-            border = getCardBorder(alpha = 0.25f),
+            border = cardBorder,
             modifier = Modifier
                 .fillMaxWidth()
                 .animateContentSize()
@@ -316,8 +341,15 @@ fun NotificationCard(
             val iconImgSize = if (compact) 26.dp else 34.dp
             val columnSpacing = if (compact) 9.dp else 12.dp
 
+            val iconShape = when (shadeTheme) {
+                is ShadeTheme.Cyberpunk -> ChamferedCornerShape(if (compact) 4.dp else 6.dp)
+                is ShadeTheme.Nothing -> RoundedCornerShape(if (compact) 6.dp else 8.dp)
+                is ShadeTheme.Pixel -> CircleShape
+                else -> RoundedCornerShape(iconRadius)
+            }
+
             Column(modifier = Modifier.padding(horizontal = hPadding, vertical = vPadding)) {
-                // One UI 8 notification row: Left icon badge + right content column
+                // One UI / Multi-Theme notification row: Left icon badge + right content column
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(columnSpacing),
@@ -327,7 +359,14 @@ fun NotificationCard(
                     Box(
                         modifier = Modifier
                             .size(iconBoxSize)
-                            .clip(RoundedCornerShape(iconRadius)),
+                            .clip(iconShape)
+                            .then(
+                                if (shadeTheme is ShadeTheme.Cyberpunk) {
+                                    Modifier
+                                        .background(Color(0xFF00F0FF).copy(alpha = 0.10f))
+                                        .border(BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.40f)), iconShape)
+                                } else Modifier
+                            ),
                         contentAlignment = Alignment.Center,
                     ) {
                         when {
@@ -404,23 +443,47 @@ fun NotificationCard(
                                 Text(
                                     text = if (notification.isConversation && notification.conversationTitle != null)
                                         "$appName · ${notification.conversationTitle}"
+                                    else if (shadeTheme is ShadeTheme.Cyberpunk) "[${appName.uppercase()}]"
+                                    else if (shadeTheme is ShadeTheme.Nothing) appName.uppercase()
                                     else appName,
                                     style = if (compact)
-                                        MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
+                                        MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                            fontSize = 11.sp,
+                                        )
                                     else
-                                        MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                        ),
+                                    color = if (shadeTheme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF) else MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
+                                if (shadeTheme is ShadeTheme.Nothing) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(4.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFFD71920)),
+                                    )
+                                } else {
+                                    Text(
+                                        text = if (shadeTheme is ShadeTheme.Cyberpunk) "//" else "·",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                            fontSize = if (compact) 10.sp else 11.sp,
+                                        ),
+                                        color = if (shadeTheme is ShadeTheme.Cyberpunk) Color(0xFFFF007F) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    )
+                                }
                                 Text(
-                                    text = "·",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = if (compact) 10.sp else 11.sp),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                )
-                                Text(
-                                    text = postTimeLabel,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = if (compact) 10.sp else 11.sp),
+                                    text = if (shadeTheme is ShadeTheme.Cyberpunk) "[TIME // $postTimeLabel]" else postTimeLabel,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                        fontSize = if (compact) 10.sp else 11.sp,
+                                    ),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                                 )
                                 if (notification.isOngoing) {
@@ -703,6 +766,28 @@ fun NotificationCard(
                                 label = "actionScale",
                             )
 
+                            val actionShape = when (shadeTheme) {
+                                is ShadeTheme.Cyberpunk -> ChamferedCornerShape(6.dp)
+                                is ShadeTheme.Nothing -> RoundedCornerShape(8.dp)
+                                is ShadeTheme.Pixel -> RoundedCornerShape(16.dp)
+                                else -> shapes.chip
+                            }
+                            val actionBorder = when (shadeTheme) {
+                                is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.40f))
+                                is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.20f))
+                                else -> getCardBorder(alpha = 0.35f)
+                            }
+                            val actionBg = when (shadeTheme) {
+                                is ShadeTheme.Cyberpunk -> Color(0xFF050B14)
+                                is ShadeTheme.Nothing -> Color(0xFF14171C)
+                                else -> MaterialTheme.colorScheme.surfaceContainerHigh
+                            }
+                            val actionText = when (shadeTheme) {
+                                is ShadeTheme.Cyberpunk -> "[${action.label.uppercase()}]"
+                                is ShadeTheme.Nothing -> action.label.uppercase()
+                                else -> action.label
+                            }
+
                             Surface(
                                 onClick = {
                                     haptics.lightTap()
@@ -713,9 +798,9 @@ fun NotificationCard(
                                     }
                                 },
                                 interactionSource = actionInteraction,
-                                shape = shapes.chip,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                border = getCardBorder(alpha = 0.35f),
+                                shape = actionShape,
+                                color = actionBg,
+                                border = actionBorder,
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(if (compact) 30.dp else 38.dp)
@@ -732,12 +817,13 @@ fun NotificationCard(
                                 ) {
                                     val actionFontSize = if (action.label.length > 12) 10.sp else 11.sp
                                     Text(
-                                        text = action.label,
+                                        text = actionText,
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.SemiBold,
+                                            fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
                                             fontSize = actionFontSize,
                                         ),
-                                        color = MaterialTheme.colorScheme.onSurface,
+                                        color = if (shadeTheme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF) else MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         softWrap = false,

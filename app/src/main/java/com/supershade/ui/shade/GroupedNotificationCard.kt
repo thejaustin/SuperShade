@@ -25,7 +25,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontFamily
+import com.supershade.ui.theme.LocalShadeTheme
+import com.supershade.ui.theme.ShadeTheme
+import com.supershade.ui.theme.ChamferedCornerShape
 import androidx.compose.ui.text.font.FontWeight
 import com.supershade.ui.theme.LocalShadeShapeScheme
 import com.supershade.ui.theme.getCardBorder
@@ -223,10 +230,31 @@ fun GroupedNotificationCard(
         val cardScale = (1.0f - dragProgress * 0.04f).coerceIn(0.95f, 1.0f)
         val cardAlpha = if (dragProgress > 0.75f) (1f - (dragProgress - 0.75f) * 2.5f).coerceIn(0.4f, 1.0f) else 1.0f
         val cardElevation = (dragProgress * 8f).dp
-        val dynamicCardShape = if (isSwiping && dragProgress > 0.05f && shapes.card is RoundedCornerShape) {
+
+        val shadeTheme = LocalShadeTheme.current
+        val baseThemeShape = when (shadeTheme) {
+            is ShadeTheme.Cyberpunk -> ChamferedCornerShape(10.dp)
+            is ShadeTheme.Nothing -> RoundedCornerShape(16.dp)
+            is ShadeTheme.Pixel -> RoundedCornerShape(26.dp)
+            else -> shapes.card
+        }
+
+        val dynamicCardShape = if (isSwiping && dragProgress > 0.05f && baseThemeShape is RoundedCornerShape) {
             RoundedCornerShape(24.dp + (dragProgress * 6f).dp)
         } else {
-            shapes.card
+            baseThemeShape
+        }
+
+        val cardBorder = when (shadeTheme) {
+            is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.45f))
+            is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
+            else -> getCardBorder(alpha = 0.25f)
+        }
+
+        val cardBg = when (shadeTheme) {
+            is ShadeTheme.Cyberpunk -> Color(0xFF0A0E1A)
+            is ShadeTheme.Nothing -> Color(0xFF0D0F12)
+            else -> MaterialTheme.colorScheme.surfaceContainer
         }
 
         Box(
@@ -270,10 +298,10 @@ fun GroupedNotificationCard(
             Card(
                 shape = dynamicCardShape,
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    containerColor = cardBg,
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = cardElevation),
-                border = getCardBorder(alpha = 0.25f),
+                border = cardBorder,
                 modifier = Modifier
                     .fillMaxWidth()
                     .animateContentSize(spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium))
@@ -290,9 +318,15 @@ fun GroupedNotificationCard(
                 val iconRadius = if (compact) 8.dp else 12.dp
                 val iconImgSize = if (compact) 26.dp else 34.dp
                 val columnSpacing = if (compact) 9.dp else 12.dp
+                val iconShape = when (shadeTheme) {
+                    is ShadeTheme.Cyberpunk -> ChamferedCornerShape(if (compact) 4.dp else 6.dp)
+                    is ShadeTheme.Nothing -> RoundedCornerShape(if (compact) 6.dp else 8.dp)
+                    is ShadeTheme.Pixel -> CircleShape
+                    else -> RoundedCornerShape(iconRadius)
+                }
 
                 Column(modifier = Modifier.padding(horizontal = hPadding, vertical = vPadding)) {
-                    // One UI 8 Group header & collapsed preview
+                    // One UI / Multi-Theme Group header & collapsed preview
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(columnSpacing),
@@ -302,7 +336,14 @@ fun GroupedNotificationCard(
                         Box(
                             modifier = Modifier
                                 .size(iconBoxSize)
-                                .clip(RoundedCornerShape(iconRadius)),
+                                .clip(iconShape)
+                                .then(
+                                    if (shadeTheme is ShadeTheme.Cyberpunk) {
+                                        Modifier
+                                            .background(Color(0xFF00F0FF).copy(alpha = 0.10f))
+                                            .border(BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.40f)), iconShape)
+                                    } else Modifier
+                                ),
                             contentAlignment = Alignment.Center,
                         ) {
                             if (appIconBitmap != null) {
@@ -317,7 +358,7 @@ fun GroupedNotificationCard(
                                 Box(
                                     modifier = Modifier
                                         .size(iconBoxSize)
-                                        .clip(RoundedCornerShape(iconRadius))
+                                        .clip(iconShape)
                                         .background(MaterialTheme.colorScheme.primaryContainer),
                                     contentAlignment = Alignment.Center,
                                 ) {
@@ -341,12 +382,21 @@ fun GroupedNotificationCard(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
                                 Text(
-                                    text = appName,
+                                    text = if (shadeTheme is ShadeTheme.Cyberpunk) "[GROUP // ${appName.uppercase()}]"
+                                           else if (shadeTheme is ShadeTheme.Nothing) appName.uppercase()
+                                           else appName,
                                     style = if (compact)
-                                        MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, fontSize = 11.5.sp)
+                                        MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                            fontSize = 11.5.sp,
+                                        )
                                     else
-                                        MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                        ),
+                                    color = if (shadeTheme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF) else MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f, fill = false),
@@ -355,16 +405,34 @@ fun GroupedNotificationCard(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 4.dp),
                                 ) {
+                                    val countBadgeShape = when (shadeTheme) {
+                                        is ShadeTheme.Cyberpunk -> ChamferedCornerShape(4.dp)
+                                        is ShadeTheme.Nothing -> RoundedCornerShape(4.dp)
+                                        is ShadeTheme.Pixel -> CircleShape
+                                        else -> RoundedCornerShape(6.dp)
+                                    }
+                                    val countBadgeBg = when (shadeTheme) {
+                                        is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF).copy(alpha = 0.20f)
+                                        is ShadeTheme.Nothing -> Color(0xFFD71920)
+                                        else -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                                    }
+                                    val countBadgeTextColor = when (shadeTheme) {
+                                        is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF)
+                                        is ShadeTheme.Nothing -> Color.White
+                                        else -> MaterialTheme.colorScheme.primary
+                                    }
+
                                     Text(
                                         text = "${group.notifications.size}",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.Bold,
+                                            fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
                                             fontSize = if (compact) 10.sp else 11.sp,
                                         ),
-                                        color = MaterialTheme.colorScheme.primary,
+                                        color = countBadgeTextColor,
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
+                                            .clip(countBadgeShape)
+                                            .background(countBadgeBg)
                                             .padding(horizontal = if (compact) 6.dp else 7.dp, vertical = 1.5.dp),
                                     )
                                     if (expanded) {

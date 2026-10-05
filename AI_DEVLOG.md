@@ -44,6 +44,20 @@ Kotlin + Jetpack Compose + Koin + Shizuku. Project at `~/projects/SuperShade/`.
 - **Lockscreen & Ambient Media Mini Widget** (`HeadsUpOverlay.kt`, `ShadeService.kt`, `ShadeSettings.kt`, `SettingsScreen.kt`, `MainActivity.kt`): Added `ambientMediaWidgetEnabled` preference and reactive DataStore flow. Designed compact M3 Expressive `AmbientMediaCard` with `FLAG_SHOW_WHEN_LOCKED` on the overlay window so track changes display gracefully on lockscreen and over running apps. Features album art squircle, title/artist marquee, skip prev/next, play/pause toggle with haptics, slim progress bar, and swipe-up spring dismiss.
 - **Drag-to-Reorder Tactile Arc & Segment Detent Ticks** (`SuperHaptics.kt`, `QuickSettingsGrid.kt`): Adopted tactile arc design patterns from ShizukuPlus. Added `segmentTick()`, `gestureStart()`, and `gestureEnd()` to `SuperHaptics.kt`. Wired `DraggableTileGrid` to emit `gestureStart` + `tileGrab` on lift, `segmentTick` as the dragged card crosses slots, and `tileDrop` + `gestureEnd` for a physical landing thud on release. Upgraded ghost tile to scale 1.10 with subtle 0.96 alpha.
 - **M3 Expressive Motion Tuning** (`TileCard.kt`): Replaced bouncy spring color interpolation with critically damped `M3ExpressiveMotion.effectsDefault()` to prevent chromatic overshoot or flashing on tile state changes. Replaced scale spring with `M3ExpressiveMotion.spatialFast()` for tactile press responsiveness.
+- **Multi-Theme Status Bar Indicators** (`StatusBarRow.kt`): Added dedicated status bar indicators across OS themes:
+  - **Pixel**: Android 15/16 stadium capsule battery indicator (`RoundedCornerShape(50)`) with active Monet fill, embedded charging bolt, and bold battery percentage.
+  - **Cyberpunk HUD**: Monospace digital telemetry chip (`ChamferedCornerShape(4.dp)`) with neon cyan border, bracketed telemetry `[PWR // $batteryPct%]`, and 5-block segmented energy bar. Network traffic indicator formatted as `[NET // RX:... TX:...]`.
+  - **Nothing OS**: Dot-matrix typography with Nothing red glyph dot separator and technical network traffic format `NET • D:... • U:...`.
+  - **One UI 9**: Authentic One UI battery bar and traffic arrows.
+- **Multi-Theme In-Shade Volume Mixer & Sound Selector** (`QuickTileDetailSheet.kt`):
+  - **Tactile Volume Pill Sliders**: Replaced basic sliders with tactile 38-42dp pill scrubber tracks featuring continuous drag and tap gestures via `pointerInput`, animated fill, and Samsung LRA `segmentTick()` haptics on every stream step change. One UI 9 thick squircle capsule; Nothing OS monochrome track with 7 etched dot notches and `#D71920` red glyph dot; Cyberpunk chamfered track (`ChamferedCornerShape(6.dp)`) with 9 vertical tick marks, neon cyan-magenta gradient, and `[STREAM // %]` telemetry.
+  - **Tri-State Sound Mode Selector**: Theme-aware sound/vibrate/mute chips (One UI squircle, Pixel stadium pill, Nothing high-contrast monochrome, Cyberpunk chamfered monospace `[SOUND]`, `[VIB]`, `[MUTE]`).
+  - **Modal Container**: Tailored sheet modal shapes and borders (One UI 28dp squircle, Pixel 32dp stadium, Nothing 20dp wireframe, Cyberpunk 12dp chamfered).
+- **Multi-Theme Notification & Grouped Cards** (`NotificationCard.kt`, `GroupedNotificationCard.kt`):
+  - Theme-differentiated card container geometry, borders, and background tints across all single and grouped cards (One UI 22dp squircle, Pixel 26dp stadium, Nothing 16dp wireframe `#FFFFFF29`, Cyberpunk 10dp chamfered `#00F0FF`).
+  - App icon badges styled per theme (One UI squircle, Pixel circular Monet, Cyberpunk chamfered with neon cyan border).
+  - Header row typography and separators (Nothing red `#D71920` glyph dot separator + uppercase, Cyberpunk `[GROUP // APP]` and `//` magenta separator with `[TIME // ...]`).
+  - Action buttons styled as One UI/Pixel pills, Nothing wireframe chips, and Cyberpunk chamfered monospace chips.
 - **Environment & Token Efficiency**: Integrated practices from "Fixing Termux Crashing Issues" — using `gdt`, `log-trim`, slice reads, and `~/.ignore` to eliminate token waste on build outputs.
 
 ### 2026-10-04 — Antigravity (Gemini 3.8 Flash)

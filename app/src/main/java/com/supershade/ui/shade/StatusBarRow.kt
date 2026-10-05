@@ -19,11 +19,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
@@ -39,6 +41,7 @@ import androidx.compose.material.icons.filled.Battery4Bar
 import androidx.compose.material.icons.filled.Battery5Bar
 import androidx.compose.material.icons.filled.Battery6Bar
 import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PowerSettingsNew
@@ -74,6 +77,8 @@ import com.supershade.ui.shade.nothing.NothingBatteryPill
 import com.supershade.ui.theme.LocalShadeShapeScheme
 import com.supershade.ui.theme.LocalShadeTheme
 import com.supershade.ui.theme.ShadeTheme
+import com.supershade.ui.theme.ChamferedCornerShape
+import kotlin.math.roundToInt
 import com.supershade.viewmodel.StatusBarState
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -248,6 +253,124 @@ private fun OneUIBatteryBar(
     }
 }
 
+/**
+ * Google Pixel (Android 15/16 Material 3 Expressive) Stadium Battery Capsule.
+ * Renders an authentic stadium pill with Monet active fill and lightning bolt when charging.
+ */
+@Composable
+private fun PixelBatteryIndicator(
+    batteryPct: Int,
+    isCharging: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val levelFraction = (batteryPct / 100f).coerceIn(0f, 1f)
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+        border = getCardBorder(alpha = 0.25f),
+        modifier = modifier,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = "$batteryPct%",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+
+            Box(
+                modifier = Modifier
+                    .size(width = 22.dp, height = 11.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(trackColor),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(fraction = levelFraction)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(50))
+                        .background(if (isCharging) Color(0xFF34A853) else primaryColor),
+                )
+                if (isCharging) {
+                    Icon(
+                        imageVector = Icons.Default.FlashOn,
+                        contentDescription = "Charging",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .size(9.dp)
+                            .align(Alignment.Center),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Cyberpunk 2077 HUD Battery Telemetry.
+ * Chamfered obsidian chip with neon cyan border, monospace telemetry, and segmented blocks.
+ */
+@Composable
+private fun CyberpunkBatteryTelemetry(
+    batteryPct: Int,
+    isCharging: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val levelFraction = (batteryPct / 100f).coerceIn(0f, 1f)
+    val activeBlocks = (levelFraction * 5).roundToInt().coerceIn(0, 5)
+
+    Surface(
+        shape = ChamferedCornerShape(4.dp),
+        color = Color(0xFF090D18),
+        border = BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.70f)),
+        modifier = modifier,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Text(
+                text = if (isCharging) "[PWR // ⚡$batteryPct%]" else "[PWR // $batteryPct%]",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.5.sp,
+                ),
+                color = if (isCharging) Color(0xFFFFD600) else Color(0xFF00F0FF),
+            )
+
+            // Segmented blocks [■■■□□]
+            Row(horizontalArrangement = Arrangement.spacedBy(1.5.dp)) {
+                for (i in 0 until 5) {
+                    Box(
+                        modifier = Modifier
+                            .width(2.5.dp)
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(0.5.dp))
+                            .background(
+                                if (i < activeBlocks) {
+                                    if (isCharging) Color(0xFFFFD600) else Color(0xFF00F0FF)
+                                } else {
+                                    Color(0xFF00F0FF).copy(alpha = 0.20f)
+                                }
+                            ),
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun StatusBarRow(
     statusBar: StatusBarState,
@@ -415,21 +538,32 @@ fun StatusBarRow(
                     }
                     .padding(vertical = 2.dp),
             )
-            val netLabel = buildList {
-                if (netDown.isNotEmpty()) {
-                    if (shadeTheme is ShadeTheme.Cyberpunk) add("DL:$netDown") else add("↓ $netDown")
+            val netContent = when (shadeTheme) {
+                is ShadeTheme.Cyberpunk -> {
+                    val rx = if (netDown.isNotEmpty()) "RX:$netDown" else ""
+                    val tx = if (netUp.isNotEmpty()) "TX:$netUp" else ""
+                    listOf(rx, tx).filter { it.isNotEmpty() }.joinToString(" ")
                 }
-                if (netUp.isNotEmpty()) {
-                    if (shadeTheme is ShadeTheme.Cyberpunk) add("UL:$netUp") else add("↑ $netUp")
+                is ShadeTheme.Nothing -> {
+                    val d = if (netDown.isNotEmpty()) "D:$netDown" else ""
+                    val u = if (netUp.isNotEmpty()) "U:$netUp" else ""
+                    listOf(d, u).filter { it.isNotEmpty() }.joinToString(" • ")
                 }
-            }.joinToString("  ")
-            if (netLabel.isNotEmpty()) {
+                else -> {
+                    val d = if (netDown.isNotEmpty()) "↓ $netDown" else ""
+                    val u = if (netUp.isNotEmpty()) "↑ $netUp" else ""
+                    listOf(d, u).filter { it.isNotEmpty() }.joinToString("  ")
+                }
+            }
+            if (netContent.isNotEmpty()) {
                 Text(
-                    text = if (shadeTheme is ShadeTheme.Cyberpunk) "[NET // $netLabel]" else netLabel,
+                    text = if (shadeTheme is ShadeTheme.Cyberpunk) "[NET // $netContent]" else if (shadeTheme is ShadeTheme.Nothing) "NET • $netContent" else netContent,
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else null,
+                        letterSpacing = if (shadeTheme is ShadeTheme.Nothing) 0.8.sp else 0.sp,
+                        fontSize = if (shadeTheme is ShadeTheme.Cyberpunk) 10.sp else 11.sp,
                     ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    color = if (shadeTheme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF).copy(alpha = 0.75f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 )
             }
         }
@@ -584,83 +718,119 @@ fun StatusBarRow(
             }
 
             // Battery percentage + icon with comfortable capsule pill & full accessibility description
-            if (shadeTheme is ShadeTheme.Nothing) {
-                NothingBatteryPill(
-                    batteryPct = batteryPct,
-                    isCharging = isCharging,
-                    modifier = Modifier
-                        .clip(shapes.chip)
-                        .clickable(
-                            onClick = {
-                                haptics.lightTap()
-                                launchBatterySettings(context)
-                            },
-                            role = Role.Button,
-                        )
-                        .semantics {
-                            contentDescription = "$batteryPct percent battery" + if (isCharging) ", charging" else ""
-                        },
-                )
-            } else if (shadeTheme is ShadeTheme.OneUI) {
-                OneUIBatteryBar(
-                    batteryPct = batteryPct,
-                    isCharging = isCharging,
-                    modifier = Modifier
-                        .clip(shapes.chip)
-                        .clickable(
-                            onClick = {
-                                haptics.lightTap()
-                                launchBatterySettings(context)
-                            },
-                            role = Role.Button,
-                        )
-                        .semantics {
-                            contentDescription = "$batteryPct percent battery" + if (isCharging) ", charging" else ""
-                        }
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
-                )
-            } else {
-                Surface(
-                    shape = shapes.chip,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f),
-                    border = getCardBorder(alpha = 0.30f),
-                    modifier = Modifier
-                        .clip(shapes.chip)
-                        .clickable(
-                            onClick = {
-                                haptics.lightTap()
-                                launchBatterySettings(context)
-                            },
-                            role = Role.Button,
-                        )
-                        .semantics {
-                            contentDescription = "$batteryPct percent battery" + if (isCharging) ", charging" else ""
-                        },
-                ) {
-                    Row(
+            when (shadeTheme) {
+                is ShadeTheme.Nothing -> {
+                    NothingBatteryPill(
+                        batteryPct = batteryPct,
+                        isCharging = isCharging,
                         modifier = Modifier
-                            .defaultMinSize(minHeight = 36.dp)
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Text(
-                            text = when (shadeTheme) {
-                                is ShadeTheme.Cyberpunk -> "PWR // $batteryPct%"
-                                else -> "$batteryPct%"
+                            .clip(shapes.chip)
+                            .clickable(
+                                onClick = {
+                                    haptics.lightTap()
+                                    launchBatterySettings(context)
+                                },
+                                role = Role.Button,
+                            )
+                            .semantics {
+                                contentDescription = "$batteryPct percent battery" + if (isCharging) ", charging" else ""
                             },
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else null,
-                            ),
-                            color = batteryTint,
-                        )
-                        Icon(
-                            imageVector = batteryIcon,
-                            contentDescription = null,
-                            tint = batteryTint,
-                            modifier = Modifier.size(18.dp),
-                        )
+                    )
+                }
+                is ShadeTheme.OneUI -> {
+                    OneUIBatteryBar(
+                        batteryPct = batteryPct,
+                        isCharging = isCharging,
+                        modifier = Modifier
+                            .clip(shapes.chip)
+                            .clickable(
+                                onClick = {
+                                    haptics.lightTap()
+                                    launchBatterySettings(context)
+                                },
+                                role = Role.Button,
+                            )
+                            .semantics {
+                                contentDescription = "$batteryPct percent battery" + if (isCharging) ", charging" else ""
+                            }
+                            .padding(horizontal = 6.dp, vertical = 4.dp),
+                    )
+                }
+                is ShadeTheme.Pixel -> {
+                    PixelBatteryIndicator(
+                        batteryPct = batteryPct,
+                        isCharging = isCharging,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .clickable(
+                                onClick = {
+                                    haptics.lightTap()
+                                    launchBatterySettings(context)
+                                },
+                                role = Role.Button,
+                            )
+                            .semantics {
+                                contentDescription = "$batteryPct percent battery" + if (isCharging) ", charging" else ""
+                            },
+                    )
+                }
+                is ShadeTheme.Cyberpunk -> {
+                    CyberpunkBatteryTelemetry(
+                        batteryPct = batteryPct,
+                        isCharging = isCharging,
+                        modifier = Modifier
+                            .clip(ChamferedCornerShape(4.dp))
+                            .clickable(
+                                onClick = {
+                                    haptics.lightTap()
+                                    launchBatterySettings(context)
+                                },
+                                role = Role.Button,
+                            )
+                            .semantics {
+                                contentDescription = "$batteryPct percent battery" + if (isCharging) ", charging" else ""
+                            },
+                    )
+                }
+                else -> {
+                    Surface(
+                        shape = shapes.chip,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f),
+                        border = getCardBorder(alpha = 0.30f),
+                        modifier = Modifier
+                            .clip(shapes.chip)
+                            .clickable(
+                                onClick = {
+                                    haptics.lightTap()
+                                    launchBatterySettings(context)
+                                },
+                                role = Role.Button,
+                            )
+                            .semantics {
+                                contentDescription = "$batteryPct percent battery" + if (isCharging) ", charging" else ""
+                            },
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .defaultMinSize(minHeight = 36.dp)
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Text(
+                                text = "$batteryPct%",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                ),
+                                color = batteryTint,
+                            )
+                            Icon(
+                                imageVector = batteryIcon,
+                                contentDescription = null,
+                                tint = batteryTint,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
                     }
                 }
             }

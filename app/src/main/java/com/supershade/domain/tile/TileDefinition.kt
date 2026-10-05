@@ -106,6 +106,9 @@ val CANONICAL_TILES: List<String> = listOf(
     "onehanded",
     "work",
     "alarm",
+    "caffeinate",
+    "powermenu",
+    "screenshot",
 )
 
 /**
@@ -115,6 +118,9 @@ val CANONICAL_TILES: List<String> = listOf(
 fun canonicalTileId(raw: String): String {
     val clean = raw.trim().lowercase()
     return when {
+        clean == "caffeinate" || clean == "caffeine" || clean == "awake" || clean == "screen_awake" -> "caffeinate"
+        clean == "powermenu" || clean == "power_menu" || clean == "reboot_menu" || clean == "power" -> "powermenu"
+        clean == "screenshot" || clean == "screen_capture" || clean == "take_screenshot" -> "screenshot"
         clean == "internet" || clean == "wifi" || clean.contains("wifitile") || clean.contains("internettile") -> "wifi"
         clean == "bt" || clean == "bluetooth" || clean.contains("bluetoothtile") -> "bt"
         clean == "cell" || clean == "cellular" || clean == "mobiledata" || clean == "mobile_data" || clean.contains("cellulartile") -> "cell"
@@ -241,6 +247,12 @@ val KNOWN_TILES: Map<String, Pair<String, TileCapability>> = mapOf(
     "Notes"              to ("Quick Note"        to TileCapability.SETTINGS_INTENT),
     "screen_record"      to ("Screen Record"     to TileCapability.FULL_TOGGLE),
     "ScreenRecord"       to ("Screen Record"     to TileCapability.FULL_TOGGLE),
+    "caffeinate"         to ("Caffeinate"        to TileCapability.FULL_TOGGLE),
+    "caffeine"           to ("Caffeinate"        to TileCapability.FULL_TOGGLE),
+    "powermenu"          to ("Power Menu"        to TileCapability.FULL_TOGGLE),
+    "power_menu"         to ("Power Menu"        to TileCapability.FULL_TOGGLE),
+    "screenshot"         to ("Screenshot"        to TileCapability.FULL_TOGGLE),
+    "take_screenshot"    to ("Screenshot"        to TileCapability.FULL_TOGGLE),
 
     // Samsung One UI Specific
     "dolby"              to ("Dolby Atmos"       to TileCapability.FULL_TOGGLE),

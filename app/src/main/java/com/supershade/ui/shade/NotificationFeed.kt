@@ -215,6 +215,8 @@ fun NotificationFeed(
     onSnooze: (String, Long) -> Unit = { _, _ -> },
     onHideChannel: (pkg: String, channelId: String) -> Unit = { _, _ -> },
     onOpenHistory: () -> Unit = {},
+    pinnedKeys: Set<String> = emptySet(),
+    onTogglePin: (String) -> Unit = {},
     compact: Boolean = false,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -287,6 +289,8 @@ fun NotificationFeed(
                         onNotificationClick = onNotificationClick,
                         onSnooze = onSnooze,
                         onHideChannel = onHideChannel,
+                        pinnedKeys = pinnedKeys,
+                        onTogglePin = onTogglePin,
                         compact = compact,
                         modifier = Modifier.animateItem(),
                     )
@@ -298,6 +302,8 @@ fun NotificationFeed(
                         onClick = { onNotificationClick(notification) },
                         onSnooze = { delayMs -> onSnooze(notification.key, delayMs) },
                         onHideChannel = onHideChannel,
+                        isPinned = notification.key in pinnedKeys,
+                        onTogglePin = { onTogglePin(notification.key) },
                         compact = compact,
                         modifier = Modifier.animateItem(),
                     )
@@ -324,6 +330,8 @@ fun TogetherNotificationFeed(
     onSnooze: (String, Long) -> Unit = { _, _ -> },
     onHideChannel: (pkg: String, channelId: String) -> Unit = { _, _ -> },
     onOpenHistory: () -> Unit = {},
+    pinnedKeys: Set<String> = emptySet(),
+    onTogglePin: (String) -> Unit = {},
     compact: Boolean = false,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -400,6 +408,8 @@ fun TogetherNotificationFeed(
                         onNotificationClick = onNotificationClick,
                         onSnooze = onSnooze,
                         onHideChannel = onHideChannel,
+                        pinnedKeys = pinnedKeys,
+                        onTogglePin = onTogglePin,
                         compact = compact,
                     )
                 } else {
@@ -410,6 +420,8 @@ fun TogetherNotificationFeed(
                         onClick = { onNotificationClick(notification) },
                         onSnooze = { delayMs -> onSnooze(notification.key, delayMs) },
                         onHideChannel = onHideChannel,
+                        isPinned = notification.key in pinnedKeys,
+                        onTogglePin = { onTogglePin(notification.key) },
                         compact = compact,
                     )
                 }

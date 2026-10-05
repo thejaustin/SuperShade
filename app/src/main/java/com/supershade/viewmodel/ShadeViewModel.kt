@@ -91,6 +91,18 @@ class ShadeViewModel(
             .onEach { history -> _state.update { it.copy(dismissedHistory = history) } }
             .launchIn(viewModelScope)
 
+        notificationRepo.pinnedKeys
+            .onEach { pins -> _state.update { it.copy(pinnedKeys = pins) } }
+            .launchIn(viewModelScope)
+
+        notificationRepo.lastDismissed
+            .onEach { last -> _state.update { it.copy(lastDismissedNotification = last) } }
+            .launchIn(viewModelScope)
+
+        notificationRepo.snoozedRecords
+            .onEach { snoozes -> _state.update { it.copy(snoozedRecords = snoozes) } }
+            .launchIn(viewModelScope)
+
         settings.hiddenChannels
             .onEach { channels ->
                 _state.update { current ->
@@ -683,6 +695,22 @@ class ShadeViewModel(
         notificationRepo.cancelAll()
     }
 
+    fun togglePinNotification(key: String) {
+        notificationRepo.togglePin(key)
+    }
+
+    fun undoDismissNotification() {
+        notificationRepo.undoLastDismiss()
+    }
+
+    fun clearUndoNotification() {
+        notificationRepo.clearLastDismissed()
+    }
+
+    fun unsnoozeNotification(key: String) {
+        notificationRepo.unsnooze(key)
+    }
+
     fun snoozeNotification(key: String, delayMs: Long) {
         notificationRepo.snooze(key, delayMs)
         viewModelScope.launch {
@@ -832,6 +860,19 @@ class ShadeViewModel(
     fun setHideOngoingNotifications(hide: Boolean) {
         viewModelScope.launch {
             settings.setHideOngoingNotifications(hide)
+        }
+    }
+
+    fun takeScreenshot() {
+        close()
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(350L)
+            val a11y = com.supershade.service.SuperShadeAccessibilityService.instance
+            if (a11y != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                a11y.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT)
+            } else if (governor.canRunPrivileged) {
+                governor.runShell("input", "keyevent", "120")
+            }
         }
     }
 

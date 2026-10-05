@@ -285,6 +285,30 @@ class TileToggler(
                     }
                 }
 
+                // Caffeinate / Screen Timeout cycle (30s -> 2m -> 5m -> 10m -> 30m -> 30s)
+                id.contains("caffeinate") || id.contains("caffeine") -> {
+                    val currentTimeout = try {
+                        Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, 30000)
+                    } catch (_: Exception) { 30000 }
+                    val nextTimeout = when {
+                        currentTimeout < 120_000   -> 120_000    // to 2m
+                        currentTimeout < 300_000   -> 300_000    // to 5m
+                        currentTimeout < 600_000   -> 600_000    // to 10m
+                        currentTimeout < 1_800_000 -> 1_800_000  // to 30m
+                        else                       -> 30_000     // wrap to 30s
+                    }
+                    if (governor.canRunPrivileged) {
+                        governor.runShell("settings", "put", "system", "screen_off_timeout", nextTimeout.toString())
+                    } else if (Settings.System.canWrite(context)) {
+                        try {
+                            Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, nextTimeout)
+                        } catch (_: Exception) {}
+                    } else {
+                        launchWriteSettingsOrSettings(tile)
+                    }
+                    tileRepo?.reload()
+                }
+
                 tile.capability == TileCapability.FULL_TOGGLE && governor.canRunPrivileged -> {
                     togglePrivileged(tile)
                 }

@@ -24,6 +24,15 @@ data class DismissedNotificationRecord(
     val channelId: String? = null,
 )
 
+data class SnoozeRecord(
+    val key: String,
+    val packageName: String,
+    val title: String,
+    val text: String,
+    val untilTimestamp: Long,
+    val shadeNotification: ShadeNotification? = null,
+)
+
 class NotificationRepository {
 
     companion object {
@@ -64,6 +73,18 @@ class NotificationRepository {
     private val _newNotifications = MutableSharedFlow<ShadeNotification>(extraBufferCapacity = 16)
     val newNotifications: SharedFlow<ShadeNotification> = _newNotifications.asSharedFlow()
 
+    // Pinned notifications: user-selected alerts anchored at top of feed, immune to Clear all
+    private val _pinnedKeys = MutableStateFlow<Set<String>>(emptySet())
+    val pinnedKeys: StateFlow<Set<String>> = _pinnedKeys.asStateFlow()
+
+    // Accidental dismiss undo buffer (holds last user-dismissed notification for instant restore)
+    private val _lastDismissed = MutableStateFlow<ShadeNotification?>(null)
+    val lastDismissed: StateFlow<ShadeNotification?> = _lastDismissed.asStateFlow()
+
+    // Smart Snoozed records
+    private val _snoozedRecords = MutableStateFlow<List<SnoozeRecord>>(emptyList())
+    val snoozedRecords: StateFlow<List<SnoozeRecord>> = _snoozedRecords.asStateFlow()
+
     // Set by NotificationCollector when the listener service is connected.
     var canceller: ((String) -> Unit)? = null
     var snoozer: ((String, Long) -> Unit)? = null
@@ -72,16 +93,78 @@ class NotificationRepository {
     // key → timestamp when snooze expires; in-memory only, reset on service restart
     private val snoozedUntil = mutableMapOf<String, Long>()
 
+    private fun sortNotifications(list: List<ShadeNotification>): List<ShadeNotification> {
+        val pinned = _pinnedKeys.value
+        return list.sortedWith(
+            compareByDescending<ShadeNotification> { it.key in pinned }
+                .thenByDescending { it.postTime }
+        )
+    }
+
+    fun togglePin(key: String) {
+        _pinnedKeys.update { current ->
+            if (key in current) current - key else current + key
+        }
+        _notifications.update { sortNotifications(it) }
+    }
+
+    fun isPinned(key: String): Boolean = key in _pinnedKeys.value
+
     fun snooze(key: String, delayMs: Long) {
-        snoozedUntil[key] = System.currentTimeMillis() + delayMs
+        val until = System.currentTimeMillis() + delayMs
+        snoozedUntil[key] = until
+        val note = _notifications.value.find { it.key == key }
+        if (note != null) {
+            val record = SnoozeRecord(
+                key = key,
+                packageName = note.packageName,
+                title = note.title,
+                text = note.text,
+                untilTimestamp = until,
+                shadeNotification = note,
+            )
+            _snoozedRecords.update { current ->
+                listOf(record) + current.filter { it.key != key }
+            }
+        }
         snoozer?.invoke(key, delayMs)
         onNotificationRemoved(key)
+    }
+
+    fun unsnooze(key: String) {
+        val record = _snoozedRecords.value.find { it.key == key }
+        snoozedUntil.remove(key)
+        _snoozedRecords.update { it.filter { r -> r.key != key } }
+        if (record?.shadeNotification != null) {
+            _notifications.update { current ->
+                sortNotifications(listOf(record.shadeNotification) + current.filter { it.key != key })
+            }
+        } else {
+            refresh()
+        }
     }
 
     private fun isSnoozed(key: String): Boolean {
         val until = snoozedUntil[key] ?: return false
         return if (System.currentTimeMillis() < until) true
-        else { snoozedUntil.remove(key); false }
+        else {
+            snoozedUntil.remove(key)
+            _snoozedRecords.update { it.filter { r -> r.key != key } }
+            false
+        }
+    }
+
+    fun undoLastDismiss() {
+        val note = _lastDismissed.value ?: return
+        _lastDismissed.value = null
+        _dismissedHistory.update { current -> current.filter { it.key != note.key } }
+        _notifications.update { current ->
+            sortNotifications(listOf(note) + current.filter { it.key != note.key })
+        }
+    }
+
+    fun clearLastDismissed() {
+        _lastDismissed.value = null
     }
 
     fun refresh() {
@@ -119,7 +202,7 @@ class NotificationRepository {
                 }) {
                 without
             } else {
-                (listOf(shade) + without).sortedByDescending { it.postTime }
+                sortNotifications(listOf(shade) + without)
             }
         }
 
@@ -155,13 +238,19 @@ class NotificationRepository {
     }
 
     fun cancelAndRemove(key: String) {
+        val target = _notifications.value.find { it.key == key }
+        if (target != null && target.isClearable) {
+            _lastDismissed.value = target
+        }
         canceller?.invoke(key)
         onNotificationRemoved(key)
     }
 
     fun cancelAll() {
         val now = System.currentTimeMillis()
-        val dismissible = _notifications.value.filter { it.isClearable }
+        val pinned = _pinnedKeys.value
+        // Pinned and ongoing notifications are immune to Clear all
+        val dismissible = _notifications.value.filter { it.isClearable && it.key !in pinned }
         val newRecords = dismissible.map { note ->
             DismissedNotificationRecord(
                 key = note.key,
@@ -183,11 +272,12 @@ class NotificationRepository {
         } else {
             dismissible.forEach { note -> canceller?.invoke(note.key) }
         }
-        _notifications.update { current -> current.filter { !it.isClearable } }
+        _notifications.update { current -> current.filter { !it.isClearable || it.key in pinned } }
     }
 
     fun clearAll() {
-        _notifications.update { emptyList() }
+        val pinned = _pinnedKeys.value
+        _notifications.update { current -> current.filter { it.key in pinned } }
     }
 
     fun clearDismissedHistory() {

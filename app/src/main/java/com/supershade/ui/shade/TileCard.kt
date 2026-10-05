@@ -64,6 +64,7 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material.icons.filled.PanTool
+import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.ScreenLockPortrait
@@ -547,7 +548,8 @@ fun tileIcon(id: String, isActive: Boolean, subtitle: String?): ImageVector {
         key.contains("bedtime") || key.contains("sleep") -> Icons.Default.NightsStay
         key.contains("usage") || key.contains("stats")  -> Icons.Default.DataUsage
         key.contains("privacy") || key.contains("screenprivacy") || key.contains("curtain") -> Icons.Filled.VisibilityOff
-        key.contains("aod") || key.contains("alwayson") || key.contains("always_on") || key.contains("keepscreen") || key.contains("caffeine") || key.contains("awake") -> Icons.Filled.WatchLater
+        key.contains("power") -> Icons.Filled.PowerSettingsNew
+        key.contains("aod") || key.contains("alwayson") || key.contains("always_on") || key.contains("keepscreen") || key.contains("caffeine") || key.contains("caffeinate") || key.contains("awake") -> Icons.Filled.WatchLater
         key.contains("mode") || key.contains("routine") -> Icons.Filled.Tune
         key.contains("kid") -> Icons.Filled.ChildCare
         key.contains("color") || key.contains("invert") -> Icons.Filled.InvertColors

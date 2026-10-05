@@ -116,6 +116,8 @@ fun NotificationCard(
     onClick: () -> Unit = {},
     onSnooze: ((Long) -> Unit)? = null,
     onHideChannel: (pkg: String, channelId: String) -> Unit = { _, _ -> },
+    isPinned: Boolean = false,
+    onTogglePin: (() -> Unit)? = null,
     compact: Boolean = false,
 ) {
     val context = LocalContext.current
@@ -547,6 +549,59 @@ fun NotificationCard(
                                         modifier = Modifier.size(if (compact) 9.dp else 11.dp),
                                     )
                                 }
+                                if (isPinned) {
+                                    Surface(
+                                        shape = when (shadeTheme) {
+                                            is ShadeTheme.Cyberpunk -> ChamferedCornerShape(3.dp)
+                                            is ShadeTheme.Nothing -> RoundedCornerShape(4.dp)
+                                            else -> RoundedCornerShape(50)
+                                        },
+                                        color = when (shadeTheme) {
+                                            is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF).copy(alpha = 0.20f)
+                                            is ShadeTheme.Nothing -> Color(0xFFD71920).copy(alpha = 0.20f)
+                                            else -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.70f)
+                                        },
+                                        border = when (shadeTheme) {
+                                            is ShadeTheme.Cyberpunk -> BorderStroke(0.5.dp, Color(0xFF00F0FF).copy(alpha = 0.60f))
+                                            is ShadeTheme.Nothing -> BorderStroke(0.5.dp, Color(0xFFD71920).copy(alpha = 0.50f))
+                                            else -> null
+                                        },
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.PushPin,
+                                                contentDescription = "Pinned",
+                                                tint = when (shadeTheme) {
+                                                    is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF)
+                                                    is ShadeTheme.Nothing -> Color(0xFFD71920)
+                                                    else -> MaterialTheme.colorScheme.primary
+                                                },
+                                                modifier = Modifier.size(if (compact) 9.dp else 11.dp),
+                                            )
+                                            Text(
+                                                text = when (shadeTheme) {
+                                                    is ShadeTheme.Cyberpunk -> "PINNED"
+                                                    is ShadeTheme.Nothing -> "PIN"
+                                                    else -> "Pinned"
+                                                },
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontSize = if (compact) 8.5.sp else 9.5.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                                ),
+                                                color = when (shadeTheme) {
+                                                    is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF)
+                                                    is ShadeTheme.Nothing -> Color.White
+                                                    else -> MaterialTheme.colorScheme.onPrimaryContainer
+                                                },
+                                            )
+                                        }
+                                    }
+                                }
                             }
 
                             val canExpand = notification.actions.isNotEmpty() || notification.picture != null || displayText.length > 50
@@ -755,16 +810,64 @@ fun NotificationCard(
                             },
                         )
                     }
+                    if (onTogglePin != null) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = if (isPinned) "Unpin from top" else "Pin to top",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.PushPin,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = if (isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            },
+                            onClick = {
+                                showSettingsMenu = false
+                                haptics.lightTap()
+                                onTogglePin()
+                            },
+                        )
+                    }
                     if (onSnooze != null) {
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                        listOf(
-                            "Snooze 15 minutes" to 15 * 60 * 1_000L,
-                            "Snooze 30 minutes" to 30 * 60 * 1_000L,
-                            "Snooze 1 hour"     to 60 * 60 * 1_000L,
-                            "Snooze 2 hours"    to 2 * 60 * 60 * 1_000L,
-                            "Snooze 4 hours"    to 4 * 60 * 60 * 1_000L,
-                            "Snooze 8 hours"    to 8 * 60 * 60 * 1_000L,
-                        ).forEach { (label, delayMs) ->
+                        val smartSnoozePresets = remember {
+                            val now = java.util.Calendar.getInstance()
+                            val evening = java.util.Calendar.getInstance().apply {
+                                set(java.util.Calendar.HOUR_OF_DAY, 18)
+                                set(java.util.Calendar.MINUTE, 0)
+                                set(java.util.Calendar.SECOND, 0)
+                                set(java.util.Calendar.MILLISECOND, 0)
+                                if (before(now)) {
+                                    add(java.util.Calendar.DAY_OF_YEAR, 1)
+                                }
+                            }
+                            val eveningMs = (evening.timeInMillis - now.timeInMillis).coerceAtLeast(15 * 60 * 1000L)
+                            val eveningLabel = if (evening.get(java.util.Calendar.DAY_OF_YEAR) == now.get(java.util.Calendar.DAY_OF_YEAR))
+                                "This Evening (6 PM)" else "Tomorrow Evening (6 PM)"
+
+                            val morning = java.util.Calendar.getInstance().apply {
+                                add(java.util.Calendar.DAY_OF_YEAR, 1)
+                                set(java.util.Calendar.HOUR_OF_DAY, 9)
+                                set(java.util.Calendar.MINUTE, 0)
+                                set(java.util.Calendar.SECOND, 0)
+                                set(java.util.Calendar.MILLISECOND, 0)
+                            }
+                            val morningMs = (morning.timeInMillis - now.timeInMillis).coerceAtLeast(30 * 60 * 1000L)
+
+                            listOf(
+                                "Snooze 15 minutes" to 15 * 60 * 1_000L,
+                                "Snooze 1 hour"     to 60 * 60 * 1_000L,
+                                "Snooze 2 hours"    to 2 * 60 * 60 * 1_000L,
+                                eveningLabel        to eveningMs,
+                                "Tomorrow (9 AM)"   to morningMs,
+                            )
+                        }
+                        smartSnoozePresets.forEach { (label, delayMs) ->
                             DropdownMenuItem(
                                 text = { Text(label, style = MaterialTheme.typography.bodyMedium) },
                                 leadingIcon = {

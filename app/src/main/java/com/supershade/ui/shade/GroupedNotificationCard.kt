@@ -113,6 +113,8 @@ fun GroupedNotificationCard(
     onNotificationClick: (ShadeNotification) -> Unit,
     onSnooze: (String, Long) -> Unit = { _, _ -> },
     onHideChannel: (pkg: String, channelId: String) -> Unit = { _, _ -> },
+    pinnedKeys: Set<String> = emptySet(),
+    onTogglePin: (String) -> Unit = {},
     compact: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
@@ -784,6 +786,8 @@ fun GroupedNotificationCard(
                                     onDismiss = { onDismiss(notification.key) },
                                     onClick = { onNotificationClick(notification) },
                                     onSnooze = { delayMs -> onSnooze(notification.key, delayMs) },
+                                    isPinned = notification.key in pinnedKeys,
+                                    onTogglePin = { onTogglePin(notification.key) },
                                     compact = compact,
                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = if (compact) 2.dp else 4.dp),
                                 )

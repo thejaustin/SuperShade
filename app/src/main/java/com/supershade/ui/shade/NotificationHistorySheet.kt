@@ -40,11 +40,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.HistoryToggleOff
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Snooze
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -77,6 +79,7 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.text.font.FontFamily
 import com.supershade.domain.notification.DismissedNotificationRecord
+import com.supershade.domain.notification.SnoozeRecord
 import com.supershade.domain.notification.model.ShadeCategory
 import com.supershade.haptics.LocalSuperHaptics
 import com.supershade.haptics.SuperHaptics
@@ -94,6 +97,8 @@ fun NotificationHistorySheet(
     history: List<DismissedNotificationRecord>,
     onDismiss: () -> Unit,
     onClearHistory: () -> Unit,
+    snoozedRecords: List<SnoozeRecord> = emptyList(),
+    onUnsnooze: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -318,9 +323,10 @@ fun NotificationHistorySheet(
 
                     var searchQuery by remember { mutableStateOf("") }
                     var selectedCategoryFilter by remember { mutableStateOf<ShadeCategory?>(null) }
+                    var showSnoozedOnly by remember { mutableStateOf(false) }
 
                     // Search input
-                    if (history.size > 3) {
+                    if (history.size > 3 && !showSnoozedOnly) {
                         val searchShape = when (theme) {
                             is ShadeTheme.Cyberpunk -> ChamferedCornerShape(6.dp)
                             is ShadeTheme.Nothing -> RoundedCornerShape(8.dp)
@@ -390,7 +396,7 @@ fun NotificationHistorySheet(
                     val categoriesInHistory = remember(history) {
                         history.map { it.category }.distinct().filter { it != ShadeCategory.All }
                     }
-                    if (categoriesInHistory.size > 1) {
+                    if (categoriesInHistory.size > 1 || snoozedRecords.isNotEmpty()) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -400,20 +406,36 @@ fun NotificationHistorySheet(
                         ) {
                             HistoryFilterChip(
                                 label = "All",
-                                isSelected = selectedCategoryFilter == null,
+                                isSelected = !showSnoozedOnly && selectedCategoryFilter == null,
                                 theme = theme,
                                 onClick = {
                                     haptics.lightTap()
+                                    showSnoozedOnly = false
                                     selectedCategoryFilter = null
                                 },
                             )
-                            categoriesInHistory.forEach { cat ->
+                            if (snoozedRecords.isNotEmpty()) {
                                 HistoryFilterChip(
-                                    label = cat.label,
-                                    isSelected = selectedCategoryFilter == cat,
+                                    label = "Snoozed (${snoozedRecords.size})",
+                                    isSelected = showSnoozedOnly,
                                     theme = theme,
                                     onClick = {
                                         haptics.lightTap()
+                                        showSnoozedOnly = !showSnoozedOnly
+                                        if (showSnoozedOnly) {
+                                            selectedCategoryFilter = null
+                                        }
+                                    },
+                                )
+                            }
+                            categoriesInHistory.forEach { cat ->
+                                HistoryFilterChip(
+                                    label = cat.label,
+                                    isSelected = !showSnoozedOnly && selectedCategoryFilter == cat,
+                                    theme = theme,
+                                    onClick = {
+                                        haptics.lightTap()
+                                        showSnoozedOnly = false
                                         selectedCategoryFilter = if (selectedCategoryFilter == cat) null else cat
                                     },
                                 )
@@ -441,7 +463,62 @@ fun NotificationHistorySheet(
                         }
                     }
 
-                    if (filteredHistory.isEmpty()) {
+                    if (showSnoozedOnly) {
+                        if (snoozedRecords.isEmpty()) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 48.dp, horizontal = 24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f)),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Snooze,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(28.dp),
+                                    )
+                                }
+                                Text(
+                                    text = if (theme is ShadeTheme.Cyberpunk) "[NO_SNOOZED_TELEMETRY]" else "No snoozed notifications",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = if (theme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF) else MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    text = "Notifications snoozed from the shade will be held here until their wake time.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f, fill = false),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                items(
+                                    items = snoozedRecords,
+                                    key = { it.key },
+                                ) { item ->
+                                    SnoozedNotificationCard(
+                                        record = item,
+                                        theme = theme,
+                                        onUnsnooze = { onUnsnooze?.invoke(item.key) },
+                                    )
+                                }
+                            }
+                        }
+                    } else if (filteredHistory.isEmpty()) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -855,3 +932,230 @@ private fun DismissedNotificationCard(
         }
     }
 }
+
+@Composable
+fun SnoozedNotificationCard(
+    record: SnoozeRecord,
+    theme: ShadeTheme,
+    onUnsnooze: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
+    val shapes = LocalShadeShapeScheme.current
+
+    val appName = remember(record.packageName) {
+        try {
+            val pm = context.packageManager
+            val info = pm.getApplicationInfo(record.packageName, 0)
+            pm.getApplicationLabel(info).toString()
+        } catch (_: Exception) {
+            record.packageName.substringAfterLast('.').replaceFirstChar { it.uppercase() }
+        }
+    }
+
+    val appIconBitmap by produceState<ImageBitmap?>(null, record.packageName) {
+        value = withContext(Dispatchers.IO) {
+            try {
+                context.packageManager.getApplicationIcon(record.packageName)
+                    .toBitmap(40, 40, android.graphics.Bitmap.Config.ARGB_8888)
+                    .asImageBitmap()
+            } catch (_: Exception) { null }
+        }
+    }
+
+    val remainingMs = (record.untilTimestamp - System.currentTimeMillis()).coerceAtLeast(0L)
+    val remainingLabel = remember(record.untilTimestamp) {
+        when {
+            remainingMs < 60_000L -> "Waking up soon"
+            remainingMs < 3_600_000L -> "Wakes in ${remainingMs / 60_000L}m"
+            else -> "Wakes in ${remainingMs / 3_600_000L}h ${(remainingMs % 3_600_000L) / 60_000L}m"
+        }
+    }
+
+    val cardShape = when (theme) {
+        is ShadeTheme.Cyberpunk -> ChamferedCornerShape(8.dp)
+        is ShadeTheme.Nothing -> RoundedCornerShape(10.dp)
+        is ShadeTheme.OneUI -> RoundedCornerShape(18.dp)
+        else -> shapes.card
+    }
+    val cardBorder = when (theme) {
+        is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.30f))
+        is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+        is ShadeTheme.OneUI -> BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+        else -> getCardBorder(alpha = 0.22f)
+    }
+    val cardBg = when (theme) {
+        is ShadeTheme.Cyberpunk -> Color(0xFF060914)
+        is ShadeTheme.Nothing -> Color(0xFF090A0D)
+        else -> MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f)
+    }
+
+    Card(
+        shape = cardShape,
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        border = cardBorder,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            val iconBoxShape = when (theme) {
+                is ShadeTheme.Cyberpunk -> ChamferedCornerShape(4.dp)
+                is ShadeTheme.Nothing -> RoundedCornerShape(6.dp)
+                else -> RoundedCornerShape(10.dp)
+            }
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(iconBoxShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (appIconBitmap != null) {
+                    Image(
+                        bitmap = appIconBitmap!!,
+                        contentDescription = null,
+                        modifier = Modifier.size(30.dp),
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = appName.take(1).uppercase(),
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    }
+                }
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = if (theme is ShadeTheme.Nothing) appName.uppercase() else appName,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = if (theme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                            letterSpacing = if (theme is ShadeTheme.Nothing) 0.5.sp else 0.sp,
+                        ),
+                        color = if (theme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    Text(
+                        text = remainingLabel,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = if (theme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                        ),
+                        color = when (theme) {
+                            is ShadeTheme.Cyberpunk -> Color(0xFFFF007F)
+                            is ShadeTheme.Nothing -> Color(0xFFD71920)
+                            else -> MaterialTheme.colorScheme.primary
+                        },
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                val displayTitle = record.title.ifBlank { appName }
+                Text(
+                    text = displayTitle,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = if (theme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+
+                if (record.text.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = record.text,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = if (theme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Surface(
+                    onClick = {
+                        haptics.sheetDetent()
+                        onUnsnooze()
+                    },
+                    shape = when (theme) {
+                        is ShadeTheme.Cyberpunk -> ChamferedCornerShape(4.dp)
+                        is ShadeTheme.Nothing -> RoundedCornerShape(4.dp)
+                        else -> RoundedCornerShape(50)
+                    },
+                    color = when (theme) {
+                        is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF).copy(alpha = 0.15f)
+                        is ShadeTheme.Nothing -> Color(0xFFD71920).copy(alpha = 0.20f)
+                        else -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.70f)
+                    },
+                    border = when (theme) {
+                        is ShadeTheme.Cyberpunk -> BorderStroke(0.5.dp, Color(0xFF00F0FF).copy(alpha = 0.50f))
+                        is ShadeTheme.Nothing -> BorderStroke(0.5.dp, Color(0xFFD71920).copy(alpha = 0.50f))
+                        else -> null
+                    },
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Snooze,
+                            contentDescription = null,
+                            tint = when (theme) {
+                                is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF)
+                                is ShadeTheme.Nothing -> Color(0xFFD71920)
+                                else -> MaterialTheme.colorScheme.primary
+                            },
+                            modifier = Modifier.size(13.dp),
+                        )
+                        Text(
+                            text = when (theme) {
+                                is ShadeTheme.Cyberpunk -> "[WAKE_NOW]"
+                                is ShadeTheme.Nothing -> "WAKE NOW"
+                                else -> "Wake now"
+                            },
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                fontFamily = if (theme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                            ),
+                            color = when (theme) {
+                                is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF)
+                                is ShadeTheme.Nothing -> Color.White
+                                else -> MaterialTheme.colorScheme.onPrimaryContainer
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+

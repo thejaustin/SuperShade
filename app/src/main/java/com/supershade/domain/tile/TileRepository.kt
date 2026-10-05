@@ -329,6 +329,18 @@ class TileRepository(
                         SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(next.triggerTime))
                     else null
                 }
+                key.contains("caffeinate") || key.contains("caffeine") -> {
+                    val timeout = Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, 30000)
+                    when {
+                        timeout >= 1_800_000 -> "30m"
+                        timeout >= 600_000   -> "10m"
+                        timeout >= 300_000   -> "5m"
+                        timeout >= 120_000   -> "2m"
+                        else                 -> "30s"
+                    }
+                }
+                key.contains("powermenu") || key.contains("power_menu") -> "Power"
+                key.contains("screenshot") -> "Capture"
                 else -> null
             }
         } catch (_: Exception) { null }
@@ -401,6 +413,10 @@ class TileRepository(
                 key.contains("aod") || key.contains("alwayson") -> {
                     Settings.Secure.getInt(context.contentResolver, "aod_mode", 0) == 1 ||
                     Settings.Secure.getInt(context.contentResolver, "doze_always_on", 0) == 1
+                }
+                key.contains("caffeinate") || key.contains("caffeine") -> {
+                    val timeout = Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_OFF_TIMEOUT, 30000)
+                    timeout > 30000
                 }
                 else -> false
             }

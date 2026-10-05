@@ -217,6 +217,20 @@ fun ShadeRoot(
 
     val haptics = LocalSuperHaptics.current ?: remember(context) { SuperHaptics(context) }
 
+    val handleTileClick: (com.supershade.domain.tile.TileDefinition) -> Unit = { tile ->
+        when (tile.id.lowercase()) {
+            "powermenu", "power_menu" -> {
+                haptics.sheetDetent()
+                showPowerMenu = true
+            }
+            "screenshot", "take_screenshot" -> {
+                haptics.sheetDetent()
+                viewModel.takeScreenshot()
+            }
+            else -> viewModel.toggleTile(tile)
+        }
+    }
+
     LaunchedEffect(state.activePanel) {
         val targetPage = if (state.activePanel == ShadePanel.QUICK_SETTINGS) 1 else 0
         if (pagerState.currentPage != targetPage) {
@@ -368,7 +382,7 @@ fun ShadeRoot(
                 AnimatedVisibility(
                     visible = state.isOpen,
                     enter = slideInVertically(spring(dampingRatio = 0.78f, stiffness = 420f)) { -it } + fadeIn(tween(180)),
-                    exit  = slideOutVertically(tween(220)) { -it } + fadeOut(tween(180)),
+                    exit  = slideOutVertically(spring(dampingRatio = 0.85f, stiffness = 460f)) { -it } + fadeOut(tween(160)),
                 ) {
                     val glassBackdrop = when {
                         opacity >= 0.99f -> {
@@ -655,7 +669,7 @@ fun ShadeRoot(
                                             onRemoveTile = { viewModel.removeTile(it) },
                                             onAddTile = { viewModel.addTile(it) },
                                             onResetTiles = { viewModel.resetTiles() },
-                                            onTileClick = { viewModel.toggleTile(it) },
+                                            onTileClick = handleTileClick,
                                             onTileLongClick = { viewModel.openTileDetail(it) },
                                         )
                                     }
@@ -711,7 +725,7 @@ fun ShadeRoot(
                                             onRemoveTile = { viewModel.removeTile(it) },
                                             onAddTile = { viewModel.addTile(it) },
                                             onResetTiles = { viewModel.resetTiles() },
-                                            onTileClick = { viewModel.toggleTile(it) },
+                                            onTileClick = handleTileClick,
                                             onTileLongClick = { viewModel.openTileDetail(it) },
                                             deviceControlMode = state.deviceControlMode,
                                             onRestoreDeviceControl = { viewModel.setDeviceControlMode(com.supershade.settings.DeviceControlMode.SHOW_WHEN_EXPANDED) },
@@ -822,6 +836,8 @@ fun ShadeRoot(
                                         onSnooze = { key, delayMs -> viewModel.snoozeNotification(key, delayMs) },
                                         onHideChannel = { pkg, ch -> viewModel.hideNotificationChannel(pkg, ch) },
                                         onOpenHistory = { viewModel.openHistorySheet() },
+                                        pinnedKeys = state.pinnedKeys,
+                                        onTogglePin = { viewModel.togglePinNotification(it) },
                                         compact = state.isNotificationCompact,
                                     )
                                 }
@@ -915,6 +931,8 @@ fun ShadeRoot(
                                             onSnooze = { key, delayMs -> viewModel.snoozeNotification(key, delayMs) },
                                             onHideChannel = { pkg, ch -> viewModel.hideNotificationChannel(pkg, ch) },
                                             onOpenHistory = { viewModel.openHistorySheet() },
+                                            pinnedKeys = state.pinnedKeys,
+                                            onTogglePin = { viewModel.togglePinNotification(it) },
                                             compact = state.isNotificationCompact,
                                             modifier = Modifier.fillMaxSize(),
                                         )
@@ -939,7 +957,7 @@ fun ShadeRoot(
                                             onRemoveTile = { viewModel.removeTile(it) },
                                             onAddTile = { viewModel.addTile(it) },
                                             onResetTiles = { viewModel.resetTiles() },
-                                            onTileClick = { viewModel.toggleTile(it) },
+                                            onTileClick = handleTileClick,
                                             onTileLongClick = { viewModel.openTileDetail(it) },
                                         )
 
@@ -975,7 +993,7 @@ fun ShadeRoot(
                                             onRemoveTile = { viewModel.removeTile(it) },
                                             onAddTile = { viewModel.addTile(it) },
                                             onResetTiles = { viewModel.resetTiles() },
-                                            onTileClick = { viewModel.toggleTile(it) },
+                                            onTileClick = handleTileClick,
                                             onTileLongClick = { viewModel.openTileDetail(it) },
                                             deviceControlMode = state.deviceControlMode,
                                             onRestoreDeviceControl = { viewModel.setDeviceControlMode(com.supershade.settings.DeviceControlMode.SHOW_WHEN_EXPANDED) },
@@ -1227,8 +1245,8 @@ fun ShadeRoot(
                                                 dragOffset.animateTo(
                                                     targetValue = 0f,
                                                     animationSpec = spring(
-                                                        dampingRatio = 0.55f,
-                                                        stiffness = 450f,
+                                                        dampingRatio = 0.82f,
+                                                        stiffness = 460f,
                                                     ),
                                                 )
                                             }
@@ -1246,6 +1264,16 @@ fun ShadeRoot(
                             )
                         }
                     }
+
+                    // Floating Notification Undo Pill
+                    NotificationUndoBar(
+                        lastDismissed = state.lastDismissedNotification,
+                        onUndo = { viewModel.undoDismissNotification() },
+                        onClearUndo = { viewModel.clearUndoNotification() },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 36.dp),
+                    )
                 }
             }
             }
@@ -1324,6 +1352,8 @@ fun ShadeRoot(
                 history = state.dismissedHistory,
                 onDismiss = { viewModel.closeHistorySheet() },
                 onClearHistory = { viewModel.clearDismissedHistory() },
+                snoozedRecords = state.snoozedRecords,
+                onUnsnooze = { viewModel.unsnoozeNotification(it) },
             )
         }
     }

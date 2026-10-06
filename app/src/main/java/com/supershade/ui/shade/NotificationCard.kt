@@ -341,6 +341,8 @@ fun NotificationCard(
         val cardBorder = when (shadeTheme) {
             is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.45f))
             is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
+            is ShadeTheme.OneUI -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
+            is ShadeTheme.Pixel -> null
             else -> getCardBorder(alpha = 0.25f)
         }
 
@@ -1054,17 +1056,22 @@ fun NotificationCard(
                             val actionShape = when (shadeTheme) {
                                 is ShadeTheme.Cyberpunk -> ChamferedCornerShape(6.dp)
                                 is ShadeTheme.Nothing -> RoundedCornerShape(8.dp)
-                                is ShadeTheme.Pixel -> RoundedCornerShape(16.dp)
+                                is ShadeTheme.Pixel -> RoundedCornerShape(50)
+                                is ShadeTheme.OneUI -> RoundedCornerShape(14.dp)
                                 else -> shapes.chip
                             }
                             val actionBorder = when (shadeTheme) {
                                 is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.40f))
                                 is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.20f))
+                                is ShadeTheme.Pixel -> null
+                                is ShadeTheme.OneUI -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
                                 else -> getCardBorder(alpha = 0.35f)
                             }
                             val actionBg = when (shadeTheme) {
                                 is ShadeTheme.Cyberpunk -> Color(0xFF050B14)
                                 is ShadeTheme.Nothing -> Color(0xFF14171C)
+                                is ShadeTheme.Pixel -> MaterialTheme.colorScheme.secondaryContainer
+                                is ShadeTheme.OneUI -> MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.75f)
                                 else -> MaterialTheme.colorScheme.surfaceContainerHigh
                             }
                             val actionText = when (shadeTheme) {
@@ -1108,7 +1115,12 @@ fun NotificationCard(
                                             fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
                                             fontSize = actionFontSize,
                                         ),
-                                        color = if (shadeTheme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF) else MaterialTheme.colorScheme.onSurface,
+                                        color = when (shadeTheme) {
+                                            is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF)
+                                            is ShadeTheme.Pixel -> MaterialTheme.colorScheme.onSecondaryContainer
+                                            is ShadeTheme.Nothing -> Color.White
+                                            else -> MaterialTheme.colorScheme.onSurface
+                                        },
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         softWrap = false,

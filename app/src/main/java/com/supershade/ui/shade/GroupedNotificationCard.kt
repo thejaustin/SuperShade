@@ -280,6 +280,7 @@ fun GroupedNotificationCard(
             is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.45f))
             is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
             is ShadeTheme.OneUI -> BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
+            is ShadeTheme.Pixel -> null
             else -> getCardBorder(alpha = 0.25f)
         }
 

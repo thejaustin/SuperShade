@@ -5,6 +5,25 @@ Releases follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.9.36] — 2026-10-06
+
+### Added & Enhanced (One UI 9, Pixel Expressive, Nothing OS 3.0 & Cyberpunk HUD Theme Polish)
+- **One UI 9 Alignment**:
+  - Notification and stacked group cards styled with authentic One UI 9 24dp squircle geometry, frosted hairline outline (`outlineVariant` 0.25f alpha), and 14dp squircle action buttons.
+  - Quick connectivity wide cards enhanced with smooth squircle morphing and high-contrast typography.
+- **Pixel / Android 16 Material 3 Expressive Alignment**:
+  - Rendered borderless tonal container surfaces for notification cards, search bar, and connectivity cards matching Google Material You / M3 Expressive.
+  - Notification action chips styled as 50% stadium pills with dynamic `secondaryContainer` fills and `onSecondaryContainer` contrast.
+- **Nothing OS 3.0 Alignment**:
+  - Pure black and dark geometric cards with crisp 1dp wireframe borders.
+  - Active connectivity wide cards and grid tiles feature Nothing OS signature red glyph dot indicator (`#D71920`).
+  - High-contrast monochrome active tiles with uppercase tracking and dot matrix spacing.
+- **Cyberpunk 2077 HUD Alignment**:
+  - Signature chamfered corner containers (`ChamferedCornerShape`) across wide connectivity cards and individual tile cards.
+  - Neon cyan `#00F0FF` borders, monospace telemetry headers (`// WIFI`, `SYS // CONNECTED`), and monospace action buttons.
+
+---
+
 ## [1.9.35] — 2026-10-06
 
 ### Added & Enhanced (Smart OTP / 2FA Engine, Status Bar Brightness Scrub & Multi-Stream Volume Mixer)

@@ -481,6 +481,7 @@ fun NotificationFeedSearchBar(
     val searchBorder = when (theme) {
         is ShadeTheme.Cyberpunk -> BorderStroke(1.dp, Color(0xFF00F0FF).copy(alpha = 0.7f))
         is ShadeTheme.Nothing -> BorderStroke(1.dp, Color.White.copy(alpha = 0.25f))
+        is ShadeTheme.Pixel -> null
         else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
     }
 

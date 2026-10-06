@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.supershade.ui.theme.ChamferedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -167,7 +168,12 @@ fun TileCard(
         label = "tileCornerRadius",
     )
 
-    val cardShape = if (baseCorner != null) RoundedCornerShape(dynamicCornerRadius) else shapeScheme.tile
+    val cardShape = when {
+        theme is ShadeTheme.Cyberpunk -> ChamferedCornerShape(if (isPressed) 5.dp else 8.dp)
+        theme is ShadeTheme.Nothing -> RoundedCornerShape(if (isPressed) 12.dp else 16.dp)
+        baseCorner != null -> RoundedCornerShape(dynamicCornerRadius)
+        else -> shapeScheme.tile
+    }
 
     // Scale: pressed shrink, dragging lift, otherwise 1f
     val scale by animateFloatAsState(
@@ -240,6 +246,7 @@ fun TileCard(
             1.dp,
             MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
         )
+        theme is ShadeTheme.Pixel -> null
         tile.isActive -> null
         else -> getCardBorder(alpha = 0.40f)
     }

@@ -26,6 +26,16 @@ Kotlin + Jetpack Compose + Koin + Shizuku. Project at `~/projects/SuperShade/`.
 
 ## Session History (newest first)
 
+### 2026-10-06 — Antigravity (Gemini 3.8 Flash) — v1.9.36
+
+**Done:**
+- **One UI 9 / Android 16 M3 Expressive / Nothing OS 3.0 / Cyberpunk Theme Polish**:
+  - Enforced borderless tonal surfaces for notification cards, grouped stacks, and in-shade search bar under Google Pixel theme (`ShadeTheme.Pixel`).
+  - Added stadium pill geometry (`RoundedCornerShape(50)`) and `onSecondaryContainer` styling to Pixel notification actions.
+  - Implemented `ChamferedCornerShape` geometry and neon cyan `#00F0FF` borders for Cyberpunk quick connectivity cards and individual tile cards.
+  - Added Nothing OS 3.0 wireframe styling and red glyph dot indicator (`#D71920`) to active connectivity cards and monochrome active states.
+  - Refined One UI 9 24dp squircle cards with hairline outline and 14dp squircle action buttons.
+
 ### 2026-10-06 — Antigravity (Gemini 3.8 Flash) — v1.9.35
 
 **Done:**

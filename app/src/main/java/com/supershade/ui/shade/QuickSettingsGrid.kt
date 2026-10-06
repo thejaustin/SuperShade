@@ -83,6 +83,7 @@ import com.supershade.settings.TileGridColumns
 import com.supershade.settings.TileShape
 import com.supershade.settings.TileSize
 import com.supershade.ui.theme.ShadeTheme
+import com.supershade.ui.theme.ChamferedCornerShape
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material.icons.filled.Add
@@ -725,10 +726,18 @@ private fun ConnectivityWideCard(
     )
 
     val containerColor by animateColorAsState(
-        targetValue = if (tile.isActive)
-            MaterialTheme.colorScheme.primary
-        else
-            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+        targetValue = when {
+            tile.isActive -> when (theme) {
+                is ShadeTheme.Nothing -> Color.White
+                is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF).copy(alpha = 0.22f)
+                else -> MaterialTheme.colorScheme.primary
+            }
+            else -> when (theme) {
+                is ShadeTheme.Cyberpunk -> Color(0xFF080D1A)
+                is ShadeTheme.Nothing -> Color(0xFF14171C)
+                else -> MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f)
+            }
+        },
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium,
@@ -737,10 +746,17 @@ private fun ConnectivityWideCard(
     )
 
     val contentColor by animateColorAsState(
-        targetValue = if (tile.isActive)
-            MaterialTheme.colorScheme.onPrimary
-        else
-            MaterialTheme.colorScheme.onSurface,
+        targetValue = when {
+            tile.isActive -> when (theme) {
+                is ShadeTheme.Nothing -> Color.Black
+                is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF)
+                else -> MaterialTheme.colorScheme.onPrimary
+            }
+            else -> when (theme) {
+                is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF).copy(alpha = 0.90f)
+                else -> MaterialTheme.colorScheme.onSurface
+            }
+        },
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium,
@@ -748,7 +764,16 @@ private fun ConnectivityWideCard(
         label = "connContent",
     )
 
-    val borderStroke = if (tile.isActive) null else getCardBorder(alpha = 0.35f)
+    val borderStroke = when {
+        theme is ShadeTheme.Cyberpunk -> BorderStroke(
+            1.2.dp,
+            if (tile.isActive) Color(0xFF00F0FF) else Color(0xFF00F0FF).copy(alpha = 0.35f),
+        )
+        theme is ShadeTheme.Nothing -> if (tile.isActive) null else BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
+        theme is ShadeTheme.Pixel -> null
+        tile.isActive -> null
+        else -> getCardBorder(alpha = 0.35f)
+    }
     val dynamicCornerRadius by animateDpAsState(
         targetValue = when {
             isBodyPressed || isIconPressed -> 18.dp
@@ -758,7 +783,12 @@ private fun ConnectivityWideCard(
         animationSpec = com.supershade.ui.theme.M3ExpressiveMotion.spatialDefault(),
         label = "connCornerRadius",
     )
-    val wideCardShape = RoundedCornerShape(dynamicCornerRadius)
+    val wideCardShape = when (theme) {
+        is ShadeTheme.Cyberpunk -> ChamferedCornerShape(8.dp)
+        is ShadeTheme.Nothing -> RoundedCornerShape(16.dp)
+        is ShadeTheme.Pixel -> RoundedCornerShape(26.dp)
+        else -> RoundedCornerShape(dynamicCornerRadius)
+    }
 
     val iconRotation by animateFloatAsState(
         targetValue = when {
@@ -908,21 +938,48 @@ private fun ConnectivityWideCard(
                         verticalArrangement = Arrangement.Center,
                     ) {
                         val displayLabel = tile.label.ifBlank { com.supershade.domain.tile.humanizeTileLabel(tile.id) }
+                        val formattedConnLabel = when (theme) {
+                            is ShadeTheme.Cyberpunk -> "// ${displayLabel.uppercase()}"
+                            is ShadeTheme.Nothing -> displayLabel.uppercase()
+                            else -> displayLabel
+                        }
+                        val formattedConnSub = when {
+                            theme is ShadeTheme.Cyberpunk -> if (tile.isActive) "SYS // CONNECTED" else "SYS // STANDBY"
+                            theme is ShadeTheme.Nothing -> (tile.subtitle ?: if (tile.isActive) "CONNECTED" else "OFF").uppercase()
+                            else -> tile.subtitle ?: if (tile.isActive) "Connected" else "Off"
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        ) {
+                            Text(
+                                text = formattedConnLabel,
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = if (theme is ShadeTheme.Nothing) FontWeight.Bold else FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                    fontFamily = if (theme is ShadeTheme.Cyberpunk) androidx.compose.ui.text.font.FontFamily.Monospace else null,
+                                    letterSpacing = if (theme is ShadeTheme.Nothing) 0.8.sp else 0.sp,
+                                ),
+                                color = contentColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (theme is ShadeTheme.Nothing && tile.isActive) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(5.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFD71920)),
+                                )
+                            }
+                        }
                         Text(
-                            text = displayLabel,
-                            style = MaterialTheme.typography.titleSmall.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp,
-                            ),
-                            color = contentColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = tile.subtitle ?: if (tile.isActive) "Connected" else "Off",
+                            text = formattedConnSub,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Normal,
+                                fontFamily = if (theme is ShadeTheme.Cyberpunk) androidx.compose.ui.text.font.FontFamily.Monospace else null,
+                                letterSpacing = if (theme is ShadeTheme.Nothing) 0.6.sp else 0.sp,
                             ),
                             color = contentColor.copy(alpha = 0.75f),
                             maxLines = 1,

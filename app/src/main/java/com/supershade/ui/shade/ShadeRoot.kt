@@ -850,6 +850,7 @@ fun ShadeRoot(
                                         pinnedKeys = state.pinnedKeys,
                                         onTogglePin = { viewModel.togglePinNotification(it) },
                                         compact = state.isNotificationCompact,
+                                        onReply = { note, _ -> viewModel.recordReply(note) },
                                     )
                                 }
                             }
@@ -952,6 +953,7 @@ fun ShadeRoot(
                                             pinnedKeys = state.pinnedKeys,
                                             onTogglePin = { viewModel.togglePinNotification(it) },
                                             compact = state.isNotificationCompact,
+                                            onReply = { note, _ -> viewModel.recordReply(note) },
                                             modifier = Modifier.fillMaxSize(),
                                         )
                                     }

@@ -336,6 +336,14 @@ class NotificationRepository(
         )
     }
 
+    fun recordReply(note: ShadeNotification) {
+        adaptiveLoop?.recordInteraction(
+            note.packageName,
+            note.channelId,
+            NotificationInteractionType.REPLY,
+        )
+    }
+
     fun clearAll() {
         val pinned = _pinnedKeys.value
         _notifications.update { current -> current.filter { it.key in pinned } }

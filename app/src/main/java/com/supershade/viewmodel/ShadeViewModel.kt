@@ -749,6 +749,10 @@ class ShadeViewModel(
         close()
     }
 
+    fun recordReply(notification: com.supershade.domain.notification.model.ShadeNotification) {
+        notificationRepo.recordReply(notification)
+    }
+
     // --- Media transport controls ---
 
     fun mediaPlayPause() {

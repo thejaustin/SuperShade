@@ -119,6 +119,7 @@ fun NotificationCard(
     isPinned: Boolean = false,
     onTogglePin: (() -> Unit)? = null,
     compact: Boolean = false,
+    onReply: ((ShadeNotification, String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val haptics = LocalSuperHaptics.current ?: remember(context) { com.supershade.haptics.SuperHaptics(context) }
@@ -1003,6 +1004,7 @@ fun NotificationCard(
                                     android.os.Bundle().apply { putCharSequence(ri.resultKey, replyText) }
                                 )
                                 try { action.pendingIntent?.send(context, 0, intent) } catch (_: Exception) {}
+                                onReply?.invoke(notification, replyText)
                                 replyingAction = null
                             }
 

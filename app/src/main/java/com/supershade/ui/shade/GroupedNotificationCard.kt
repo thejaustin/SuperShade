@@ -116,6 +116,7 @@ fun GroupedNotificationCard(
     pinnedKeys: Set<String> = emptySet(),
     onTogglePin: (String) -> Unit = {},
     compact: Boolean = false,
+    onReply: (ShadeNotification, String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     val shapes = LocalShadeShapeScheme.current
@@ -805,9 +806,11 @@ fun GroupedNotificationCard(
                                     onDismiss = { onDismiss(notification.key) },
                                     onClick = { onNotificationClick(notification) },
                                     onSnooze = { delayMs -> onSnooze(notification.key, delayMs) },
+                                    onHideChannel = onHideChannel,
                                     isPinned = notification.key in pinnedKeys,
                                     onTogglePin = { onTogglePin(notification.key) },
                                     compact = compact,
+                                    onReply = onReply,
                                     modifier = Modifier.padding(horizontal = 4.dp, vertical = if (compact) 2.dp else 4.dp),
                                 )
                                 val isLast = channelIdx == byChannel.lastIndex && index == channelNotifs.lastIndex

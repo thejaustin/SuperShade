@@ -26,6 +26,19 @@ Kotlin + Jetpack Compose + Koin + Shizuku. Project at `~/projects/SuperShade/`.
 
 ## Session History (newest first)
 
+### 2026-10-06 — Antigravity (Gemini 3.8 Flash)
+
+**Done:**
+- **In-Shade Live Notification Search & Contextual Filtering** (closes #3):
+  - **Themed Search Bar (`NotificationFeedSearchBar`)**: Expands inline in both normal and TOGETHER shade feeds with theme-specific aesthetics (One UI 9 16dp squircle pill, Pixel stadium container, Nothing OS monochrome wireframe pill with red glyph, Cyberpunk `[SEARCH // TELEMETRY]` cyan chamfer).
+  - **Real-Time Multi-Attribute Filter**: Evaluates real-time matches across notification title, body, subtext, package name, category label, and action labels.
+  - **Contextual Clear (`Clear (N)`)**: Dynamically switches the clear-all button into a targeted dismiss button that clears only matching dismissible alerts without touching unrelated notifications or pinned alerts.
+  - **Themed Empty Search State (`EmptySearchResultView`)**: Polished feedback when search queries return zero results with direct "Clear filter" quick action.
+- **Closed-Loop Reply Feedback & Immunity Hardening**:
+  - **Inline Reply Interaction Tracking**: Wired `NotificationCard` and `GroupedNotificationCard` inline reply actions directly into `AdaptivePriorityLoop` (+4.0 score boost for engaged apps).
+  - **Pinned Alert Immunity**: Enforced strict immunity for pinned notifications during contextual filtered bulk dismissal.
+  - **Channel Hiding Forwarding**: Fixed channel hiding propagation inside expanded `GroupedNotificationCard` items.
+
 ### 2026-10-05 — Antigravity (Gemini 3.8 Flash)
 
 **Done:**

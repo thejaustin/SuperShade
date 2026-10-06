@@ -5,6 +5,28 @@ Releases follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.9.34] — 2026-10-06
+
+### Added & Enhanced (Live Search, Anthropic Loops, 120Hz Physics, One UI 9 / Pixel Hierarchy & Reply Tracking)
+- **In-Shade Live Notification Search & Contextual Filtering**:
+  - Live header search toggle with theme-adaptive search bar container (`NotificationFeedSearchBar`).
+  - Real-time multi-field query matching across title, text, subtext, app package, category, and action buttons.
+  - Contextual `Clear (N)` action dismissing only filtered dismissible notifications while preserving pinned and unmatching items.
+  - Dedicated zero-match state (`EmptySearchResultView`) with quick filter clear.
+- **Adaptive Priority & Self-Correcting Feedback Loops (`AdaptivePriorityLoop`)**:
+  - Autonomous scoring loop observing clicks, replies, pins, snoozes, fast dismisses, and clears with decay.
+  - Automatic demotion of noisy channels to Silent and promotion of engaged apps to Alerting.
+  - Wired inline reply actions into interaction telemetry.
+- **120Hz Refresh Rate Lock & Fling Physics Momentum**:
+  - `preferredRefreshRate = 120f` overlay lock preventing LTPO throttling to 60Hz.
+  - High-velocity downward flick gesture detector (`> 750dp/s`).
+  - Momentum dismiss spring physics preserving release speed.
+- **Theme-Adaptive Priority Sections & Stacked Visuals**:
+  - Structured `PINNED` -> `CONVERSATIONS` -> `ALERTS` -> `SILENT` sections with One UI 9, Pixel, Nothing OS, and Cyberpunk headers.
+  - Forwarded channel hiding and reply actions to child notifications in stacked groups.
+
+---
+
 ## [1.9.27] — 2026-09-27
 
 ### Added & Enhanced (One UI 8.5/9 & Pixel Android 16 M3E Alignment, Settings Restructuring & UX Polish)

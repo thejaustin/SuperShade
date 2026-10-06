@@ -5,6 +5,25 @@ Releases follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.9.35] — 2026-10-06
+
+### Added & Enhanced (Smart OTP / 2FA Engine, Status Bar Brightness Scrub & Multi-Stream Volume Mixer)
+- **Smart OTP / 2FA Extraction & VIP Alert Highlighting**:
+  - Resilient OTP detector (`OtpDetector.kt`) matching standard 4–8 digit verification codes, hyphenated codes (`123-456`), and prefixed patterns (`G-123456`) across SMS, 2FA apps, banking, and authorization alerts.
+  - One-tap "Copy code: $otpCode" action chip rendered directly on notification cards with clipboard copy, toast feedback, and light tactile pulse.
+  - VIP urgency detection for high-priority transaction, security, and alert messages with dedicated accent badge across One UI 9, Pixel, Nothing OS, and Cyberpunk themes.
+  - Group notification header badges indicating nested VIP or OTP items at a glance.
+- **LineageOS / crDroid Horizontal Status Bar Brightness Scrub**:
+  - Horizontal drag gesture along the top status bar edge seamlessly adjusting screen brightness from 4% to 100% without opening the shade.
+  - Directional drag lock avoiding vertical shade pull conflicts.
+  - Continuous tactile tick feedback during brightness adjustments.
+  - Direct integration into `GestureOverlay.kt`, `ShadeService.kt`, and `SuperShadeAccessibilityService.kt`.
+- **Full Multi-Stream Volume Mixer & Alarm Stream**:
+  - Added dedicated Alarm volume slider to the Sound Mode Quick Tile detail sheet (`QuickTileDetailSheet.kt`), matching Samsung SoundAssistant and LineageOS.
+  - Live query and synchronized volume control across Media, Ring, Notification, System, and Alarm audio streams.
+
+---
+
 ## [1.9.34] — 2026-10-06
 
 ### Added & Enhanced (Live Search, Anthropic Loops, 120Hz Physics, One UI 9 / Pixel Hierarchy & Reply Tracking)

@@ -44,6 +44,8 @@ data class TileDetailState(
     val notifMaxVol: Int = 15,
     val sysVol: Int = 0,
     val sysMaxVol: Int = 15,
+    val alarmVol: Int = 0,
+    val alarmMaxVol: Int = 15,
     val dndDurationMinutes: Int = 0, // 0 = until turned off
     val hotspotSsid: String? = null,
     val hotspotBand: String? = null,

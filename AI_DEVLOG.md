@@ -26,7 +26,24 @@ Kotlin + Jetpack Compose + Koin + Shizuku. Project at `~/projects/SuperShade/`.
 
 ## Session History (newest first)
 
-### 2026-10-06 — Antigravity (Gemini 3.8 Flash)
+### 2026-10-06 — Antigravity (Gemini 3.8 Flash) — v1.9.35
+
+**Done:**
+- **Smart OTP / 2FA Verification Extraction & VIP Highlighting**:
+  - Implemented resilient OTP detector regex engine (`OtpDetector.kt`) detecting standard 4-8 digit codes, hyphenated codes (`123-456`), and prefixed alphanumeric codes (`G-123456`) across SMS, 2FA, and banking apps.
+  - Added one-tap "Copy code: $otpCode" action chip in `NotificationCard.kt` with clipboard copy, toast feedback, and light tactile pulse.
+  - Implemented VIP alert badge highlighting urgent transactional and security alerts with theme styling (Cyberpunk `[VIP // ALERT]`, Nothing red badge, One UI/Pixel alert container).
+  - Added VIP and OTP summary chips to `GroupedNotificationCard.kt` header.
+- **Horizontal Status Bar Brightness Scrub Gesture**:
+  - Implemented horizontal scrub detection (`GestureOverlay.kt`) along top status bar edge mapping width to 4%–100% screen brightness without opening shade.
+  - Added directional lock suppressing vertical shade pull conflicts.
+  - Added continuous tactile tick feedback during brightness change.
+  - Integrated with `ShadeService.kt` and `SuperShadeAccessibilityService.kt`.
+- **Full Multi-Stream Volume Mixer & Alarm Stream**:
+  - Added dedicated Alarm stream volume slider to Sound Mode detail sheet (`QuickTileDetailSheet.kt`).
+  - Synchronized live volume queries and updates across Media, Ring, Notification, System, and Alarm streams via `AudioManager`.
+
+### 2026-10-06 — Antigravity (Gemini 3.8 Flash) — v1.9.34
 
 **Done:**
 - **In-Shade Live Notification Search & Contextual Filtering** (closes #3):

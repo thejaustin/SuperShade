@@ -577,6 +577,7 @@ class ShadeViewModel(
                         AudioManager.STREAM_RING -> detail.copy(ringVol = volume)
                         AudioManager.STREAM_NOTIFICATION -> detail.copy(notifVol = volume)
                         AudioManager.STREAM_SYSTEM -> detail.copy(sysVol = volume)
+                        AudioManager.STREAM_ALARM -> detail.copy(alarmVol = volume)
                         else -> detail
                     }
                 )
@@ -640,6 +641,8 @@ class ShadeViewModel(
         val notifMax = audioRepo?.getStreamMaxVolume(AudioManager.STREAM_NOTIFICATION) ?: (am?.getStreamMaxVolume(AudioManager.STREAM_NOTIFICATION) ?: 15)
         val sysVol = audioRepo?.getStreamVolume(AudioManager.STREAM_SYSTEM) ?: (am?.getStreamVolume(AudioManager.STREAM_SYSTEM) ?: 0)
         val sysMax = audioRepo?.getStreamMaxVolume(AudioManager.STREAM_SYSTEM) ?: (am?.getStreamMaxVolume(AudioManager.STREAM_SYSTEM) ?: 15)
+        val alarmVol = audioRepo?.getStreamVolume(AudioManager.STREAM_ALARM) ?: (am?.getStreamVolume(AudioManager.STREAM_ALARM) ?: 0)
+        val alarmMax = audioRepo?.getStreamMaxVolume(AudioManager.STREAM_ALARM) ?: (am?.getStreamMaxVolume(AudioManager.STREAM_ALARM) ?: 15)
 
         val modeLabel = when (currentRinger) {
             AudioManager.RINGER_MODE_VIBRATE -> "Vibrate"
@@ -663,6 +666,8 @@ class ShadeViewModel(
                     notifMaxVol = notifMax,
                     sysVol = sysVol,
                     sysMaxVol = sysMax,
+                    alarmVol = alarmVol,
+                    alarmMaxVol = alarmMax,
                     settingsAction = Settings.ACTION_SOUND_SETTINGS,
                 )
             )

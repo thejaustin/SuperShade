@@ -33,6 +33,12 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Check
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.widget.Toast
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -605,6 +611,59 @@ fun NotificationCard(
                                 }
                             }
 
+                            if (notification.isVipAlert) {
+                                Surface(
+                                    shape = shapes.chip,
+                                    color = when (shadeTheme) {
+                                        is ShadeTheme.Cyberpunk -> Color(0xFFFF0055).copy(alpha = 0.20f)
+                                        is ShadeTheme.Nothing -> Color(0xFFD71920).copy(alpha = 0.20f)
+                                        else -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f)
+                                    },
+                                    border = BorderStroke(
+                                        1.dp,
+                                        when (shadeTheme) {
+                                            is ShadeTheme.Cyberpunk -> Color(0xFFFF0055).copy(alpha = 0.60f)
+                                            is ShadeTheme.Nothing -> Color(0xFFD71920).copy(alpha = 0.50f)
+                                            else -> MaterialTheme.colorScheme.error.copy(alpha = 0.40f)
+                                        }
+                                    ),
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Warning,
+                                            contentDescription = "VIP Alert",
+                                            tint = when (shadeTheme) {
+                                                is ShadeTheme.Cyberpunk -> Color(0xFFFF0055)
+                                                is ShadeTheme.Nothing -> Color(0xFFD71920)
+                                                else -> MaterialTheme.colorScheme.error
+                                            },
+                                            modifier = Modifier.size(if (compact) 9.dp else 11.dp),
+                                        )
+                                        Text(
+                                            text = when (shadeTheme) {
+                                                is ShadeTheme.Cyberpunk -> "[VIP // ALERT]"
+                                                is ShadeTheme.Nothing -> "VIP"
+                                                else -> "Urgent"
+                                            },
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = if (compact) 8.5.sp else 9.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                            ),
+                                            color = when (shadeTheme) {
+                                                is ShadeTheme.Cyberpunk -> Color(0xFFFF0055)
+                                                is ShadeTheme.Nothing -> Color.White
+                                                else -> MaterialTheme.colorScheme.onErrorContainer
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+
                             val canExpand = notification.actions.isNotEmpty() || notification.picture != null || displayText.length > 50
                             val chevronRotation by animateFloatAsState(
                                 targetValue = if (expanded) 180f else 0f,
@@ -736,6 +795,73 @@ fun NotificationCard(
                         isIndeterminate = notification.isProgressIndeterminate,
                         shadeTheme = shadeTheme,
                     )
+                }
+
+                // Smart OTP / 2FA Verification Code Action Chip (NotiStar & Android 16 SystemUI style)
+                if (notification.otpCode != null) {
+                    val otp = notification.otpCode
+                    var isCopied by remember(otp) { mutableStateOf(false) }
+                    Surface(
+                        onClick = {
+                            haptics.tileToggleOn()
+                            try {
+                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("OTP Code", otp))
+                                isCopied = true
+                                Toast.makeText(context, "Copied $otp to clipboard", Toast.LENGTH_SHORT).show()
+                            } catch (_: Exception) {}
+                        },
+                        shape = when (shadeTheme) {
+                            is ShadeTheme.Cyberpunk -> ChamferedCornerShape(4.dp)
+                            is ShadeTheme.Nothing -> RoundedCornerShape(8.dp)
+                            is ShadeTheme.Pixel -> RoundedCornerShape(50)
+                            else -> RoundedCornerShape(12.dp)
+                        },
+                        color = when (shadeTheme) {
+                            is ShadeTheme.Cyberpunk -> if (isCopied) Color(0xFF00F0FF).copy(alpha = 0.25f) else Color(0xFF00F0FF).copy(alpha = 0.12f)
+                            is ShadeTheme.Nothing -> if (isCopied) Color(0xFFD71920) else Color(0xFF1E2126)
+                            else -> if (isCopied) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.85f)
+                        },
+                        border = BorderStroke(
+                            1.dp,
+                            when (shadeTheme) {
+                                is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF).copy(alpha = 0.80f)
+                                is ShadeTheme.Nothing -> Color.White.copy(alpha = 0.25f)
+                                else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.40f)
+                            }
+                        ),
+                        modifier = Modifier.padding(top = 6.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Icon(
+                                imageVector = if (isCopied) Icons.Default.Check else Icons.Default.ContentCopy,
+                                contentDescription = "Copy code",
+                                tint = when (shadeTheme) {
+                                    is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF)
+                                    is ShadeTheme.Nothing -> Color.White
+                                    else -> if (isCopied) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+                                },
+                                modifier = Modifier.size(15.dp),
+                            )
+                            Text(
+                                text = if (isCopied) "Copied $otp" else "Copy code: $otp",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk || shadeTheme is ShadeTheme.Nothing) FontFamily.Monospace else FontFamily.Default,
+                                    fontSize = 12.sp,
+                                ),
+                                color = when (shadeTheme) {
+                                    is ShadeTheme.Cyberpunk -> Color(0xFF00F0FF)
+                                    is ShadeTheme.Nothing -> Color.White
+                                    else -> if (isCopied) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+                                },
+                            )
+                        }
+                    }
                 }
 
                 // Settings & Snooze dropdown — shown on long-press (OS-style)

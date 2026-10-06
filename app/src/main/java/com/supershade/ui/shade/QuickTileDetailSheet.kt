@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DoNotDisturbOn
@@ -300,6 +301,8 @@ fun QuickTileDetailSheet(
                         notifMaxVol = detailState.notifMaxVol,
                         sysVol = detailState.sysVol,
                         sysMaxVol = detailState.sysMaxVol,
+                        alarmVol = detailState.alarmVol,
+                        alarmMaxVol = detailState.alarmMaxVol,
                         settingsAction = detailState.settingsAction,
                         onSetRingerMode = onSetRingerMode,
                         onSetStreamVolume = onSetStreamVolume,
@@ -824,6 +827,8 @@ private fun SoundModeDetailContent(
     notifMaxVol: Int,
     sysVol: Int,
     sysMaxVol: Int,
+    alarmVol: Int,
+    alarmMaxVol: Int,
     settingsAction: String?,
     onSetRingerMode: (Int) -> Unit,
     onSetStreamVolume: (Int, Int) -> Unit,
@@ -1012,6 +1017,16 @@ private fun SoundModeDetailContent(
                     current = sysVol,
                     max = sysMaxVol,
                     onVolumeChange = { onSetStreamVolume(android.media.AudioManager.STREAM_SYSTEM, it) },
+                    haptics = haptics,
+                )
+
+                // Alarm volume
+                VolumeStreamRow(
+                    label = "Alarm",
+                    icon = Icons.Default.Alarm,
+                    current = alarmVol,
+                    max = alarmMaxVol,
+                    onVolumeChange = { onSetStreamVolume(android.media.AudioManager.STREAM_ALARM, it) },
                     haptics = haptics,
                 )
             }

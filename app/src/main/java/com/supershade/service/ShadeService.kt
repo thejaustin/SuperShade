@@ -42,6 +42,7 @@ class ShadeService : Service() {
     private val connector: ShizukuPlusConnector by inject()
     private val settings: ShadeSettings by inject()
     private val notificationRepo: com.supershade.domain.notification.NotificationRepository by inject()
+    private val brightnessRepo: com.supershade.domain.brightness.BrightnessRepository by inject()
 
     // ShadeViewModel is a Koin singleton — resolved here so the service and the
     // ComposeView overlay share the exact same instance.
@@ -82,6 +83,11 @@ class ShadeService : Service() {
             isShadeOpen = { shadeViewModel.state.value.isOpen },
             splitGestureMode = { currentSplitMode },
             onSwipeDown = { expandQs -> shadeViewModel.open(expandQs) },
+            onBrightnessSwipe = { brightness ->
+                scope.launch(Dispatchers.IO) {
+                    brightnessRepo.set(brightness)
+                }
+            },
         )
         gestureOverlay?.attach()
 

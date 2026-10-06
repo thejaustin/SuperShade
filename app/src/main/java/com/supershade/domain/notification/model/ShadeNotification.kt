@@ -28,6 +28,8 @@ data class ShadeNotification(
     val picture: android.graphics.Bitmap? = null,
     val channelId: String? = null,
     val isOngoing: Boolean = false,
+    val otpCode: String? = null,
+    val isVipAlert: Boolean = false,
 )
 
 data class NotificationAction(
@@ -106,5 +108,7 @@ fun StatusBarNotification.toShadeNotification(category: ShadeCategory): ShadeNot
         picture = picture,
         channelId = notification.channelId,
         isOngoing = (notification.flags and Notification.FLAG_ONGOING_EVENT != 0) || !isClearable,
+        otpCode = com.supershade.domain.notification.OtpDetector.extractOtp(rawTitle, rawText, rawSubText),
+        isVipAlert = com.supershade.domain.notification.OtpDetector.isVipAlert(rawTitle, rawText, rawSubText),
     )
 }

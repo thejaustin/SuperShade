@@ -488,6 +488,44 @@ fun GroupedNotificationCard(
                                         else -> "${group.notifications.size}"
                                     }
 
+                                    val hasVip = group.notifications.any { it.isVipAlert }
+                                    val hasOtp = group.notifications.any { it.otpCode != null }
+                                    if (hasVip) {
+                                        Text(
+                                            text = if (shadeTheme is ShadeTheme.Cyberpunk) "[VIP]" else "VIP",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                                fontSize = if (compact) 9.sp else 10.sp,
+                                            ),
+                                            color = if (shadeTheme is ShadeTheme.Cyberpunk) Color(0xFFFF0055) else MaterialTheme.colorScheme.error,
+                                            modifier = Modifier
+                                                .clip(countBadgeShape)
+                                                .background(
+                                                    if (shadeTheme is ShadeTheme.Cyberpunk) Color(0xFFFF0055).copy(alpha = 0.20f)
+                                                    else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.70f)
+                                                )
+                                                .padding(horizontal = if (compact) 4.dp else 6.dp, vertical = 2.dp),
+                                        )
+                                    } else if (hasOtp) {
+                                        Text(
+                                            text = if (shadeTheme is ShadeTheme.Cyberpunk) "[OTP]" else "OTP",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                fontFamily = if (shadeTheme is ShadeTheme.Cyberpunk) FontFamily.Monospace else FontFamily.Default,
+                                                fontSize = if (compact) 9.sp else 10.sp,
+                                            ),
+                                            color = if (shadeTheme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF) else MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier
+                                                .clip(countBadgeShape)
+                                                .background(
+                                                    if (shadeTheme is ShadeTheme.Cyberpunk) Color(0xFF00F0FF).copy(alpha = 0.20f)
+                                                    else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.70f)
+                                                )
+                                                .padding(horizontal = if (compact) 4.dp else 6.dp, vertical = 2.dp),
+                                        )
+                                    }
+
                                     Text(
                                         text = badgeText,
                                         style = MaterialTheme.typography.labelSmall.copy(

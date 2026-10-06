@@ -25,6 +25,7 @@ class GestureOverlay(
     private val isShadeOpen: () -> Boolean = { false },
     private val splitGestureMode: () -> SplitGestureMode = { SplitGestureMode.SEPARATE_70_30 },
     private val onSwipeDown: (expandQs: Boolean) -> Unit,
+    private val onBrightnessSwipe: ((Int) -> Unit)? = null,
 ) {
 
     private val windowManager = context.getSystemService(WindowManager::class.java)
@@ -75,6 +76,8 @@ class GestureOverlay(
         var startX = 0f
         var startY = 0f
         var triggered = false
+        var isBrightnessScrubbing = false
+        var lastBrightnessStep = -1
         var velocityTracker: VelocityTracker? = null
         val density = context.resources.displayMetrics.density
         // Responsive pull threshold: 14dp downward motion
@@ -90,6 +93,8 @@ class GestureOverlay(
                         startX = event.rawX
                         startY = event.rawY
                         triggered = false
+                        isBrightnessScrubbing = false
+                        lastBrightnessStep = -1
                         velocityTracker?.recycle()
                         velocityTracker = VelocityTracker.obtain().apply {
                             addMovement(event)
@@ -108,8 +113,24 @@ class GestureOverlay(
                         velocityTracker?.computeCurrentVelocity(1000)
                         val yVelocity = velocityTracker?.yVelocity ?: 0f
 
-                        val isFlingDown = yVelocity > (750f * density) && deltaY > (8f * density) && deltaY > deltaX
-                        val isStandardPull = deltaY > dragThreshold && deltaY > deltaX * 1.05f
+                        // LineageOS & Good Lock QuickStar horizontal status bar scrub for brightness
+                        val isHorizontalScrub = deltaX > (22f * density) && deltaX > (kotlin.math.abs(deltaY) * 1.75f)
+                        if (!triggered && (isBrightnessScrubbing || isHorizontalScrub) && onBrightnessSwipe != null) {
+                            isBrightnessScrubbing = true
+                            val screenWidth = context.resources.displayMetrics.widthPixels.coerceAtLeast(1)
+                            val brightnessRatio = (event.rawX / screenWidth.toFloat()).coerceIn(0.04f, 1.0f)
+                            val brightnessLevel = (brightnessRatio * 255).toInt()
+                            val step = brightnessLevel / 20
+                            if (step != lastBrightnessStep) {
+                                lastBrightnessStep = step
+                                v.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                            }
+                            onBrightnessSwipe(brightnessLevel)
+                            return@setOnTouchListener true
+                        }
+
+                        val isFlingDown = !isBrightnessScrubbing && yVelocity > (750f * density) && deltaY > (8f * density) && deltaY > deltaX
+                        val isStandardPull = !isBrightnessScrubbing && deltaY > dragThreshold && deltaY > deltaX * 1.05f
 
                         // Fluid pull trigger: downward fling or standard downward gesture (> 46 degrees)
                         if (!triggered && (isFlingDown || isStandardPull)) {
@@ -144,6 +165,8 @@ class GestureOverlay(
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                         triggered = false
+                        isBrightnessScrubbing = false
+                        lastBrightnessStep = -1
                         velocityTracker?.recycle()
                         velocityTracker = null
                         true
